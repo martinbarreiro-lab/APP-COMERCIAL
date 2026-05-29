@@ -196,3 +196,8 @@ body { background:#f0f2f5; color:#1a1a1a; }
 .historial-lista-detalle { font-size:13px; color:#888; margin-bottom:8px; }
 .historial-lista-cambios { display:flex; flex-wrap:wrap; gap:6px; }
 .cambio-badge { background:#f0f0f0; color:#666; padding:3px 10px; border-radius:20px; font-size:12px; }
+
+/* ── PRECIOS DOS COLUMNAS ── */
+.precio-col { font-size:14px; }
+.precio-col small { color:#888; font-size:11px; }
+.desc-detalle { color:#888; font-size:11px; }
