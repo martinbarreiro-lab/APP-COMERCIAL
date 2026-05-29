@@ -80,24 +80,70 @@
     <!-- DASHBOARD -->
     <div id="page-dashboard" class="page active">
       <div class="kpi-grid">
-        <div class="kpi-card"><p class="kpi-label">Ventas del mes</p><p class="kpi-value" id="kpi-ventas">$0</p><p class="kpi-trend positive" id="kpi-ventas-trend"></p></div>
-        <div class="kpi-card"><p class="kpi-label">Por cobrar</p><p class="kpi-value danger" id="kpi-cobrar">$0</p><p class="kpi-sub" id="kpi-cobrar-sub"></p></div>
-        <div class="kpi-card"><p class="kpi-label">Pedidos hoy</p><p class="kpi-value" id="kpi-pedidos">0</p><p class="kpi-sub info" id="kpi-pedidos-sub"></p></div>
-        <div class="kpi-card"><p class="kpi-label">Para rendir</p><p class="kpi-value warning" id="kpi-rendir">$0</p><p class="kpi-sub">efectivo</p></div>
-        <div class="kpi-card admin-only"><p class="kpi-label">Comisiones mes</p><p class="kpi-value purple" id="kpi-comisiones-mes">$0</p></div>
-        <div class="kpi-card admin-only"><p class="kpi-label">Comisiones año</p><p class="kpi-value purple" id="kpi-comisiones-anio">$0</p><p class="kpi-sub">acumulado</p></div>
+        <div class="kpi-card">
+          <p class="kpi-label">Ventas del mes</p>
+          <p class="kpi-value" id="kpi-ventas">$0</p>
+          <p class="kpi-trend positive" id="kpi-ventas-trend"></p>
+        </div>
+        <div class="kpi-card">
+          <p class="kpi-label">Por cobrar</p>
+          <p class="kpi-value danger" id="kpi-cobrar">$0</p>
+          <p class="kpi-sub" id="kpi-cobrar-sub"></p>
+        </div>
+        <div class="kpi-card">
+          <p class="kpi-label">Pedidos hoy</p>
+          <p class="kpi-value" id="kpi-pedidos">0</p>
+          <p class="kpi-sub info" id="kpi-pedidos-sub"></p>
+        </div>
+        <div class="kpi-card">
+          <p class="kpi-label">Para rendir</p>
+          <p class="kpi-value warning" id="kpi-rendir">$0</p>
+          <p class="kpi-sub" id="kpi-rendir-sub">efectivo</p>
+        </div>
+        <div class="kpi-card admin-only">
+          <p class="kpi-label">Comisiones mes</p>
+          <p class="kpi-value purple" id="kpi-comisiones-mes">$0</p>
+          <p class="kpi-sub" id="kpi-comisiones-sub"></p>
+        </div>
+        <div class="kpi-card admin-only">
+          <p class="kpi-label">Comisiones año</p>
+          <p class="kpi-value purple" id="kpi-comisiones-anio">$0</p>
+          <p class="kpi-sub">acumulado</p>
+        </div>
       </div>
+
       <p class="section-title">Acciones rápidas</p>
       <div class="quick-actions">
-        <div class="quick-action" onclick="navegarA('nuevo-pedido')"><div class="quick-action-icon blue"><i class="ti ti-shopping-cart"></i></div><span>Pedido</span></div>
-        <div class="quick-action" onclick="navegarA('nuevo-cobro')"><div class="quick-action-icon green"><i class="ti ti-cash"></i></div><span>Cobro</span></div>
-        <div class="quick-action" onclick="navegarA('nueva-factura')"><div class="quick-action-icon amber"><i class="ti ti-file-invoice"></i></div><span>Factura</span></div>
-        <div class="quick-action" onclick="navegarA('entrega-dia')"><div class="quick-action-icon teal"><i class="ti ti-truck"></i></div><span>Entrega</span></div>
+        <div class="quick-action" onclick="navegarA('nuevo-pedido')">
+          <div class="quick-action-icon blue"><i class="ti ti-shopping-cart"></i></div>
+          <span>Pedido</span>
+        </div>
+        <div class="quick-action" onclick="navegarA('nuevo-cobro')">
+          <div class="quick-action-icon green"><i class="ti ti-cash"></i></div>
+          <span>Cobro</span>
+        </div>
+        <div class="quick-action" onclick="navegarA('nueva-factura')">
+          <div class="quick-action-icon amber"><i class="ti ti-file-invoice"></i></div>
+          <span>Factura</span>
+        </div>
+        <div class="quick-action" onclick="navegarA('entrega-dia')">
+          <div class="quick-action-icon teal"><i class="ti ti-truck"></i></div>
+          <span>Entrega</span>
+        </div>
       </div>
+
       <p class="section-title">Alertas</p>
-      <div id="alertas-container"><div class="skeleton-card"></div><div class="skeleton-card"></div></div>
+      <div id="alertas-container">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+
       <p class="section-title">Últimos pedidos</p>
-      <div id="ultimos-pedidos-container"><div class="skeleton-card"></div><div class="skeleton-card"></div></div>
+      <div id="ultimos-pedidos-container">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
     </div>
 
     <!-- PEDIDOS -->
@@ -110,29 +156,44 @@
         <button class="filter-tab" onclick="filtrarPedidos('entregado')">Entregado</button>
         <button class="filter-tab" onclick="filtrarPedidos('cobrado')">Cobrado</button>
       </div>
-      <div id="pedidos-container"><div class="skeleton-card"></div><div class="skeleton-card"></div></div>
+      <div id="pedidos-container">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
     </div>
 
-    <!-- NUEVO PEDIDO -->
+    <!-- NUEVO PEDIDO / CATÁLOGO -->
     <div id="page-nuevo-pedido" class="page">
       <div class="form-group">
         <label class="form-label">Cliente</label>
-        <select id="pedido-cliente" class="form-select" onchange="onClienteSeleccionado()"><option value="">Seleccioná un cliente...</option></select>
-        <div id="cliente-info" style="display:none;"><p class="badge-info" id="cliente-beneficio-badge"></p></div>
+        <select id="pedido-cliente" class="form-select" onchange="onClienteSeleccionado()">
+          <option value="">Seleccioná un cliente...</option>
+        </select>
+        <div id="cliente-info" style="display:none;">
+          <p class="badge-info" id="cliente-beneficio-badge"></p>
+        </div>
       </div>
       <div id="pedido-favoritos" style="display:none;">
-        <button class="btn btn-outline btn-sm" onclick="mostrarFavoritos()"><i class="ti ti-star"></i> Usar pedido favorito</button>
+        <button class="btn btn-outline btn-sm" onclick="mostrarFavoritos()">
+          <i class="ti ti-star"></i> Usar pedido favorito
+        </button>
       </div>
+
       <div id="catalogo-container" style="display:none;">
-        <div class="filter-tabs">
+        <div class="filter-tabs" id="cat-filtros">
           <button class="filter-tab active" onclick="filtrarCatalogo('todos')">Todos</button>
           <button class="filter-tab" onclick="filtrarCatalogo('Mantecas')">Mantecas</button>
           <button class="filter-tab" onclick="filtrarCatalogo('Crema de leche')">Crema</button>
           <button class="filter-tab" onclick="filtrarCatalogo('Dulce de leche')">Dulce</button>
         </div>
         <div id="productos-catalogo"></div>
+
         <div id="pedido-total-bar" class="total-bar" style="display:none;">
-          <div><p class="total-bar-items" id="total-bar-items">0 productos</p><p class="total-bar-amount" id="total-bar-amount">$0</p></div>
+          <div>
+            <p class="total-bar-items" id="total-bar-items">0 productos</p>
+            <p class="total-bar-amount" id="total-bar-amount">$0</p>
+          </div>
           <button class="btn btn-white" onclick="navegarA('resumen-pedido')">Ver pedido →</button>
         </div>
       </div>
@@ -142,18 +203,35 @@
     <div id="page-resumen-pedido" class="page">
       <div id="resumen-items-container"></div>
       <div class="card" id="resumen-calculos"></div>
-      <div class="form-group"><label class="form-label">Observaciones (opcional)</label><textarea id="pedido-obs" class="form-textarea" placeholder="Ej: entregar a partir de las 10hs..."></textarea></div>
+      <div class="form-group">
+        <label class="form-label">Observaciones (opcional)</label>
+        <textarea id="pedido-obs" class="form-textarea" placeholder="Ej: entregar a partir de las 10hs..."></textarea>
+      </div>
       <div class="btn-group">
-        <button class="btn btn-outline" onclick="enviarPresupuestoWhatsapp()"><i class="ti ti-brand-whatsapp"></i> Presupuesto</button>
+        <button class="btn btn-outline" onclick="enviarPresupuestoWhatsapp()">
+          <i class="ti ti-brand-whatsapp"></i> Presupuesto
+        </button>
         <button class="btn btn-primary" onclick="confirmarPedido()">Confirmar pedido</button>
       </div>
-      <button class="btn btn-ghost btn-full" onclick="guardarFavorito()"><i class="ti ti-star"></i> Guardar como favorito</button>
+      <button class="btn btn-ghost btn-full" onclick="guardarFavorito()">
+        <i class="ti ti-star"></i> Guardar como favorito
+      </button>
     </div>
 
     <!-- CLIENTES -->
     <div id="page-clientes" class="page">
-      <div class="search-bar"><i class="ti ti-search"></i><input type="text" id="clientes-search" placeholder="Buscar cliente..." oninput="buscarClientes(this.value)"></div>
-      <div id="clientes-container"><div class="skeleton-card"></div><div class="skeleton-card"></div></div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+        <button class="btn btn-primary btn-sm" onclick="navegarA('form-cliente')"><i class="ti ti-plus"></i> Nuevo cliente</button>
+      </div>
+      <div class="search-bar">
+        <i class="ti ti-search"></i>
+        <input type="text" id="clientes-search" placeholder="Buscar cliente..." oninput="buscarClientes(this.value)">
+      </div>
+      <div id="clientes-container">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
     </div>
 
     <!-- DETALLE CLIENTE -->
@@ -178,7 +256,9 @@
           <button class="btn btn-primary" onclick="nuevoPedidoCliente()">Nuevo pedido</button>
         </div>
       </div>
-      <div id="tab-pedidos-cliente" class="tab-content" style="display:none;"><div id="historial-pedidos-cliente"></div></div>
+      <div id="tab-pedidos-cliente" class="tab-content" style="display:none;">
+        <div id="historial-pedidos-cliente"></div>
+      </div>
       <div id="tab-pagos-cliente" class="tab-content" style="display:none;">
         <div class="kpi-grid">
           <div class="kpi-card"><p class="kpi-label">Total pagado</p><p class="kpi-value green" id="cli-total-pagado">$0</p></div>
@@ -186,39 +266,54 @@
         </div>
         <div id="historial-pagos-cliente"></div>
       </div>
-      <div id="tab-datos-cliente" class="tab-content" style="display:none;"><div id="datos-cliente-form"></div></div>
+      <div id="tab-datos-cliente" class="tab-content" style="display:none;">
+        <div id="datos-cliente-form"></div>
+      </div>
     </div>
 
-    <!-- FORM CLIENTE -->
+    <!-- NUEVO / EDITAR CLIENTE -->
     <div id="page-form-cliente" class="page">
       <div class="card">
         <p class="section-title-sm">Datos básicos</p>
         <div class="form-group"><label class="form-label">Razón social *</label><input type="text" id="cli-razon" class="form-input" placeholder="Nombre o empresa"></div>
         <div class="form-group"><label class="form-label">CUIT</label><input type="text" id="cli-cuit" class="form-input" placeholder="30-12345678-9"></div>
-        <div class="form-group"><label class="form-label">Teléfono</label><input type="tel" id="cli-tel" class="form-input"></div>
-        <div class="form-group"><label class="form-label">WhatsApp</label><input type="tel" id="cli-wa" class="form-input"></div>
-        <div class="form-group"><label class="form-label">Email</label><input type="email" id="cli-email" class="form-input"></div>
-        <div class="form-group"><label class="form-label">Dirección de entrega</label><input type="text" id="cli-dir-entrega" class="form-input"></div>
-        <div class="form-group"><label class="form-label">Dirección de facturación</label><input type="text" id="cli-dir-fact" class="form-input"></div>
+        <div class="form-group"><label class="form-label">Teléfono</label><input type="tel" id="cli-tel" class="form-input" placeholder="+54 341 555-0000"></div>
+        <div class="form-group"><label class="form-label">WhatsApp</label><input type="tel" id="cli-wa" class="form-input" placeholder="+54 341 555-0000"></div>
+        <div class="form-group"><label class="form-label">Email</label><input type="email" id="cli-email" class="form-input" placeholder="cliente@email.com"></div>
+        <div class="form-group"><label class="form-label">Dirección de entrega</label><input type="text" id="cli-dir-entrega" class="form-input" placeholder="Calle y número"></div>
+        <div class="form-group"><label class="form-label">Dirección de facturación</label><input type="text" id="cli-dir-fact" class="form-input" placeholder="Igual a entrega si no cambia"></div>
       </div>
       <div class="card">
         <p class="section-title-sm">Beneficio comercial</p>
         <div class="radio-group">
-          <label class="radio-option" onclick="selBeneficio('descuento_pct')"><div class="radio-dot" id="rd-descuento_pct"></div><div><p class="radio-title">Descuento en precio %</p><p class="radio-sub">Se reduce el precio de lista</p></div></label>
-          <div id="campo-descuento_pct" style="display:none;" class="field-indent"><div class="form-group"><label class="form-label">Descuento %</label><input type="number" id="cli-beneficio-pct" class="form-input" min="0" max="50"></div></div>
-          <label class="radio-option" onclick="selBeneficio('bonificacion_kg')"><div class="radio-dot" id="rd-bonificacion_kg"></div><div><p class="radio-title">Bonificación en kg %</p><p class="radio-sub">Se entrega más cantidad sin costo</p></div></label>
-          <div id="campo-bonificacion_kg" style="display:none;" class="field-indent"><div class="form-group"><label class="form-label">Bonificación %</label><input type="number" id="cli-bonif-pct" class="form-input" min="0" max="50"></div></div>
-          <label class="radio-option" onclick="selBeneficio('ninguno')"><div class="radio-dot" id="rd-ninguno"></div><div><p class="radio-title">Sin beneficio</p><p class="radio-sub">Precio de lista sin modificaciones</p></div></label>
+          <label class="radio-option" onclick="selBeneficio('descuento_pct')">
+            <div class="radio-dot" id="rd-descuento_pct"></div>
+            <div><p class="radio-title">Descuento en precio %</p><p class="radio-sub">Se reduce el precio de lista</p></div>
+          </label>
+          <div id="campo-descuento_pct" style="display:none;" class="field-indent">
+            <div class="form-group"><label class="form-label">Descuento %</label><input type="number" id="cli-beneficio-pct" class="form-input" min="0" max="50" placeholder="8"></div>
+          </div>
+          <label class="radio-option" onclick="selBeneficio('bonificacion_kg')">
+            <div class="radio-dot" id="rd-bonificacion_kg"></div>
+            <div><p class="radio-title">Bonificación en kg %</p><p class="radio-sub">Se entrega más cantidad sin costo</p></div>
+          </label>
+          <div id="campo-bonificacion_kg" style="display:none;" class="field-indent">
+            <div class="form-group"><label class="form-label">Bonificación %</label><input type="number" id="cli-bonif-pct" class="form-input" min="0" max="50" placeholder="10"></div>
+          </div>
+          <label class="radio-option" onclick="selBeneficio('ninguno')">
+            <div class="radio-dot" id="rd-ninguno"></div>
+            <div><p class="radio-title">Sin beneficio</p><p class="radio-sub">Precio de lista sin modificaciones</p></div>
+          </label>
         </div>
       </div>
       <div class="card">
         <p class="section-title-sm">Configuración de IVA</p>
         <div class="segment-control">
-          <button class="segment-btn" id="iva-mixto" onclick="selIva('mixto')">IVA mixto<br><small>10,5% ef.</small></button>
+          <button class="segment-btn active" id="iva-mixto" onclick="selIva('mixto')">IVA mixto<br><small>10,5% ef.</small></button>
           <button class="segment-btn" id="iva-completo" onclick="selIva('completo')">IVA 21%<br><small>completo</small></button>
-          <button class="segment-btn active" id="iva-sin_iva" onclick="selIva('sin_iva')">Sin IVA<br><small>exento</small></button>
+          <button class="segment-btn" id="iva-sin_iva" onclick="selIva('sin_iva')">Sin IVA<br><small>exento</small></button>
         </div>
-        <div id="iva-descripcion" class="info-box blue" style="margin-top:8px;"></div>
+        <div id="iva-descripcion" class="info-box blue"></div>
       </div>
       <div class="card">
         <p class="section-title-sm">Objetivo mensual</p>
@@ -228,7 +323,10 @@
       <div class="card">
         <p class="section-title-sm">Acceso al portal</p>
         <div class="form-group"><label class="form-label">Email de acceso</label><input type="email" id="cli-email-portal" class="form-input" placeholder="Email para que el cliente inicie sesión"></div>
-        <div class="toggle-row"><span>Activar portal del cliente</span><label class="toggle"><input type="checkbox" id="cli-tiene-portal"><span class="toggle-slider"></span></label></div>
+        <div class="toggle-row">
+          <span>Activar portal del cliente</span>
+          <label class="toggle"><input type="checkbox" id="cli-tiene-portal"><span class="toggle-slider"></span></label>
+        </div>
       </div>
       <div class="card">
         <p class="section-title-sm">Notas internas</p>
@@ -245,39 +343,58 @@
         <div class="kpi-card"><p class="kpi-label">Para rendir</p><p class="kpi-value warning" id="cobros-kpi-rendir">$0</p></div>
         <div class="kpi-card admin-only"><p class="kpi-label">Comisión a retirar</p><p class="kpi-value purple" id="cobros-kpi-comision">$0</p></div>
       </div>
-      <p class="section-title">Urgentes</p>
+      <p class="section-title">Pendientes urgentes</p>
       <div id="cobros-urgentes"></div>
       <p class="section-title">Últimos cobros</p>
       <div id="cobros-recientes"></div>
     </div>
 
-    <!-- NUEVO COBRO -->
+    <!-- REGISTRAR COBRO -->
     <div id="page-nuevo-cobro" class="page">
-      <div class="card"><p class="section-title-sm">Pedido a cobrar</p><div id="cobro-pedido-info"></div></div>
-      <div class="card"><p class="section-title-sm">Documentos</p><div id="cobro-documentos"></div></div>
+      <div class="card">
+        <p class="section-title-sm">Pedido a cobrar</p>
+        <div id="cobro-pedido-info"></div>
+      </div>
+      <div class="card">
+        <p class="section-title-sm">Documentos</p>
+        <div id="cobro-documentos"></div>
+      </div>
       <div class="card">
         <p class="section-title-sm">Registrar cobro</p>
-        <div class="form-group"><label class="form-label">Forma de pago</label>
+        <div class="form-group">
+          <label class="form-label">Forma de pago</label>
           <div class="segment-control">
             <button class="segment-btn active" id="fp-transferencia" onclick="selFormaPago('transferencia')">Transferencia</button>
             <button class="segment-btn" id="fp-efectivo" onclick="selFormaPago('efectivo')">Efectivo</button>
             <button class="segment-btn" id="fp-cheque" onclick="selFormaPago('cheque')">Cheque</button>
           </div>
         </div>
-        <div class="form-group"><label class="form-label">Monto cobrado</label><input type="number" id="cobro-monto" class="form-input" placeholder="0.00"></div>
-        <div class="form-group"><label class="form-label">Fecha de cobro</label><input type="date" id="cobro-fecha" class="form-input"></div>
+        <div class="form-group">
+          <label class="form-label">Monto cobrado</label>
+          <input type="number" id="cobro-monto" class="form-input" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha de cobro</label>
+          <input type="date" id="cobro-fecha" class="form-input">
+        </div>
         <div class="form-group" id="cobro-foto-group">
           <label class="form-label" id="cobro-foto-label">Foto del comprobante</label>
-          <div class="file-upload" onclick="subirFoto('cobro-comprobante')"><i class="ti ti-camera"></i><span id="cobro-foto-nombre">Tocar para subir foto</span></div>
+          <div class="file-upload" onclick="subirFoto('cobro-comprobante')">
+            <i class="ti ti-camera"></i>
+            <span id="cobro-foto-nombre">Tocar para subir foto</span>
+          </div>
           <input type="file" id="cobro-comprobante" accept="image/*" capture="environment" style="display:none;" onchange="onFotoSeleccionada(this,'cobro-foto-nombre')">
         </div>
-        <div class="form-group"><label class="form-label">Notas (opcional)</label><input type="text" id="cobro-notas" class="form-input" placeholder="Ej: cheque diferido al 30/06"></div>
+        <div class="form-group">
+          <label class="form-label">Notas (opcional)</label>
+          <input type="text" id="cobro-notas" class="form-input" placeholder="Ej: cheque diferido al 30/06">
+        </div>
         <div class="info-box purple admin-only" id="cobro-comision-preview"></div>
       </div>
       <button class="btn btn-primary btn-full" onclick="guardarCobro()">Registrar cobro</button>
     </div>
 
-    <!-- FACTURAS -->
+    <!-- FACTURAS Y REMITOS -->
     <div id="page-facturas" class="page">
       <div class="filter-tabs">
         <button class="filter-tab active" onclick="filtrarDocs('todos')">Todos</button>
@@ -285,39 +402,71 @@
         <button class="filter-tab" onclick="filtrarDocs('remito')">Remitos</button>
         <button class="filter-tab" onclick="filtrarDocs('pendiente')">Pendientes</button>
       </div>
-      <div id="facturas-container"><div class="skeleton-card"></div><div class="skeleton-card"></div></div>
+      <div id="facturas-container">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
     </div>
 
-    <!-- NUEVA FACTURA -->
+    <!-- NUEVA FACTURA / REMITO -->
     <div id="page-nueva-factura" class="page">
       <div class="card">
-        <div class="form-group"><label class="form-label">Tipo de documento</label>
+        <div class="form-group">
+          <label class="form-label">Tipo de documento</label>
           <div class="segment-control">
             <button class="segment-btn active" id="doc-factura" onclick="selTipoDoc('factura')">Factura</button>
             <button class="segment-btn" id="doc-remito" onclick="selTipoDoc('remito')">Remito</button>
           </div>
         </div>
-        <div class="form-group"><label class="form-label">Pedido asociado</label><select id="doc-pedido" class="form-select" onchange="onPedidoDocSeleccionado()"><option value="">Seleccioná un pedido...</option></select></div>
+        <div class="form-group">
+          <label class="form-label">Pedido asociado</label>
+          <select id="doc-pedido" class="form-select" onchange="onPedidoDocSeleccionado()">
+            <option value="">Seleccioná un pedido...</option>
+          </select>
+        </div>
         <div id="doc-verificacion" style="display:none;" class="info-box"></div>
-        <div class="form-group"><label class="form-label">Número de documento</label><input type="text" id="doc-numero" class="form-input" placeholder="Ej: FC-0001"></div>
-        <div class="form-group"><label class="form-label">Fecha de emisión</label><input type="date" id="doc-fecha-emision" class="form-input"></div>
-        <div class="form-group"><label class="form-label">Fecha de vencimiento</label><input type="date" id="doc-fecha-vto" class="form-input"></div>
-        <div class="form-group"><label class="form-label">Monto</label><input type="number" id="doc-monto" class="form-input" placeholder="0.00"></div>
+        <div class="form-group">
+          <label class="form-label">Número de documento</label>
+          <input type="text" id="doc-numero" class="form-input" placeholder="Ej: FC-0001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha de emisión</label>
+          <input type="date" id="doc-fecha-emision" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fecha de vencimiento</label>
+          <input type="date" id="doc-fecha-vto" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Monto</label>
+          <input type="number" id="doc-monto" class="form-input" placeholder="0.00">
+        </div>
         <div class="form-group">
           <label class="form-label">Archivo (foto o PDF)</label>
-          <div class="file-upload" onclick="subirFoto('doc-archivo')"><i class="ti ti-upload"></i><span id="doc-archivo-nombre">Tocar para subir archivo</span></div>
+          <div class="file-upload" onclick="subirFoto('doc-archivo')">
+            <i class="ti ti-upload"></i>
+            <span id="doc-archivo-nombre">Tocar para subir archivo</span>
+          </div>
           <input type="file" id="doc-archivo" accept="image/*,application/pdf" style="display:none;" onchange="onFotoSeleccionada(this,'doc-archivo-nombre')">
         </div>
-        <div class="form-group"><label class="form-label">Notas</label><input type="text" id="doc-notas" class="form-input" placeholder="Observaciones..."></div>
+        <div class="form-group">
+          <label class="form-label">Notas</label>
+          <input type="text" id="doc-notas" class="form-input" placeholder="Observaciones...">
+        </div>
       </div>
       <button class="btn btn-primary btn-full" onclick="guardarDocumento()">Guardar documento</button>
     </div>
 
-    <!-- ENTREGA DÍA -->
+    <!-- ENTREGA DEL DÍA -->
     <div id="page-entrega-dia" class="page">
-      <button class="btn btn-primary btn-full btn-lg" onclick="avisarCamionCargado()"><i class="ti ti-truck"></i> Camión cargado — avisar a clientes</button>
+      <button class="btn btn-primary btn-full btn-lg" onclick="avisarCamionCargado()" id="btn-camion">
+        <i class="ti ti-truck"></i> Camión cargado — avisar a clientes
+      </button>
       <p class="section-title">Entregas de hoy</p>
-      <div id="entregas-hoy-container"><div class="skeleton-card"></div><div class="skeleton-card"></div></div>
+      <div id="entregas-hoy-container">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
     </div>
 
     <!-- RECLAMOS -->
@@ -327,7 +476,9 @@
         <button class="filter-tab" onclick="filtrarReclamos('entrega_pendiente')">Pendiente entrega</button>
         <button class="filter-tab" onclick="filtrarReclamos('cerrado')">Cerrados</button>
       </div>
-      <div id="reclamos-container"><div class="skeleton-card"></div></div>
+      <div id="reclamos-container">
+        <div class="skeleton-card"></div>
+      </div>
     </div>
 
     <!-- PRODUCTOS -->
@@ -338,23 +489,46 @@
         <button class="filter-tab" onclick="filtrarProductos('Crema de leche')">Crema</button>
         <button class="filter-tab" onclick="filtrarProductos('Dulce de leche')">Dulce</button>
       </div>
-      <div id="productos-container"><div class="skeleton-card"></div><div class="skeleton-card"></div></div>
+      <div id="productos-container">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
     </div>
 
     <!-- REPORTES -->
     <div id="page-reportes" class="page">
       <div class="card">
         <p class="section-title-sm">Filtros</p>
-        <div class="form-group"><label class="form-label">Desde</label><input type="date" id="rep-desde" class="form-input"></div>
-        <div class="form-group"><label class="form-label">Hasta</label><input type="date" id="rep-hasta" class="form-input"></div>
-        <div class="form-group"><label class="form-label">Cliente (opcional)</label><select id="rep-cliente" class="form-select"><option value="">Todos los clientes</option></select></div>
-        <div class="form-group"><label class="form-label">Estado</label><select id="rep-estado" class="form-select"><option value="">Todos</option><option value="cobrado">Cobrado</option><option value="pendiente">Pendiente</option></select></div>
+        <div class="form-group">
+          <label class="form-label">Desde</label>
+          <input type="date" id="rep-desde" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Hasta</label>
+          <input type="date" id="rep-hasta" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Cliente (opcional)</label>
+          <select id="rep-cliente" class="form-select">
+            <option value="">Todos los clientes</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estado</label>
+          <select id="rep-estado" class="form-select">
+            <option value="">Todos</option>
+            <option value="cobrado">Cobrado</option>
+            <option value="pendiente">Pendiente</option>
+          </select>
+        </div>
         <button class="btn btn-primary btn-full" onclick="generarReporte()">Ver reporte</button>
       </div>
       <div id="reporte-resultado" style="display:none;">
         <div id="reporte-resumen"></div>
         <div id="reporte-detalle"></div>
-        <button class="btn btn-outline btn-full" onclick="descargarReportePDF()"><i class="ti ti-download"></i> Descargar PDF</button>
+        <button class="btn btn-outline btn-full" onclick="descargarReportePDF()">
+          <i class="ti ti-download"></i> Descargar PDF
+        </button>
       </div>
     </div>
 
@@ -366,10 +540,12 @@
       </div>
       <p class="section-title">Cobros pendientes de rendir</p>
       <div id="rendicion-container"></div>
-      <button class="btn btn-primary btn-full" id="btn-rendir" onclick="procesarRendicion()" style="display:none;">Confirmar rendición</button>
+      <button class="btn btn-primary btn-full" id="btn-rendir" onclick="procesarRendicion()" style="display:none;">
+        Confirmar rendición
+      </button>
     </div>
 
-    <!-- COMISIONES -->
+    <!-- COMISIONES (solo admin) -->
     <div id="page-comisiones" class="page admin-only">
       <div class="filter-tabs">
         <button class="filter-tab active" onclick="filtrarComisiones('mes')">Este mes</button>
@@ -383,7 +559,7 @@
       </div>
       <p class="section-title">Por cliente</p>
       <div id="comisiones-por-cliente"></div>
-      <p class="section-title">Detalle</p>
+      <p class="section-title">Detalle de comisiones</p>
       <div id="comisiones-detalle"></div>
     </div>
 
@@ -393,53 +569,104 @@
       <div id="hoja-ruta-container"></div>
     </div>
 
-    <!-- MÁS -->
+    <!-- MÁS / MENÚ -->
     <div id="page-mas" class="page">
       <p class="section-title">Gestión</p>
       <div class="menu-list">
-        <div class="menu-item" onclick="navegarA('productos')"><div class="menu-item-icon purple"><i class="ti ti-package"></i></div><div class="menu-item-text"><p>Productos</p><span>Precios, costos y lista La Cabaña</span></div><i class="ti ti-chevron-right"></i></div>
-        <div class="menu-item" onclick="navegarA('facturas')"><div class="menu-item-icon amber"><i class="ti ti-file-invoice"></i></div><div class="menu-item-text"><p>Facturas y remitos</p><span>Cargar, verificar y seguimiento</span></div><i class="ti ti-chevron-right"></i></div>
-        <div class="menu-item" onclick="navegarA('reclamos')"><div class="menu-item-icon red"><i class="ti ti-arrows-exchange"></i></div><div class="menu-item-text"><p>Reclamos</p><span>Faltantes y entregas pendientes</span></div><div class="menu-item-badge" id="badge-reclamos" style="display:none;"></div><i class="ti ti-chevron-right"></i></div>
+        <div class="menu-item" onclick="navegarA('productos')">
+          <div class="menu-item-icon purple"><i class="ti ti-package"></i></div>
+          <div class="menu-item-text"><p>Productos</p><span>Precios, costos y lista La Cabaña</span></div>
+          <i class="ti ti-chevron-right"></i>
+        </div>
+        <div class="menu-item" onclick="navegarA('facturas')">
+          <div class="menu-item-icon amber"><i class="ti ti-file-invoice"></i></div>
+          <div class="menu-item-text"><p>Facturas y remitos</p><span>Cargar, verificar y seguimiento</span></div>
+          <i class="ti ti-chevron-right"></i>
+        </div>
+        <div class="menu-item" onclick="navegarA('reclamos')">
+          <div class="menu-item-icon red"><i class="ti ti-arrows-exchange"></i></div>
+          <div class="menu-item-text"><p>Reclamos</p><span>Faltantes y entregas pendientes</span></div>
+          <div class="menu-item-badge" id="badge-reclamos" style="display:none;"></div>
+          <i class="ti ti-chevron-right"></i>
+        </div>
       </div>
+
       <p class="section-title">Análisis</p>
       <div class="menu-list">
-        <div class="menu-item" onclick="navegarA('reportes')"><div class="menu-item-icon blue"><i class="ti ti-chart-bar"></i></div><div class="menu-item-text"><p>Reportes</p><span>Ventas, márgenes y clientes top</span></div><i class="ti ti-chevron-right"></i></div>
-        <div class="menu-item" onclick="navegarA('rendicion')"><div class="menu-item-icon amber"><i class="ti ti-coin"></i></div><div class="menu-item-text"><p>Rendición</p><span>Efectivo · Transferencias · Fechas</span></div><i class="ti ti-chevron-right"></i></div>
-        <div class="menu-item admin-only" onclick="navegarA('comisiones')"><div class="menu-item-icon purple"><i class="ti ti-percentage"></i></div><div class="menu-item-text"><p>Mis comisiones</p><span>Por pedido, mes y año</span></div><i class="ti ti-chevron-right"></i></div>
+        <div class="menu-item" onclick="navegarA('reportes')">
+          <div class="menu-item-icon blue"><i class="ti ti-chart-bar"></i></div>
+          <div class="menu-item-text"><p>Reportes</p><span>Ventas, márgenes y clientes top</span></div>
+          <i class="ti ti-chevron-right"></i>
+        </div>
+        <div class="menu-item" onclick="navegarA('rendicion')">
+          <div class="menu-item-icon amber"><i class="ti ti-coin"></i></div>
+          <div class="menu-item-text"><p>Rendición</p><span>Efectivo · Transferencias · Fechas</span></div>
+          <i class="ti ti-chevron-right"></i>
+        </div>
+        <div class="menu-item admin-only" onclick="navegarA('comisiones')">
+          <div class="menu-item-icon purple"><i class="ti ti-percentage"></i></div>
+          <div class="menu-item-text"><p>Mis comisiones</p><span>Por pedido, mes y año</span></div>
+          <i class="ti ti-chevron-right"></i>
+        </div>
       </div>
+
       <p class="section-title">Entregas</p>
       <div class="menu-list">
-        <div class="menu-item" onclick="navegarA('hoja-ruta')"><div class="menu-item-icon teal"><i class="ti ti-truck"></i></div><div class="menu-item-text"><p>Hoja de ruta del día</p><span>Entregas ordenadas</span></div><i class="ti ti-chevron-right"></i></div>
+        <div class="menu-item" onclick="navegarA('hoja-ruta')">
+          <div class="menu-item-icon teal"><i class="ti ti-truck"></i></div>
+          <div class="menu-item-text"><p>Hoja de ruta del día</p><span>Entregas ordenadas</span></div>
+          <i class="ti ti-chevron-right"></i>
+        </div>
       </div>
+
       <p class="section-title admin-only">Configuración</p>
       <div class="menu-list admin-only">
-        <div class="menu-item" onclick="navegarA('config')"><div class="menu-item-icon gray"><i class="ti ti-settings"></i></div><div class="menu-item-text"><p>Configuración</p><span>Comisión, distribuidores y lista de precios</span></div><i class="ti ti-chevron-right"></i></div>
+        <div class="menu-item" onclick="navegarA('config')">
+          <div class="menu-item-icon gray"><i class="ti ti-settings"></i></div>
+          <div class="menu-item-text"><p>Configuración</p><span>Comisión, distribuidores y lista de precios</span></div>
+          <i class="ti ti-chevron-right"></i>
+        </div>
       </div>
-      <button class="btn btn-outline btn-full" style="margin-top:16px;" onclick="cerrarSesion()"><i class="ti ti-logout"></i> Cerrar sesión</button>
+
+      <button class="btn btn-outline btn-full" style="margin-top:16px;" onclick="cerrarSesion()">
+        <i class="ti ti-logout"></i> Cerrar sesión
+      </button>
     </div>
 
-    <!-- CONFIGURACIÓN -->
+    <!-- CONFIGURACIÓN (admin) -->
     <div id="page-config" class="page admin-only">
       <div class="card">
         <p class="section-title-sm">Comisión</p>
-        <div class="form-group"><label class="form-label">Porcentaje de comisión</label><div class="input-with-suffix"><input type="number" id="config-comision" class="form-input" min="0" max="100" step="0.1"><span class="input-suffix">%</span></div></div>
+        <div class="form-group">
+          <label class="form-label">Porcentaje de comisión</label>
+          <div class="input-with-suffix">
+            <input type="number" id="config-comision" class="form-input" min="0" max="100" step="0.1">
+            <span class="input-suffix">%</span>
+          </div>
+        </div>
         <button class="btn btn-primary" onclick="guardarConfig()">Guardar</button>
       </div>
       <div class="card">
         <p class="section-title-sm">Distribuidores</p>
         <div id="distribuidores-lista"></div>
-        <button class="btn btn-outline btn-sm" onclick="agregarDistribuidor()"><i class="ti ti-plus"></i> Agregar distribuidor</button>
+        <button class="btn btn-outline btn-sm" onclick="agregarDistribuidor()">
+          <i class="ti ti-plus"></i> Agregar distribuidor
+        </button>
       </div>
       <div class="card">
         <p class="section-title-sm">Lista de precios</p>
         <p class="form-hint">Actualizá los precios de todos los productos de una vez</p>
-        <button class="btn btn-outline btn-full" onclick="navegarA('actualizar-precios')"><i class="ti ti-list-check"></i> Actualizar lista de precios</button>
+        <button class="btn btn-outline btn-full" onclick="navegarA('actualizar-precios')">
+          <i class="ti ti-list-check"></i> Actualizar lista de precios
+        </button>
       </div>
     </div>
 
     <!-- ACTUALIZAR PRECIOS -->
     <div id="page-actualizar-precios" class="page admin-only">
-      <div class="info-box blue" style="margin-bottom:12px;"><p>Ingresá el nuevo precio de lista para cada producto.</p></div>
+      <div class="info-box blue" style="margin-bottom:12px;">
+        <p>Ingresá el nuevo precio de lista para cada producto. Dejá en blanco los que no cambian.</p>
+      </div>
       <div id="precios-form-container"></div>
       <button class="btn btn-primary btn-full" onclick="guardarListaPrecios()">Guardar nueva lista de precios</button>
     </div>
@@ -447,7 +674,9 @@
     <!-- PORTAL CLIENTE -->
     <div id="page-portal-cliente" class="page">
       <div id="portal-objetivo-section"></div>
-      <button class="btn btn-primary btn-full" onclick="navegarA('nuevo-pedido')" style="margin-bottom:12px;">+ Hacer nuevo pedido</button>
+      <button class="btn btn-primary btn-full" onclick="navegarA('nuevo-pedido')" style="margin-bottom:12px;">
+        + Hacer nuevo pedido
+      </button>
       <p class="section-title">Mis pedidos</p>
       <div id="portal-pedidos"></div>
       <p class="section-title">Mis facturas</p>
@@ -460,25 +689,43 @@
 
   <!-- BOTTOM NAV -->
   <nav class="bottom-nav" id="bottom-nav">
-    <button class="nav-item active" id="nav-dashboard" onclick="navegarA('dashboard')"><i class="ti ti-home"></i><span>Inicio</span></button>
-    <button class="nav-item" id="nav-pedidos" onclick="navegarA('pedidos')"><i class="ti ti-shopping-cart"></i><span>Pedidos</span></button>
-    <button class="nav-item" id="nav-clientes" onclick="navegarA('clientes')"><i class="ti ti-users"></i><span>Clientes</span></button>
-    <button class="nav-item" id="nav-cobros" onclick="navegarA('cobros')"><i class="ti ti-cash"></i><span>Cobros</span></button>
-    <button class="nav-item" id="nav-mas" onclick="navegarA('mas')"><i class="ti ti-grid-dots"></i><span>Más</span></button>
+    <button class="nav-item active" id="nav-dashboard" onclick="navegarA('dashboard')">
+      <i class="ti ti-home"></i>
+      <span>Inicio</span>
+    </button>
+    <button class="nav-item" id="nav-pedidos" onclick="navegarA('pedidos')">
+      <i class="ti ti-shopping-cart"></i>
+      <span>Pedidos</span>
+    </button>
+    <button class="nav-item" id="nav-clientes" onclick="navegarA('clientes')">
+      <i class="ti ti-users"></i>
+      <span>Clientes</span>
+    </button>
+    <button class="nav-item" id="nav-cobros" onclick="navegarA('cobros')">
+      <i class="ti ti-cash"></i>
+      <span>Cobros</span>
+    </button>
+    <button class="nav-item" id="nav-mas" onclick="navegarA('mas')">
+      <i class="ti ti-grid-dots"></i>
+      <span>Más</span>
+    </button>
   </nav>
 
 </div>
 
-<!-- MODAL -->
+<!-- MODAL GENÉRICO -->
 <div id="modal-overlay" class="modal-overlay" style="display:none;" onclick="cerrarModal()">
   <div class="modal-card" onclick="event.stopPropagation()">
-    <div class="modal-header"><h3 id="modal-titulo"></h3><button class="modal-close" onclick="cerrarModal()"><i class="ti ti-x"></i></button></div>
+    <div class="modal-header">
+      <h3 id="modal-titulo"></h3>
+      <button class="modal-close" onclick="cerrarModal()"><i class="ti ti-x"></i></button>
+    </div>
     <div id="modal-contenido"></div>
     <div id="modal-acciones" class="modal-actions"></div>
   </div>
 </div>
 
-<!-- TOAST -->
+<!-- TOAST NOTIFICATIONS -->
 <div id="toast-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
