@@ -259,3 +259,14 @@ body { background:#f0f2f5; color:#1a1a1a; }
 
 /* Padding bottom para que la barra no tape contenido */
 #vista-nuevo-pedido { padding-bottom:80px; }
+
+/* ── LISTA CLIENTES EN PEDIDO ── */
+.lista-clientes-pedido { max-height:320px; overflow-y:auto; border:1px solid #e0e0e0; border-radius:10px; background:white; margin-top:8px; }
+.resultado-cliente { padding:14px 16px; border-bottom:1px solid #f0f0f0; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition:background 0.15s; }
+.resultado-cliente:hover { background:#f0f7f4; }
+.resultado-cliente:last-child { border-bottom:none; }
+.resultado-cliente-info { display:flex; flex-direction:column; gap:4px; }
+.resultado-cliente-nombre { font-size:15px; font-weight:bold; color:#1a1a1a; }
+.resultado-cliente-badges { display:flex; gap:6px; flex-wrap:wrap; }
+.resultado-cliente-arrow { font-size:22px; color:#ccc; }
+.cliente-sel-nombre { font-size:16px; font-weight:bold; }
