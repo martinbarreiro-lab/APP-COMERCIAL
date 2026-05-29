@@ -800,20 +800,19 @@ async function cargarRolUsuario() {
 async function cargarProductos() {
   mostrarVistaProductos('catalogo')
   const rol = await cargarRolUsuario()
-
-  // Mostrar botón actualizar solo al admin
   const btnActualizar = document.getElementById('btn-actualizar-precios')
   if (btnActualizar) btnActualizar.style.display = rol === 'admin' ? 'block' : 'none'
 
-  const { data: categorias } = await db.from('categorias').select('id, nombre').order('orden')
-  const { data: productos }  = await db.from('productos').select('*, categorias(nombre)').order('descripcion')
+  const { data: productos } = await db.from('productos')
+    .select('*, categorias(nombre, orden)')
+    .order('descripcion')
 
   if (!productos || productos.length === 0) {
     document.getElementById('lista-productos').innerHTML = '<p class="vacio">No hay productos cargados</p>'
     return
   }
 
-  // Agrupar por categoría
+  // Agrupar por categoría manteniendo orden
   const porCategoria = {}
   productos.forEach(p => {
     const cat = p.categorias?.nombre || 'Sin categoría'
@@ -826,18 +825,42 @@ async function cargarProductos() {
     html += `<div class="categoria-grupo">
       <div class="categoria-titulo">${cat}</div>
       <table class="tabla">
-        <thead><tr><th>Código</th><th>Descripción</th><th>Precio</th><th>Unidad</th><th>Últ. actualización</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Descripción</th>
+            <th>Precio unitario</th>
+            <th>Precio por caja</th>
+            <th>Últ. actualización</th>
+          </tr>
+        </thead>
         <tbody>
-          ${prods.map(p => `<tr>
-            <td>${p.codigo}</td>
-            <td><b>${p.descripcion}</b></td>
-            <td class="${p.precio_1 > 0 ? '' : 'precio-sin-definir'}">
-              ${p.precio_1 > 0 ? '$' + Number(p.precio_1).toLocaleString('es-AR') : 'Sin precio'}
-              ${p.precio_anterior > 0 ? `<br><small class="precio-anterior">Ant: $${Number(p.precio_anterior).toLocaleString('es-AR')}</small>` : ''}
-            </td>
-            <td>${p.unidad}</td>
-            <td>${p.fecha_ultimo_precio ? formatFecha(p.fecha_ultimo_precio) : '-'}</td>
-          </tr>`).join('')}
+          ${prods.map(p => {
+            const esPorKg   = p.tipo_precio === 'por_kg'
+            const tieneCaja = p.unidades_por_caja > 1 || esPorKg
+
+            const precioUnidad = esPorKg
+              ? `$${Number(p.precio_por_kg).toLocaleString('es-AR')}<small> /kg</small>`
+              : p.precio_1 > 0
+                ? `$${Number(p.precio_1).toLocaleString('es-AR')}<small> /${p.unidad}</small>`
+                : '<span class="precio-sin-definir">Sin precio</span>'
+
+            const precioCaja = tieneCaja && p.precio_caja > 0
+              ? `$${Number(p.precio_caja).toLocaleString('es-AR')}<small> /caja</small>`
+              : esPorKg
+                ? `$${Number(p.precio_1).toLocaleString('es-AR')}<small> /caja</small>`
+                : '-'
+
+            return `<tr>
+              <td>
+                <b>${p.descripcion}</b>
+                ${esPorKg ? `<br><small class="desc-detalle">Caja ${p.kg_por_unidad}kg</small>` : ''}
+                ${!esPorKg && p.unidades_por_caja > 1 ? `<br><small class="desc-detalle">${p.unidades_por_caja} ${p.unidad}s por caja</small>` : ''}
+              </td>
+              <td class="precio-col">${precioUnidad}</td>
+              <td class="precio-col">${precioCaja}</td>
+              <td>${p.fecha_ultimo_precio ? formatFecha(p.fecha_ultimo_precio) : '-'}</td>
+            </tr>`
+          }).join('')}
         </tbody>
       </table>
     </div>`
