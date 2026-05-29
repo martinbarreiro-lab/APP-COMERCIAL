@@ -1348,32 +1348,62 @@ function calcularTotales() {
     const p         = item.producto
     const esPorKg   = p.tipo_precio === 'por_kg'
     const tieneCaja = p.unidades_por_caja > 1 || esPorKg
+    const cantCaja  = item.cantidad_caja   || 0
+    const cantUnid  = item.cantidad_unidad || 0
 
-    // Calcular cantidad total en unidades base
-    let cantidadBase = item.cantidad_unidad || 0
-    if (tieneCaja && item.cantidad_caja > 0) {
-      cantidadBase += item.cantidad_caja * (esPorKg ? 1 : p.unidades_por_caja)
-    }
-    if (cantidadBase === 0) return
+    if (cantCaja === 0 && cantUnid === 0) return
 
-    // Precio base por unidad de venta
+    // Precio base
     const precioBase = esPorKg ? p.precio_caja : p.precio_1
-    const lineaSubtotal = precioBase * cantidadBase
 
-    // Kg
+    // Calcular subtotal
+    let lineaSubtotal = 0
+    let lineaKg       = 0
+    let labelCantidad = ''
+
     if (esPorKg) {
-      totalKg += item.cantidad_caja * p.kg_por_unidad
-      totalKg += (item.cantidad_unidad || 0) * p.kg_por_unidad
+      // MANTECAS: se vende por caja
+      const totalCajas = cantCaja + cantUnid
+      lineaSubtotal = precioBase * totalCajas
+      lineaKg       = totalCajas * p.kg_por_unidad
+      labelCantidad = `${totalCajas} caja${totalCajas !== 1 ? 's' : ''}`
+
+    } else if (tieneCaja) {
+      // CREMA: puede pedir cajas Y/O potes
+      const subtotalCajas = cantCaja * p.precio_caja
+      const subtotalUnid  = cantUnid * precioBase
+      lineaSubtotal = subtotalCajas + subtotalUnid
+
+      // Kg: cajas × kg_por_caja
+      lineaKg = cantCaja * (p.kg_por_caja || 0)
+
+      // Label legible: cajas + unidades equivalentes
+      const partes = []
+      if (cantCaja > 0) {
+        const unidEquiv = cantCaja * p.unidades_por_caja
+        partes.push(`${cantCaja} caja${cantCaja !== 1 ? 's' : ''} (${unidEquiv} ${p.unidad}s)`)
+      }
+      if (cantUnid > 0) partes.push(`${cantUnid} ${p.unidad}${cantUnid !== 1 ? 's' : ''}`)
+      labelCantidad = partes.join(' + ')
+
+    } else {
+      // UNIDADES simples
+      lineaSubtotal = precioBase * cantUnid
+      labelCantidad = `${cantUnid} ${p.unidad}${cantUnid !== 1 ? 's' : ''}`
     }
 
+    if (lineaSubtotal === 0) return
+
+    totalKg  += lineaKg
     subtotal += lineaSubtotal
+
     lineas.push({
-      descripcion: p.descripcion,
-      cantidad: cantidadBase,
-      unidad: esPorKg ? 'cajas' : p.unidad + 's',
+      descripcion:   p.descripcion,
+      cantidad:      labelCantidad,
+      unidad:        '',
       precioUnitario: precioBase,
-      subtotal: lineaSubtotal,
-      kg: esPorKg ? cantidadBase * p.kg_por_unidad : 0
+      subtotal:      lineaSubtotal,
+      kg:            lineaKg
     })
   })
 
@@ -1424,7 +1454,7 @@ function mostrarResumenPedido() {
         <tbody>
           ${t.lineas.map(l => `<tr>
             <td>${l.descripcion}</td>
-            <td>${l.cantidad} ${l.unidad} ${l.kg > 0 ? `<small>(${l.kg.toFixed(1)} kg)</small>` : ''}</td>
+            <td>${l.cantidad} ${l.kg > 0 ? `<small class="text-gris">(${l.kg.toFixed(1)} kg)</small>` : ''}</td>
             <td>$${Number(l.precioUnitario).toLocaleString('es-AR')}</td>
             <td>$${Number(l.subtotal).toLocaleString('es-AR')}</td>
           </tr>`).join('')}
