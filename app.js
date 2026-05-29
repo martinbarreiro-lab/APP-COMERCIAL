@@ -2,9 +2,8 @@
 // LA CABAÑA — Lógica principal
 // ================================================
 
-// ── AL CARGAR LA PÁGINA ─────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { session } } = await db.auth.getSession()
   if (session) {
     mostrarApp(session.user)
   } else {
@@ -12,7 +11,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 })
 
-// ── LOGIN ────────────────────────────────────────
 async function iniciarSesion() {
   const email    = document.getElementById('login-email').value.trim()
   const password = document.getElementById('login-password').value
@@ -22,7 +20,7 @@ async function iniciarSesion() {
     return
   }
 
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  const { data, error } = await db.auth.signInWithPassword({ email, password })
 
   if (error) {
     mostrarErrorLogin('Email o contraseña incorrectos')
@@ -38,7 +36,6 @@ function mostrarErrorLogin(mensaje) {
   el.style.display = 'block'
 }
 
-// ── OLVIDO CONTRASEÑA ────────────────────────────
 async function olvidoPassword() {
   const email = document.getElementById('login-email').value.trim()
 
@@ -47,7 +44,7 @@ async function olvidoPassword() {
     return
   }
 
-  const { error } = await supabase.auth.resetPasswordForEmail(email)
+  const { error } = await db.auth.resetPasswordForEmail(email)
 
   if (error) {
     mostrarErrorLogin('Error al enviar el email')
@@ -57,13 +54,11 @@ async function olvidoPassword() {
   alert('✅ Te mandamos un email para restablecer tu contraseña')
 }
 
-// ── LOGOUT ───────────────────────────────────────
 async function cerrarSesion() {
-  await supabase.auth.signOut()
+  await db.auth.signOut()
   mostrarLogin()
 }
 
-// ── MOSTRAR LOGIN / APP ──────────────────────────
 function mostrarLogin() {
   document.getElementById('pantalla-login').style.display = 'flex'
   document.getElementById('pantalla-app').style.display   = 'none'
@@ -73,8 +68,7 @@ async function mostrarApp(usuario) {
   document.getElementById('pantalla-login').style.display = 'none'
   document.getElementById('pantalla-app').style.display   = 'block'
 
-  // Cargar nombre del usuario
-  const { data: perfil } = await supabase
+  const { data: perfil } = await db
     .from('perfiles')
     .select('nombre_completo, rol')
     .eq('id', usuario.id)
@@ -84,21 +78,15 @@ async function mostrarApp(usuario) {
     document.getElementById('nombre-usuario').textContent = perfil.nombre_completo
   }
 
-  // Mostrar dashboard por defecto
   mostrarSeccion('dashboard')
 }
 
-// ── NAVEGACIÓN ───────────────────────────────────
 function mostrarSeccion(nombre) {
-  // Ocultar todas las secciones
   document.querySelectorAll('.seccion').forEach(s => s.style.display = 'none')
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('activo'))
-
-  // Mostrar la sección elegida
   document.getElementById('seccion-' + nombre).style.display = 'block'
   document.getElementById('nav-' + nombre).classList.add('activo')
 
-  // Cargar datos según la sección
   if (nombre === 'dashboard')  cargarDashboard()
   if (nombre === 'preventa')   cargarPedidos()
   if (nombre === 'cobranza')   cargarCobranza()
@@ -107,12 +95,10 @@ function mostrarSeccion(nombre) {
   if (nombre === 'productos')  cargarProductos()
 }
 
-// ── DASHBOARD ────────────────────────────────────
 async function cargarDashboard() {
   const hoy = new Date().toISOString().split('T')[0]
 
-  // Pedidos de hoy
-  const { data: pedidos } = await supabase
+  const { data: pedidos } = await db
     .from('pedidos')
     .select('id')
     .gte('created_at', hoy)
@@ -120,8 +106,7 @@ async function cargarDashboard() {
   document.getElementById('total-pedidos-hoy').textContent =
     pedidos ? pedidos.length : 0
 
-  // Cobros de hoy
-  const { data: cobros } = await supabase
+  const { data: cobros } = await db
     .from('cobros')
     .select('monto')
     .gte('created_at', hoy)
@@ -130,8 +115,7 @@ async function cargarDashboard() {
   document.getElementById('total-cobros-hoy').textContent =
     '$' + totalCobrado.toLocaleString('es-AR')
 
-  // Cobros pendientes
-  const { data: pendientes } = await supabase
+  const { data: pendientes } = await db
     .from('pedidos')
     .select('id')
     .eq('estado_cobro', 'pendiente')
@@ -139,8 +123,7 @@ async function cargarDashboard() {
   document.getElementById('total-pendientes').textContent =
     pendientes ? pendientes.length : 0
 
-  // Envíos activos
-  const { data: envios } = await supabase
+  const { data: envios } = await db
     .from('envios')
     .select('id')
     .eq('estado', 'en_camino')
@@ -149,13 +132,12 @@ async function cargarDashboard() {
     envios ? envios.length : 0
 }
 
-// ── PEDIDOS ──────────────────────────────────────
 async function cargarPedidos() {
-  const { data: pedidos } = await supabase
+  const { data: pedidos } = await db
     .from('pedidos')
     .select(`
       id, numero, total, estado, estado_cobro,
-      fecha_pedido, fecha_entrega,
+      fecha_pedido,
       clientes ( razon_social ),
       perfiles ( nombre_completo )
     `)
@@ -166,13 +148,8 @@ async function cargarPedidos() {
     ? `<table class="tabla">
         <thead>
           <tr>
-            <th>#</th>
-            <th>Cliente</th>
-            <th>Vendedor</th>
-            <th>Total</th>
-            <th>Estado</th>
-            <th>Cobro</th>
-            <th>Fecha</th>
+            <th>#</th><th>Cliente</th><th>Vendedor</th>
+            <th>Total</th><th>Estado</th><th>Cobro</th>
           </tr>
         </thead>
         <tbody>
@@ -184,7 +161,6 @@ async function cargarPedidos() {
               <td><b>$${Number(p.total).toLocaleString('es-AR')}</b></td>
               <td>${badgeEstado(p.estado)}</td>
               <td>${badgeCobro(p.estado_cobro)}</td>
-              <td>${formatFecha(p.fecha_pedido)}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -194,13 +170,11 @@ async function cargarPedidos() {
   document.getElementById('lista-pedidos').innerHTML = html
 }
 
-// ── COBRANZA ─────────────────────────────────────
 async function cargarCobranza() {
-  const { data: pendientes } = await supabase
+  const { data: pendientes } = await db
     .from('pedidos')
     .select(`
-      id, numero, total, monto_cobrado,
-      fecha_pedido,
+      id, numero, total, monto_cobrado, fecha_pedido,
       clientes ( razon_social )
     `)
     .eq('estado_cobro', 'pendiente')
@@ -210,11 +184,8 @@ async function cargarCobranza() {
     ? `<table class="tabla">
         <thead>
           <tr>
-            <th>#</th>
-            <th>Cliente</th>
-            <th>Total</th>
-            <th>Saldo pendiente</th>
-            <th>Fecha pedido</th>
+            <th>#</th><th>Cliente</th>
+            <th>Total</th><th>Saldo pendiente</th>
           </tr>
         </thead>
         <tbody>
@@ -226,7 +197,6 @@ async function cargarCobranza() {
               <td><b style="color:#c00">
                 $${(Number(p.total) - Number(p.monto_cobrado)).toLocaleString('es-AR')}
               </b></td>
-              <td>${formatFecha(p.fecha_pedido)}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -236,9 +206,8 @@ async function cargarCobranza() {
   document.getElementById('lista-cobranza').innerHTML = html
 }
 
-// ── ENVIOS / LOGISTICA ───────────────────────────
 async function cargarEnvios() {
-  const { data: envios } = await supabase
+  const { data: envios } = await db
     .from('envios')
     .select(`
       id, numero, estado, vehiculo,
@@ -252,12 +221,8 @@ async function cargarEnvios() {
     ? `<table class="tabla">
         <thead>
           <tr>
-            <th>#</th>
-            <th>Repartidor</th>
-            <th>Vehículo</th>
-            <th>Estado</th>
-            <th>Salida</th>
-            <th>Llegada</th>
+            <th>#</th><th>Repartidor</th><th>Vehículo</th>
+            <th>Estado</th><th>Salida</th><th>Llegada</th>
           </tr>
         </thead>
         <tbody>
@@ -278,9 +243,8 @@ async function cargarEnvios() {
   document.getElementById('lista-envios').innerHTML = html
 }
 
-// ── CLIENTES ─────────────────────────────────────
 async function cargarClientes() {
-  const { data: clientes } = await supabase
+  const { data: clientes } = await db
     .from('clientes')
     .select('id, codigo, razon_social, telefono, localidad, activo')
     .order('razon_social')
@@ -289,11 +253,8 @@ async function cargarClientes() {
     ? `<table class="tabla">
         <thead>
           <tr>
-            <th>Código</th>
-            <th>Razón social</th>
-            <th>Teléfono</th>
-            <th>Localidad</th>
-            <th>Estado</th>
+            <th>Código</th><th>Razón social</th>
+            <th>Teléfono</th><th>Localidad</th><th>Estado</th>
           </tr>
         </thead>
         <tbody>
@@ -317,9 +278,8 @@ async function cargarClientes() {
   document.getElementById('lista-clientes').innerHTML = html
 }
 
-// ── PRODUCTOS ────────────────────────────────────
 async function cargarProductos() {
-  const { data: productos } = await supabase
+  const { data: productos } = await db
     .from('productos')
     .select('id, codigo, descripcion, precio_1, unidad, activo')
     .order('descripcion')
@@ -328,11 +288,8 @@ async function cargarProductos() {
     ? `<table class="tabla">
         <thead>
           <tr>
-            <th>Código</th>
-            <th>Descripción</th>
-            <th>Precio</th>
-            <th>Unidad</th>
-            <th>Estado</th>
+            <th>Código</th><th>Descripción</th>
+            <th>Precio</th><th>Unidad</th><th>Estado</th>
           </tr>
         </thead>
         <tbody>
@@ -356,13 +313,11 @@ async function cargarProductos() {
   document.getElementById('lista-productos').innerHTML = html
 }
 
-// ── FUNCIONES VACÍAS (próximos pasos) ────────────
 function nuevoPedido()   { alert('🚧 Próximamente') }
 function nuevoEnvio()    { alert('🚧 Próximamente') }
 function nuevoCliente()  { alert('🚧 Próximamente') }
 function nuevoProducto() { alert('🚧 Próximamente') }
 
-// ── HELPERS ──────────────────────────────────────
 function formatFecha(fecha) {
   if (!fecha) return '-'
   return new Date(fecha).toLocaleDateString('es-AR')
@@ -370,43 +325,30 @@ function formatFecha(fecha) {
 
 function badgeEstado(estado) {
   const colores = {
-    borrador:    'badge-gris',
-    confirmado:  'badge-azul',
-    en_camino:   'badge-amarillo',
-    entregado:   'badge-verde',
-    cancelado:   'badge-rojo'
+    borrador: 'badge-gris', confirmado: 'badge-azul',
+    en_camino: 'badge-amarillo', entregado: 'badge-verde', cancelado: 'badge-rojo'
   }
-  const clase = colores[estado] || 'badge-gris'
-  return `<span class="badge ${clase}">${estado}</span>`
+  return `<span class="badge ${colores[estado] || 'badge-gris'}">${estado}</span>`
 }
 
 function badgeCobro(estado) {
   const colores = {
-    pendiente:              'badge-amarillo',
-    cobrado_efectivo:       'badge-verde',
-    cobrado_transferencia:  'badge-verde',
-    cobrado_cheque:         'badge-verde',
-    cobrado_tarjeta:        'badge-verde',
-    incobrable:             'badge-rojo'
+    pendiente: 'badge-amarillo',
+    cobrado_efectivo: 'badge-verde', cobrado_transferencia: 'badge-verde',
+    cobrado_cheque: 'badge-verde', cobrado_tarjeta: 'badge-verde',
+    incobrable: 'badge-rojo'
   }
-  const clase = colores[estado] || 'badge-gris'
   const labels = {
-    pendiente:             'Pendiente',
-    cobrado_efectivo:      'Efectivo',
-    cobrado_transferencia: 'Transferencia',
-    cobrado_cheque:        'Cheque',
-    cobrado_tarjeta:       'Tarjeta',
-    incobrable:            'Incobrable'
+    pendiente: 'Pendiente', cobrado_efectivo: 'Efectivo',
+    cobrado_transferencia: 'Transferencia', cobrado_cheque: 'Cheque',
+    cobrado_tarjeta: 'Tarjeta', incobrable: 'Incobrable'
   }
-  return `<span class="badge ${clase}">${labels[estado] || estado}</span>`
+  return `<span class="badge ${colores[estado] || 'badge-gris'}">${labels[estado] || estado}</span>`
 }
 
 function badgeEnvio(estado) {
   const colores = {
-    preparando: 'badge-gris',
-    en_camino:  'badge-amarillo',
-    entregado:  'badge-verde'
+    preparando: 'badge-gris', en_camino: 'badge-amarillo', entregado: 'badge-verde'
   }
-  const clase = colores[estado] || 'badge-gris'
-  return `<span class="badge ${clase}">${estado}</span>`
+  return `<span class="badge ${colores[estado] || 'badge-gris'}">${estado}</span>`
 }
