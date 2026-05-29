@@ -780,7 +780,9 @@ function badgeCobro(e) {
 }
 function badgeEnvio(e) {
   const c = { preparando:'badge-gris', en_camino:'badge-amarillo', entregado:'badge-verde' }
-  // ================================================
+  return `<span class="badge ${c[e]||'badge-gris'}">${e}</span>`
+}
+// ================================================
 // AGREGAR AL FINAL DE app.js
 // Funciones de Productos y Lista de Precios
 // ================================================
@@ -1017,6 +1019,4 @@ async function cargarHistorialPrecios() {
       </div>
       ${h.imagen_url ? `<a href="${h.imagen_url}" target="_blank" class="btn-ver">📷 Ver lista</a>` : ''}
     </div>`).join('')
-}
-  return `<span class="badge ${c[e]||'badge-gris'}">${e}</span>`
 }
