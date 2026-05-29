@@ -95,6 +95,8 @@ async function cargarDashboard() {
 function mostrarVistaPedidos(vista) {
   document.getElementById('vista-lista-pedidos').style.display   = vista === 'lista'   ? 'block' : 'none'
   document.getElementById('vista-detalle-pedido').style.display  = vista === 'detalle' ? 'block' : 'none'
+  document.getElementById('vista-nuevo-pedido').style.display    = vista === 'nuevo'   ? 'block' : 'none'
+  document.getElementById('vista-resumen-pedido').style.display  = vista === 'resumen' ? 'block' : 'none'
 }
 
 async function cargarPedidos() {
@@ -1042,4 +1044,556 @@ async function cargarHistorialPrecios() {
       </div>
       ${h.imagen_url ? `<a href="${h.imagen_url}" target="_blank" class="btn-ver">📷 Ver lista</a>` : ''}
     </div>`).join('')
+}
+// ================================================
+// LA CABAÑA — Módulo de Creación de Pedidos
+// Agregar al final de app.js
+// ================================================
+
+let pedidoActual = {
+  cliente: null,
+  items: {},      // { producto_id: { producto, cantidad, unidad_venta } }
+  borrador_id: null
+}
+
+// ── ABRIR FORMULARIO DE PEDIDO ───────────────────
+async function nuevoPedido() {
+  const rol = await cargarRolUsuario()
+  pedidoActual = { cliente: null, items: {}, borrador_id: null }
+
+  // Si es cliente, cargar su ficha automáticamente
+  if (rol === 'cliente') {
+    const { data: perfil } = await db.from('perfiles')
+      .select('cliente_id, clientes(*)')
+      .eq('id', usuarioActual.id).single()
+    if (perfil?.clientes) {
+      pedidoActual.cliente = perfil.clientes
+    }
+  }
+
+  mostrarVistaPedidos('nuevo')
+  await renderizarFormPedido()
+}
+
+async function renderizarFormPedido() {
+  const rol = await cargarRolUsuario()
+  const el  = document.getElementById('contenido-nuevo-pedido')
+
+  // Selector de cliente (solo para vendedor/admin)
+  const selectorCliente = rol !== 'cliente' ? `
+    <div class="pedido-selector-cliente">
+      <div class="form-seccion">CLIENTE</div>
+      ${pedidoActual.cliente
+        ? `<div class="cliente-seleccionado">
+            <span>${pedidoActual.cliente.razon_social}</span>
+            <button class="btn-cambiar" onclick="cambiarCliente()">Cambiar</button>
+           </div>`
+        : `<div class="buscador-box">
+            <input type="text" id="buscar-cliente-pedido"
+              placeholder="🔍 Buscar cliente..."
+              oninput="buscarClientePedido()"
+              class="buscador-input">
+            <div id="resultados-cliente-pedido"></div>
+           </div>`
+      }
+      ${pedidoActual.cliente ? renderCondicionesCliente() : ''}
+    </div>` : renderCondicionesCliente()
+
+  el.innerHTML = `
+    ${selectorCliente}
+    <div class="form-seccion" style="margin-top:20px">PRODUCTOS</div>
+    <div class="tabs-categorias" id="tabs-cats"></div>
+    <div id="catalogo-pedido"></div>
+  `
+
+  await cargarCatalogoPedido()
+  actualizarBarraTotal()
+}
+
+function renderCondicionesCliente() {
+  const c = pedidoActual.cliente
+  if (!c) return ''
+  return `
+    <div class="condiciones-cliente">
+      ${c.descuento_pct > 0 ? `<span class="badge badge-verde">Descuento ${c.descuento_pct}%</span>` : ''}
+      ${c.bonificacion_pct > 0 ? `<span class="badge badge-azul">Bonif. ${c.bonificacion_pct}%</span>` : ''}
+      <span class="badge badge-gris">${labelFacturacion(c.condicion_factura, c.pct_remito, c.pct_factura)}</span>
+      <span class="badge badge-gris">IVA ${c.alicuota_iva}%</span>
+      ${c.bloqueado ? `<span class="badge badge-rojo">⚠️ BLOQUEADO</span>` : ''}
+    </div>
+    ${c.bloqueado ? `<div class="alerta-box">⚠️ Este cliente tiene deuda vencida de $${Number(c.saldo_pendiente).toLocaleString('es-AR')}. Podés continuar igual.</div>` : ''}
+  `
+}
+
+async function buscarClientePedido() {
+  const q = document.getElementById('buscar-cliente-pedido').value.toLowerCase()
+  if (q.length < 2) { document.getElementById('resultados-cliente-pedido').innerHTML = ''; return }
+
+  const { data: clientes } = await db.from('clientes')
+    .select('id, razon_social, descuento_pct, bonificacion_pct, condicion_factura, pct_remito, pct_factura, alicuota_iva, bloqueado, saldo_pendiente, activo')
+    .ilike('razon_social', `%${q}%`).eq('activo', true).limit(8)
+
+  document.getElementById('resultados-cliente-pedido').innerHTML = clientes?.map(c => `
+    <div class="resultado-cliente" onclick="seleccionarClientePedido('${c.id}')">
+      <span>${c.razon_social}</span>
+      ${c.bloqueado ? '<span class="badge badge-rojo">⚠️</span>' : ''}
+      ${c.descuento_pct > 0 ? `<span class="badge badge-verde">${c.descuento_pct}%</span>` : ''}
+    </div>`).join('') || '<p class="vacio">No encontrado</p>'
+}
+
+async function seleccionarClientePedido(id) {
+  const { data: c } = await db.from('clientes').select('*').eq('id', id).single()
+  pedidoActual.cliente = c
+  await renderizarFormPedido()
+}
+
+function cambiarCliente() {
+  pedidoActual.cliente = null
+  pedidoActual.items   = {}
+  renderizarFormPedido()
+}
+
+// ── CATÁLOGO DE PRODUCTOS ────────────────────────
+async function cargarCatalogoPedido() {
+  const { data: cats }  = await db.from('categorias').select('*').order('orden')
+  const { data: prods } = await db.from('productos')
+    .select('*, categorias(nombre)').eq('activo', true).order('descripcion')
+
+  if (!prods) return
+
+  // Tabs de categorías
+  const tabsEl = document.getElementById('tabs-cats')
+  tabsEl.innerHTML = `
+    <button class="tab-cat activo" onclick="filtrarCatPedido('todos', this)">Todos</button>
+    ${cats?.map(c => `<button class="tab-cat" onclick="filtrarCatPedido('${c.id}', this)">${c.nombre}</button>`).join('')}
+  `
+
+  // Guardar productos para filtrar
+  window._productosPedido = prods
+  renderCatalogoPedido(prods)
+}
+
+function filtrarCatPedido(catId, btn) {
+  document.querySelectorAll('.tab-cat').forEach(b => b.classList.remove('activo'))
+  btn.classList.add('activo')
+  const prods = catId === 'todos'
+    ? window._productosPedido
+    : window._productosPedido.filter(p => p.categoria_id === catId)
+  renderCatalogoPedido(prods)
+}
+
+function renderCatalogoPedido(prods) {
+  const descuento = pedidoActual.cliente?.descuento_pct || 0
+  const el = document.getElementById('catalogo-pedido')
+
+  el.innerHTML = prods.map(p => {
+    const esPorKg    = p.tipo_precio === 'por_kg'
+    const tieneCaja  = p.unidades_por_caja > 1 || esPorKg
+    const precioBase = esPorKg ? p.precio_caja : p.precio_1
+    const precioDesc = precioBase * (1 - descuento / 100)
+    const item       = pedidoActual.items[p.id]
+    const cantCaja   = item?.cantidad_caja || 0
+    const cantUnidad = item?.cantidad_unidad || 0
+
+    return `
+      <div class="producto-pedido-card" id="card-${p.id}">
+        <div class="prod-pedido-info">
+          <div class="prod-pedido-nombre">${p.descripcion}</div>
+          <div class="prod-pedido-precios">
+            ${esPorKg
+              ? `<span>$${Number(p.precio_por_kg).toLocaleString('es-AR')}/kg</span>
+                 <span class="sep">•</span>
+                 <span class="precio-dest">$${Number(precioDesc).toLocaleString('es-AR')}/caja</span>`
+              : `<span class="precio-dest">$${Number(precioDesc).toLocaleString('es-AR')}/${p.unidad}</span>
+                 ${tieneCaja ? `<span class="sep">•</span><span>$${Number(precioDesc * p.unidades_por_caja).toLocaleString('es-AR')}/caja</span>` : ''}`
+            }
+            ${descuento > 0 ? `<span class="badge badge-verde">-${descuento}%</span>` : ''}
+          </div>
+        </div>
+        <div class="prod-pedido-controles">
+          ${tieneCaja && !esPorKg ? `
+            <div class="control-cantidad">
+              <span class="control-label">Cajas</span>
+              <div class="cantidad-btns">
+                <button onclick="cambiarCantidad('${p.id}', 'caja', -1)" class="btn-cant">−</button>
+                <input type="number" value="${cantCaja}" min="0"
+                  onchange="setCantidad('${p.id}', 'caja', this.value)"
+                  class="input-cant">
+                <button onclick="cambiarCantidad('${p.id}', 'caja', 1)" class="btn-cant">+</button>
+              </div>
+            </div>` : ''}
+          <div class="control-cantidad">
+            <span class="control-label">${esPorKg ? 'Cajas' : p.unidad + 's'}</span>
+            <div class="cantidad-btns">
+              <button onclick="cambiarCantidad('${p.id}', 'unidad', -1)" class="btn-cant">−</button>
+              <input type="number" value="${cantUnidad}" min="0"
+                onchange="setCantidad('${p.id}', 'unidad', this.value)"
+                class="input-cant">
+              <button onclick="cambiarCantidad('${p.id}', 'unidad', 1)" class="btn-cant">+</button>
+            </div>
+          </div>
+        </div>
+      </div>`
+  }).join('')
+}
+
+function cambiarCantidad(prodId, tipo, delta) {
+  const prod  = window._productosPedido.find(p => p.id === prodId)
+  if (!prod) return
+  if (!pedidoActual.items[prodId]) {
+    pedidoActual.items[prodId] = { producto: prod, cantidad_caja: 0, cantidad_unidad: 0 }
+  }
+  const key = tipo === 'caja' ? 'cantidad_caja' : 'cantidad_unidad'
+  pedidoActual.items[prodId][key] = Math.max(0, (pedidoActual.items[prodId][key] || 0) + delta)
+  if (pedidoActual.items[prodId].cantidad_caja === 0 && pedidoActual.items[prodId].cantidad_unidad === 0) {
+    delete pedidoActual.items[prodId]
+  }
+  // Actualizar input en pantalla
+  const card = document.getElementById(`card-${prodId}`)
+  if (card) {
+    const inputs = card.querySelectorAll('.input-cant')
+    if (tipo === 'caja' && inputs[0]) inputs[0].value = pedidoActual.items[prodId]?.cantidad_caja || 0
+    if (tipo === 'unidad') {
+      const lastInput = inputs[inputs.length - 1]
+      if (lastInput) lastInput.value = pedidoActual.items[prodId]?.cantidad_unidad || 0
+    }
+  }
+  actualizarBarraTotal()
+}
+
+function setCantidad(prodId, tipo, valor) {
+  const prod = window._productosPedido.find(p => p.id === prodId)
+  if (!prod) return
+  if (!pedidoActual.items[prodId]) {
+    pedidoActual.items[prodId] = { producto: prod, cantidad_caja: 0, cantidad_unidad: 0 }
+  }
+  const key = tipo === 'caja' ? 'cantidad_caja' : 'cantidad_unidad'
+  pedidoActual.items[prodId][key] = Math.max(0, parseFloat(valor) || 0)
+  if (pedidoActual.items[prodId].cantidad_caja === 0 && pedidoActual.items[prodId].cantidad_unidad === 0) {
+    delete pedidoActual.items[prodId]
+  }
+  actualizarBarraTotal()
+}
+
+// ── BARRA DE TOTAL FLOTANTE ──────────────────────
+function actualizarBarraTotal() {
+  const totales = calcularTotales()
+  const barra   = document.getElementById('barra-total-pedido')
+  if (!barra) return
+  const cant = Object.keys(pedidoActual.items).length
+  barra.innerHTML = `
+    <div class="barra-total-info">
+      <span>${cant} producto${cant !== 1 ? 's' : ''}</span>
+      <span class="sep">•</span>
+      <span>${totales.totalKg.toFixed(1)} kg</span>
+      <span class="sep">•</span>
+      <span class="barra-monto">$${totales.neto.toLocaleString('es-AR')}</span>
+    </div>
+    <button class="btn-ver-resumen ${cant === 0 ? 'disabled' : ''}"
+      onclick="${cant > 0 ? 'mostrarResumenPedido()' : ''}"
+      ${cant === 0 ? 'disabled' : ''}>
+      Ver resumen →
+    </button>
+  `
+}
+
+// ── CÁLCULO DE TOTALES ───────────────────────────
+function calcularTotales() {
+  const cliente   = pedidoActual.cliente
+  const descuento = cliente?.descuento_pct || 0
+  const bonif     = cliente?.bonificacion_pct || 0
+  const iva       = cliente?.alicuota_iva || 21
+  const factura   = cliente?.condicion_factura || 'todo_factura'
+  const pctRemito = cliente?.pct_remito || 0
+  const pctFact   = cliente?.pct_factura || 100
+
+  let subtotal = 0
+  let totalKg  = 0
+  const lineas = []
+
+  Object.values(pedidoActual.items).forEach(item => {
+    const p         = item.producto
+    const esPorKg   = p.tipo_precio === 'por_kg'
+    const tieneCaja = p.unidades_por_caja > 1 || esPorKg
+
+    // Calcular cantidad total en unidades base
+    let cantidadBase = item.cantidad_unidad || 0
+    if (tieneCaja && item.cantidad_caja > 0) {
+      cantidadBase += item.cantidad_caja * (esPorKg ? 1 : p.unidades_por_caja)
+    }
+    if (cantidadBase === 0) return
+
+    // Precio base por unidad de venta
+    const precioBase = esPorKg ? p.precio_caja : p.precio_1
+    const lineaSubtotal = precioBase * cantidadBase
+
+    // Kg
+    if (esPorKg) {
+      totalKg += item.cantidad_caja * p.kg_por_unidad
+      totalKg += (item.cantidad_unidad || 0) * p.kg_por_unidad
+    }
+
+    subtotal += lineaSubtotal
+    lineas.push({
+      descripcion: p.descripcion,
+      cantidad: cantidadBase,
+      unidad: esPorKg ? 'cajas' : p.unidad + 's',
+      precioUnitario: precioBase,
+      subtotal: lineaSubtotal,
+      kg: esPorKg ? cantidadBase * p.kg_por_unidad : 0
+    })
+  })
+
+  const descuentoMonto = subtotal * (descuento / 100)
+  const neto           = subtotal - descuentoMonto
+
+  // Split remito / factura
+  let montoRemito  = 0
+  let montoFactura = 0
+  let ivaTotal     = 0
+
+  if (factura === 'todo_remito') {
+    montoRemito = neto
+  } else if (factura === 'todo_factura') {
+    montoFactura = neto
+    ivaTotal     = neto * (iva / 100)
+  } else if (factura === 'mixto') {
+    montoRemito  = neto * (pctRemito / 100)
+    montoFactura = neto * (pctFact / 100)
+    ivaTotal     = montoFactura * (iva / 100)
+  }
+
+  const total = neto + ivaTotal
+
+  // Bonificación
+  let bonifDetalle = ''
+  if (bonif > 0) {
+    bonifDetalle = `${bonif}% de mercadería extra`
+  }
+
+  return { subtotal, descuentoMonto, neto, montoRemito, montoFactura, ivaTotal, total, totalKg, lineas, bonifDetalle, iva, factura, pctRemito, pctFact }
+}
+
+// ── RESUMEN DEL PEDIDO ───────────────────────────
+function mostrarResumenPedido() {
+  if (!pedidoActual.cliente) { alert('Seleccioná un cliente primero'); return }
+  const t  = calcularTotales()
+  const el = document.getElementById('contenido-resumen-pedido')
+
+  el.innerHTML = `
+    <div class="form-card">
+      <div class="form-seccion">CLIENTE</div>
+      <div class="ficha-fila"><span>Cliente</span><span>${pedidoActual.cliente.razon_social}</span></div>
+
+      <div class="form-seccion">DETALLE DE PRODUCTOS</div>
+      <table class="tabla">
+        <thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subtotal</th></tr></thead>
+        <tbody>
+          ${t.lineas.map(l => `<tr>
+            <td>${l.descripcion}</td>
+            <td>${l.cantidad} ${l.unidad} ${l.kg > 0 ? `<small>(${l.kg.toFixed(1)} kg)</small>` : ''}</td>
+            <td>$${Number(l.precioUnitario).toLocaleString('es-AR')}</td>
+            <td>$${Number(l.subtotal).toLocaleString('es-AR')}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+
+      <div class="form-seccion">RESUMEN FISCAL</div>
+      <div class="resumen-fiscal">
+        <div class="fiscal-fila"><span>Total kg:</span><span><b>${t.totalKg.toFixed(1)} kg</b></span></div>
+        <div class="fiscal-fila"><span>Subtotal sin IVA:</span><span>$${Number(t.subtotal).toLocaleString('es-AR')}</span></div>
+        ${t.descuentoMonto > 0 ? `<div class="fiscal-fila descuento-fila"><span>Descuento ${pedidoActual.cliente.descuento_pct}%:</span><span>- $${Number(t.descuentoMonto).toLocaleString('es-AR')}</span></div>` : ''}
+        <div class="fiscal-fila"><span>Neto:</span><span>$${Number(t.neto).toLocaleString('es-AR')}</span></div>
+        <div class="fiscal-separador"></div>
+        ${t.factura === 'mixto' ? `
+          <div class="fiscal-fila"><span>Remito (${t.pctRemito}%):</span><span>$${Number(t.montoRemito).toLocaleString('es-AR')}</span></div>
+          <div class="fiscal-fila"><span>Factura (${t.pctFact}%):</span><span>$${Number(t.montoFactura).toLocaleString('es-AR')}</span></div>
+          <div class="fiscal-fila"><span>IVA ${t.iva}% s/factura:</span><span>$${Number(t.ivaTotal).toLocaleString('es-AR')}</span></div>
+        ` : t.factura === 'todo_factura' ? `
+          <div class="fiscal-fila"><span>IVA ${t.iva}%:</span><span>$${Number(t.ivaTotal).toLocaleString('es-AR')}</span></div>
+        ` : `
+          <div class="fiscal-fila"><span>Todo Remito (sin IVA)</span><span></span></div>
+        `}
+        <div class="fiscal-fila total-fila">
+          <span>TOTAL A PAGAR:</span>
+          <span>$${Number(t.total).toLocaleString('es-AR')}</span>
+        </div>
+        ${t.bonifDetalle ? `
+          <div class="bonif-box">
+            🎁 Bonificación: ${t.bonifDetalle}
+          </div>` : ''}
+      </div>
+
+      <div class="form-seccion">ENTREGA</div>
+      <div class="campo">
+        <label>Fecha de entrega</label>
+        <input type="date" id="pedido-fecha-entrega" min="${new Date().toISOString().split('T')[0]}">
+      </div>
+      <div class="campo">
+        <label>Observaciones</label>
+        <textarea id="pedido-observaciones" rows="2" placeholder="Indicaciones especiales..."></textarea>
+      </div>
+
+      <div class="form-botones" style="margin-top:20px">
+        <button class="btn-cancelar" onclick="guardarBorrador()">💾 Guardar borrador</button>
+        <button class="btn-guardar-inline" onclick="confirmarPedido()">✅ Confirmar pedido</button>
+      </div>
+    </div>
+  `
+  mostrarVistaPedidos('resumen')
+}
+
+// ── CONFIRMAR PEDIDO ─────────────────────────────
+async function confirmarPedido() {
+  const rol     = await cargarRolUsuario()
+  const t       = calcularTotales()
+  const cliente = pedidoActual.cliente
+  const fecha   = document.getElementById('pedido-fecha-entrega').value
+  const obs     = document.getElementById('pedido-observaciones').value
+
+  if (Object.keys(pedidoActual.items).length === 0) {
+    alert('No hay productos en el pedido'); return
+  }
+
+  // Estado según quién crea
+  const estado = rol === 'cliente' ? 'pendiente_aprobacion' : 'confirmado'
+
+  // Calcular vencimiento
+  const diasVenc = cliente.dias_vencimiento || 7
+  const fechaVenc = fecha
+    ? new Date(new Date(fecha).getTime() + diasVenc * 86400000).toISOString().split('T')[0]
+    : new Date(Date.now() + diasVenc * 86400000).toISOString().split('T')[0]
+
+  // Crear pedido
+  const { data: pedido, error } = await db.from('pedidos').insert({
+    cliente_id:              cliente.id,
+    vendedor_id:             rol === 'cliente' ? null : usuarioActual.id,
+    estado,
+    fecha_entrega:           fecha || null,
+    subtotal:                t.subtotal,
+    descuento:               t.descuentoMonto,
+    iva_total:               t.ivaTotal,
+    total:                   t.total,
+    condicion_pago:          'contado',
+    observaciones:           obs || null,
+    fecha_vencimiento_cobro: fechaVenc,
+    creado_por_rol:          rol,
+    etapa:                   'pedido'
+  }).select().single()
+
+  if (error) { alert('Error al guardar: ' + error.message); return }
+
+  // Crear items del pedido
+  const itemsParaInsertar = []
+  Object.values(pedidoActual.items).forEach(item => {
+    const p       = item.producto
+    const esPorKg = p.tipo_precio === 'por_kg'
+    let cantidad  = item.cantidad_unidad || 0
+    if (item.cantidad_caja > 0) {
+      cantidad += item.cantidad_caja * (esPorKg ? 1 : p.unidades_por_caja)
+    }
+    if (cantidad === 0) return
+
+    const descuento = cliente.descuento_pct || 0
+    const precio    = esPorKg ? p.precio_caja : p.precio_1
+
+    itemsParaInsertar.push({
+      pedido_id:       pedido.id,
+      producto_id:     p.id,
+      cantidad,
+      precio_unitario: precio,
+      descuento_pct:   descuento,
+      alicuota_iva:    p.alicuota_iva,
+      subtotal:        precio * cantidad * (1 - descuento / 100)
+    })
+  })
+
+  await db.from('pedido_items').insert(itemsParaInsertar)
+
+  // Registrar en historial
+  await registrarHistorial(pedido.id, 'pedido_creado',
+    `Pedido creado por ${rol} — $${Number(t.total).toLocaleString('es-AR')}`)
+
+  // Borrar borrador si había
+  if (pedidoActual.borrador_id) {
+    await db.from('pedidos').delete().eq('id', pedidoActual.borrador_id)
+  }
+
+  pedidoActual = { cliente: null, items: {}, borrador_id: null }
+
+  if (rol === 'cliente') {
+    alert('✅ Pedido enviado. El vendedor lo revisará pronto.')
+  } else {
+    alert('✅ Pedido confirmado correctamente.')
+  }
+
+  mostrarVistaPedidos('lista')
+  cargarPedidos()
+}
+
+// ── GUARDAR BORRADOR ─────────────────────────────
+async function guardarBorrador() {
+  if (!pedidoActual.cliente) { alert('Seleccioná un cliente primero'); return }
+  const t = calcularTotales()
+
+  const { data: pedido, error } = await db.from('pedidos').insert({
+    cliente_id:  pedidoActual.cliente.id,
+    vendedor_id: usuarioActual.id,
+    estado:      'borrador',
+    subtotal:    t.subtotal,
+    descuento:   t.descuentoMonto,
+    iva_total:   t.ivaTotal,
+    total:       t.total,
+    etapa:       'pedido',
+    observaciones: document.getElementById('pedido-observaciones')?.value || null
+  }).select().single()
+
+  if (error) { alert('Error al guardar borrador'); return }
+
+  const itemsParaInsertar = []
+  Object.values(pedidoActual.items).forEach(item => {
+    const p       = item.producto
+    const esPorKg = p.tipo_precio === 'por_kg'
+    let cantidad  = item.cantidad_unidad || 0
+    if (item.cantidad_caja > 0) cantidad += item.cantidad_caja * (esPorKg ? 1 : p.unidades_por_caja)
+    if (cantidad === 0) return
+    itemsParaInsertar.push({
+      pedido_id: pedido.id, producto_id: p.id, cantidad,
+      precio_unitario: esPorKg ? p.precio_caja : p.precio_1,
+      descuento_pct: pedidoActual.cliente.descuento_pct || 0,
+      alicuota_iva: p.alicuota_iva, subtotal: 0
+    })
+  })
+  if (itemsParaInsertar.length > 0) await db.from('pedido_items').insert(itemsParaInsertar)
+
+  alert('💾 Borrador guardado correctamente')
+  mostrarVistaPedidos('lista')
+  cargarPedidos()
+}
+
+// ── APROBAR / RECHAZAR PEDIDO ────────────────────
+async function aprobarPedido(pedidoId) {
+  const { error } = await db.from('pedidos').update({
+    estado:           'confirmado',
+    aprobado_por:     usuarioActual.id,
+    fecha_aprobacion: new Date().toISOString()
+  }).eq('id', pedidoId)
+
+  if (error) { alert('Error al aprobar'); return }
+  await registrarHistorial(pedidoId, 'estado_cambiado', 'Pedido aprobado por el vendedor')
+  await cargarCobrosPedido(pedidoId)
+  await abrirPedido(pedidoId)
+}
+
+async function rechazarPedido(pedidoId) {
+  const motivo = prompt('¿Por qué rechazás este pedido?')
+  if (!motivo) return
+
+  await db.from('pedidos').update({
+    estado:         'rechazado',
+    motivo_rechazo: motivo
+  }).eq('id', pedidoId)
+
+  await registrarHistorial(pedidoId, 'estado_cambiado', `Pedido rechazado: ${motivo}`)
+  await abrirPedido(pedidoId)
 }
