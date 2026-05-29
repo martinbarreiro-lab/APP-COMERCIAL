@@ -60,8 +60,6 @@
 
         <!-- PEDIDOS -->
         <section id="seccion-pedidos" class="seccion" style="display:none">
-
-          <!-- Vista lista -->
           <div id="vista-lista-pedidos">
             <div class="seccion-header">
               <h2>Pedidos</h2>
@@ -69,137 +67,47 @@
             </div>
             <div id="lista-pedidos"></div>
           </div>
-
-          <!-- Vista detalle pedido -->
           <div id="vista-detalle-pedido" style="display:none">
             <div class="seccion-header">
               <button class="btn-volver" onclick="volverAPedidos()">← Volver</button>
               <h2 id="titulo-pedido">Pedido #0000</h2>
             </div>
-
-            <!-- Barra de progreso -->
             <div class="progreso-bar">
-              <div class="progreso-paso" id="prog-pedido">
-                <div class="progreso-circulo">1</div>
-                <div class="progreso-label">Pedido</div>
-              </div>
+              <div class="progreso-paso" id="prog-pedido"><div class="progreso-circulo">1</div><div class="progreso-label">Pedido</div></div>
               <div class="progreso-linea"></div>
-              <div class="progreso-paso" id="prog-documentado">
-                <div class="progreso-circulo">2</div>
-                <div class="progreso-label">Documentado</div>
-              </div>
+              <div class="progreso-paso" id="prog-documentado"><div class="progreso-circulo">2</div><div class="progreso-label">Documentado</div></div>
               <div class="progreso-linea"></div>
-              <div class="progreso-paso" id="prog-cobrado">
-                <div class="progreso-circulo">3</div>
-                <div class="progreso-label">Cobrado</div>
-              </div>
+              <div class="progreso-paso" id="prog-cobrado"><div class="progreso-circulo">3</div><div class="progreso-label">Cobrado</div></div>
               <div class="progreso-linea"></div>
-              <div class="progreso-paso" id="prog-cerrado">
-                <div class="progreso-circulo">4</div>
-                <div class="progreso-label">Cerrado</div>
-              </div>
+              <div class="progreso-paso" id="prog-cerrado"><div class="progreso-circulo">4</div><div class="progreso-label">Cerrado</div></div>
             </div>
-
-            <!-- Alerta vencimiento -->
-            <div id="alerta-vencimiento-pedido" style="display:none" class="alerta-box">
-              ⚠️ <span id="texto-alerta-vencimiento"></span>
-            </div>
-
-            <!-- Info del pedido -->
+            <div id="alerta-vencimiento-pedido" style="display:none" class="alerta-box">⚠️ <span id="texto-alerta-vencimiento"></span></div>
             <div id="info-pedido" class="detalle-card"></div>
-
-            <!-- Sección: Documentos -->
             <div class="detalle-seccion">
-              <div class="detalle-seccion-header">
-                <h3>📄 Documentos</h3>
-                <button class="btn-secundario" onclick="abrirSubirDocumento()">+ Subir</button>
-              </div>
+              <div class="detalle-seccion-header"><h3>📄 Documentos</h3><button class="btn-secundario" onclick="abrirSubirDocumento()">+ Subir</button></div>
               <div id="lista-documentos-pedido"></div>
-
-              <!-- Form subir documento -->
               <div id="form-subir-documento" style="display:none" class="form-inline">
-                <div class="campo">
-                  <label>Tipo de documento</label>
-                  <select id="tipo-documento">
-                    <option value="remito">Remito</option>
-                    <option value="factura_a">Factura A</option>
-                    <option value="factura_b">Factura B</option>
-                    <option value="factura_c">Factura C</option>
-                  </select>
-                </div>
-                <div class="campo">
-                  <label>Archivo (foto o PDF)</label>
-                  <input type="file" id="archivo-documento" accept="image/*,application/pdf">
-                </div>
-                <div class="campo">
-                  <label>Nota (opcional)</label>
-                  <input type="text" id="nota-documento" placeholder="Aclaración sobre el documento...">
-                </div>
-                <div class="form-botones">
-                  <button class="btn-cancelar" onclick="cancelarSubirDocumento()">Cancelar</button>
-                  <button class="btn-guardar-inline" onclick="subirDocumento()">📤 Subir y verificar</button>
-                </div>
+                <div class="campo"><label>Tipo</label><select id="tipo-documento"><option value="remito">Remito</option><option value="factura_a">Factura A</option><option value="factura_b">Factura B</option><option value="factura_c">Factura C</option></select></div>
+                <div class="campo"><label>Archivo (foto o PDF)</label><input type="file" id="archivo-documento" accept="image/*,application/pdf"></div>
+                <div class="campo"><label>Nota (opcional)</label><input type="text" id="nota-documento" placeholder="Aclaración..."></div>
+                <div class="form-botones"><button class="btn-cancelar" onclick="cancelarSubirDocumento()">Cancelar</button><button class="btn-guardar-inline" onclick="subirDocumento()">📤 Subir</button></div>
               </div>
             </div>
-
-            <!-- Sección: Productos -->
+            <div class="detalle-seccion"><h3>🧀 Productos del pedido</h3><div id="productos-pedido"></div></div>
             <div class="detalle-seccion">
-              <h3>🧀 Productos del pedido</h3>
-              <div id="productos-pedido"></div>
-            </div>
-
-            <!-- Sección: Cobros -->
-            <div class="detalle-seccion">
-              <div class="detalle-seccion-header">
-                <h3>💰 Cobros</h3>
-                <button class="btn-secundario" onclick="abrirAgregarCobro()">+ Agregar cobro</button>
-              </div>
+              <div class="detalle-seccion-header"><h3>💰 Cobros</h3><button class="btn-secundario" onclick="abrirAgregarCobro()">+ Agregar cobro</button></div>
               <div id="resumen-cobro"></div>
               <div id="lista-cobros-pedido"></div>
-
-              <!-- Form agregar cobro -->
               <div id="form-agregar-cobro" style="display:none" class="form-inline">
-                <div class="campo">
-                  <label>Forma de pago</label>
-                  <select id="cobro-medio">
-                    <option value="efectivo">💵 Efectivo</option>
-                    <option value="transferencia">🏦 Transferencia</option>
-                    <option value="cheque">📋 Cheque</option>
-                    <option value="echeq">📱 Echeq</option>
-                  </select>
-                </div>
-                <div class="campo">
-                  <label>Monto</label>
-                  <div class="input-con-sufijo">
-                    <span>$</span>
-                    <input type="number" id="cobro-monto" placeholder="0.00">
-                  </div>
-                </div>
-                <div id="campo-fecha-cheque" style="display:none" class="campo">
-                  <label>Fecha de vencimiento del cheque</label>
-                  <input type="date" id="cobro-fecha-cheque">
-                </div>
-                <div class="campo">
-                  <label>Comprobante (foto)</label>
-                  <input type="file" id="cobro-foto" accept="image/*">
-                </div>
-                <div class="campo">
-                  <label>Nota (opcional)</label>
-                  <input type="text" id="cobro-nota" placeholder="Referencia, banco, etc...">
-                </div>
-                <div class="form-botones">
-                  <button class="btn-cancelar" onclick="cancelarAgregarCobro()">Cancelar</button>
-                  <button class="btn-guardar-inline" onclick="guardarCobro()">✅ Registrar cobro</button>
-                </div>
+                <div class="campo"><label>Forma de pago</label><select id="cobro-medio"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option><option value="cheque">📋 Cheque</option><option value="echeq">📱 Echeq</option></select></div>
+                <div class="campo"><label>Monto</label><div class="input-con-sufijo"><span>$</span><input type="number" id="cobro-monto" placeholder="0.00"></div></div>
+                <div id="campo-fecha-cheque" style="display:none" class="campo"><label>Vencimiento del cheque</label><input type="date" id="cobro-fecha-cheque"></div>
+                <div class="campo"><label>Comprobante (foto)</label><input type="file" id="cobro-foto" accept="image/*"></div>
+                <div class="campo"><label>Nota (opcional)</label><input type="text" id="cobro-nota" placeholder="Referencia, banco..."></div>
+                <div class="form-botones"><button class="btn-cancelar" onclick="cancelarAgregarCobro()">Cancelar</button><button class="btn-guardar-inline" onclick="guardarCobro()">✅ Registrar cobro</button></div>
               </div>
             </div>
-
-            <!-- Sección: Historial -->
-            <div class="detalle-seccion">
-              <h3>📋 Historial</h3>
-              <div id="historial-pedido"></div>
-            </div>
-
+            <div class="detalle-seccion"><h3>📋 Historial</h3><div id="historial-pedido"></div></div>
           </div>
         </section>
 
@@ -211,37 +119,23 @@
 
         <!-- LOGISTICA -->
         <section id="seccion-logistica" class="seccion" style="display:none">
-          <div class="seccion-header">
-            <h2>Logística</h2>
-            <button class="btn-nuevo" onclick="nuevoEnvio()">+ Nuevo envío</button>
-          </div>
+          <div class="seccion-header"><h2>Logística</h2><button class="btn-nuevo" onclick="nuevoEnvio()">+ Nuevo envío</button></div>
           <div id="lista-envios"></div>
         </section>
 
         <!-- CLIENTES -->
         <section id="seccion-clientes" class="seccion" style="display:none">
           <div id="vista-lista-clientes">
-            <div class="seccion-header">
-              <h2>Clientes</h2>
-              <button class="btn-nuevo" onclick="abrirFormCliente()">+ Nuevo cliente</button>
-            </div>
-            <div class="buscador-box">
-              <input type="text" id="buscador-clientes" placeholder="🔍 Buscar cliente..." oninput="filtrarClientes()" class="buscador-input">
-            </div>
+            <div class="seccion-header"><h2>Clientes</h2><button class="btn-nuevo" onclick="abrirFormCliente()">+ Nuevo cliente</button></div>
+            <div class="buscador-box"><input type="text" id="buscador-clientes" placeholder="🔍 Buscar cliente..." oninput="filtrarClientes()" class="buscador-input"></div>
             <div id="lista-clientes"></div>
           </div>
           <div id="vista-ficha-cliente" style="display:none">
-            <div class="seccion-header">
-              <button class="btn-volver" onclick="volverAClientes()">← Volver</button>
-              <button class="btn-nuevo" onclick="editarClienteActual()">✏️ Editar</button>
-            </div>
+            <div class="seccion-header"><button class="btn-volver" onclick="volverAClientes()">← Volver</button><button class="btn-nuevo" onclick="editarClienteActual()">✏️ Editar</button></div>
             <div id="contenido-ficha-cliente"></div>
           </div>
           <div id="vista-form-cliente" style="display:none">
-            <div class="seccion-header">
-              <button class="btn-volver" onclick="volverAClientes()">← Volver</button>
-              <h2 id="titulo-form-cliente">Nuevo Cliente</h2>
-            </div>
+            <div class="seccion-header"><button class="btn-volver" onclick="volverAClientes()">← Volver</button><h2 id="titulo-form-cliente">Nuevo Cliente</h2></div>
             <div class="form-card">
               <div class="form-seccion">DATOS BÁSICOS</div>
               <div class="campo"><label>Razón Social *</label><input type="text" id="f-razon-social" placeholder="Nombre o empresa"></div>
@@ -252,51 +146,21 @@
               <div class="campo"><label>Provincia</label><select id="f-provincia" onchange="cargarLocalidades()"><option value="">Seleccioná una provincia...</option></select></div>
               <div class="campo"><label>Localidad</label><select id="f-localidad"><option value="">Primero seleccioná una provincia...</option></select></div>
               <div class="form-seccion">CONDICIÓN FISCAL</div>
-              <div class="campo"><label>Condición IVA</label>
-                <select id="f-condicion-iva">
-                  <option value="responsable_inscripto">Responsable Inscripto</option>
-                  <option value="monotributista">Monotributista</option>
-                  <option value="exento">Exento</option>
-                  <option value="consumidor_final">Consumidor Final</option>
-                </select>
-              </div>
+              <div class="campo"><label>Condición IVA</label><select id="f-condicion-iva"><option value="responsable_inscripto">Responsable Inscripto</option><option value="monotributista">Monotributista</option><option value="exento">Exento</option><option value="consumidor_final">Consumidor Final</option></select></div>
               <div class="form-seccion">FACTURACIÓN</div>
-              <div class="campo"><label>Tipo de facturación</label>
-                <select id="f-condicion-factura" onchange="toggleMixto()">
-                  <option value="todo_factura">Todo Factura</option>
-                  <option value="todo_remito">Todo Remito</option>
-                  <option value="mixto">Mixto (Remito + Factura)</option>
-                </select>
-              </div>
-              <div id="campo-mixto" style="display:none">
-                <div class="campo-doble">
-                  <div class="campo"><label>% Remito</label><input type="number" id="f-pct-remito" value="50" min="0" max="100" oninput="sincronizarPct('remito')"></div>
-                  <div class="campo"><label>% Factura</label><input type="number" id="f-pct-factura" value="50" min="0" max="100" oninput="sincronizarPct('factura')"></div>
-                </div>
-              </div>
-              <div class="campo"><label>Alícuota IVA</label>
-                <select id="f-alicuota-iva">
-                  <option value="21">21%</option>
-                  <option value="10.5">10.5%</option>
-                  <option value="0">0% (Exento)</option>
-                </select>
-              </div>
+              <div class="campo"><label>Tipo de facturación</label><select id="f-condicion-factura" onchange="toggleMixto()"><option value="todo_factura">Todo Factura</option><option value="todo_remito">Todo Remito</option><option value="mixto">Mixto</option></select></div>
+              <div id="campo-mixto" style="display:none"><div class="campo-doble"><div class="campo"><label>% Remito</label><input type="number" id="f-pct-remito" value="50" min="0" max="100" oninput="sincronizarPct('remito')"></div><div class="campo"><label>% Factura</label><input type="number" id="f-pct-factura" value="50" min="0" max="100" oninput="sincronizarPct('factura')"></div></div></div>
+              <div class="campo"><label>Alícuota IVA</label><select id="f-alicuota-iva"><option value="21">21%</option><option value="10.5">10.5%</option><option value="0">0%</option></select></div>
               <div class="form-seccion">BENEFICIO COMERCIAL</div>
               <div class="campo-doble">
                 <div class="campo"><label>Descuento en precio</label><div class="input-con-sufijo"><input type="number" id="f-descuento" value="0" min="0" max="100" step="0.5"><span>%</span></div></div>
                 <div class="campo"><label>Bonificación producto</label><div class="input-con-sufijo"><input type="number" id="f-bonificacion" value="0" min="0" max="100" step="0.5"><span>%</span></div></div>
               </div>
               <div class="form-seccion">CONDICIONES DE PAGO</div>
-              <div class="campo"><label>Vence a los (días desde la entrega)</label><div class="input-con-sufijo"><input type="number" id="f-dias-vencimiento" value="7" min="0"><span>días</span></div></div>
-              <div class="campo"><label>Formas de pago aceptadas</label>
-                <div class="checkboxes">
-                  <label class="check-label"><input type="checkbox" id="f-pago-efectivo"> Efectivo</label>
-                  <label class="check-label"><input type="checkbox" id="f-pago-cheque"> Cheque</label>
-                  <label class="check-label"><input type="checkbox" id="f-pago-transferencia"> Transferencia</label>
-                </div>
-              </div>
+              <div class="campo"><label>Vence a los (días)</label><div class="input-con-sufijo"><input type="number" id="f-dias-vencimiento" value="7" min="0"><span>días</span></div></div>
+              <div class="campo"><label>Formas de pago</label><div class="checkboxes"><label class="check-label"><input type="checkbox" id="f-pago-efectivo"> Efectivo</label><label class="check-label"><input type="checkbox" id="f-pago-cheque"> Cheque</label><label class="check-label"><input type="checkbox" id="f-pago-transferencia"> Transferencia</label></div></div>
               <div class="form-seccion">OBSERVACIONES</div>
-              <div class="campo"><textarea id="f-observaciones" rows="3" placeholder="Notas internas sobre el cliente..."></textarea></div>
+              <div class="campo"><textarea id="f-observaciones" rows="3" placeholder="Notas internas..."></textarea></div>
               <div id="form-error" class="error-msg" style="display:none"></div>
               <button class="btn-guardar" onclick="guardarCliente()">💾 Guardar cliente</button>
             </div>
@@ -305,11 +169,62 @@
 
         <!-- PRODUCTOS -->
         <section id="seccion-productos" class="seccion" style="display:none">
-          <div class="seccion-header">
-            <h2>Productos</h2>
-            <button class="btn-nuevo" onclick="nuevoProducto()">+ Nuevo producto</button>
+
+          <!-- Vista: catálogo -->
+          <div id="vista-catalogo-productos">
+            <div class="seccion-header">
+              <h2>Productos</h2>
+              <div style="display:flex;gap:10px">
+                <button class="btn-secundario" onclick="mostrarVistaProductos('historial')">📋 Historial de listas</button>
+                <button class="btn-nuevo" id="btn-actualizar-precios" onclick="mostrarVistaProductos('actualizar')">📝 Actualizar precios</button>
+              </div>
+            </div>
+            <div id="lista-productos"></div>
           </div>
-          <div id="lista-productos"></div>
+
+          <!-- Vista: actualizar precios -->
+          <div id="vista-actualizar-precios" style="display:none">
+            <div class="seccion-header">
+              <button class="btn-volver" onclick="mostrarVistaProductos('catalogo')">← Volver</button>
+              <h2>Actualizar Lista de Precios</h2>
+            </div>
+            <div class="form-card">
+
+              <div class="form-seccion">INFORMACIÓN DE LA LISTA</div>
+              <div class="campo-doble">
+                <div class="campo">
+                  <label>Fecha de vigencia</label>
+                  <input type="date" id="precio-fecha-vigencia">
+                </div>
+                <div class="campo">
+                  <label>Foto de referencia (opcional)</label>
+                  <input type="file" id="precio-foto-lista" accept="image/*,application/pdf">
+                </div>
+              </div>
+              <div id="precio-foto-preview" style="display:none;margin-bottom:16px">
+                <img id="precio-foto-img" style="max-width:300px;border-radius:8px;border:1px solid #ddd">
+              </div>
+
+              <div class="form-seccion">NUEVOS PRECIOS</div>
+              <p style="font-size:13px;color:#888;margin-bottom:16px">
+                Dejá en blanco los productos que no cambian de precio.
+              </p>
+              <div id="tabla-actualizar-precios"></div>
+
+              <div id="precio-error" class="error-msg" style="display:none"></div>
+              <button class="btn-guardar" onclick="guardarNuevosPrecios()">💾 Guardar lista de precios</button>
+            </div>
+          </div>
+
+          <!-- Vista: historial de listas -->
+          <div id="vista-historial-precios" style="display:none">
+            <div class="seccion-header">
+              <button class="btn-volver" onclick="mostrarVistaProductos('catalogo')">← Volver</button>
+              <h2>Historial de Listas de Precios</h2>
+            </div>
+            <div id="lista-historial-precios"></div>
+          </div>
+
         </section>
 
       </main>
