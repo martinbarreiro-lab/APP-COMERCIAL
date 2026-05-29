@@ -780,5 +780,243 @@ function badgeCobro(e) {
 }
 function badgeEnvio(e) {
   const c = { preparando:'badge-gris', en_camino:'badge-amarillo', entregado:'badge-verde' }
+  // ================================================
+// AGREGAR AL FINAL DE app.js
+// Funciones de Productos y Lista de Precios
+// ================================================
+
+// ── PRODUCTOS ────────────────────────────────────
+let rolUsuarioActual = null
+
+async function cargarRolUsuario() {
+  if (rolUsuarioActual) return rolUsuarioActual
+  const { data } = await db.from('perfiles').select('rol').eq('id', usuarioActual.id).single()
+  rolUsuarioActual = data?.rol || 'vendedor'
+  return rolUsuarioActual
+}
+
+async function cargarProductos() {
+  mostrarVistaProductos('catalogo')
+  const rol = await cargarRolUsuario()
+
+  // Mostrar botón actualizar solo al admin
+  const btnActualizar = document.getElementById('btn-actualizar-precios')
+  if (btnActualizar) btnActualizar.style.display = rol === 'admin' ? 'block' : 'none'
+
+  const { data: categorias } = await db.from('categorias').select('id, nombre').order('orden')
+  const { data: productos }  = await db.from('productos').select('*, categorias(nombre)').order('descripcion')
+
+  if (!productos || productos.length === 0) {
+    document.getElementById('lista-productos').innerHTML = '<p class="vacio">No hay productos cargados</p>'
+    return
+  }
+
+  // Agrupar por categoría
+  const porCategoria = {}
+  productos.forEach(p => {
+    const cat = p.categorias?.nombre || 'Sin categoría'
+    if (!porCategoria[cat]) porCategoria[cat] = []
+    porCategoria[cat].push(p)
+  })
+
+  let html = ''
+  Object.entries(porCategoria).forEach(([cat, prods]) => {
+    html += `<div class="categoria-grupo">
+      <div class="categoria-titulo">${cat}</div>
+      <table class="tabla">
+        <thead><tr><th>Código</th><th>Descripción</th><th>Precio</th><th>Unidad</th><th>Últ. actualización</th></tr></thead>
+        <tbody>
+          ${prods.map(p => `<tr>
+            <td>${p.codigo}</td>
+            <td><b>${p.descripcion}</b></td>
+            <td class="${p.precio_1 > 0 ? '' : 'precio-sin-definir'}">
+              ${p.precio_1 > 0 ? '$' + Number(p.precio_1).toLocaleString('es-AR') : 'Sin precio'}
+              ${p.precio_anterior > 0 ? `<br><small class="precio-anterior">Ant: $${Number(p.precio_anterior).toLocaleString('es-AR')}</small>` : ''}
+            </td>
+            <td>${p.unidad}</td>
+            <td>${p.fecha_ultimo_precio ? formatFecha(p.fecha_ultimo_precio) : '-'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`
+  })
+
+  document.getElementById('lista-productos').innerHTML = html
+}
+
+function mostrarVistaProductos(vista) {
+  document.getElementById('vista-catalogo-productos').style.display   = vista === 'catalogo'  ? 'block' : 'none'
+  document.getElementById('vista-actualizar-precios').style.display   = vista === 'actualizar'? 'block' : 'none'
+  document.getElementById('vista-historial-precios').style.display    = vista === 'historial' ? 'block' : 'none'
+
+  if (vista === 'actualizar') cargarTablaActualizarPrecios()
+  if (vista === 'historial')  cargarHistorialPrecios()
+}
+
+async function cargarTablaActualizarPrecios() {
+  // Setear fecha de hoy por defecto
+  const hoy = new Date().toISOString().split('T')[0]
+  document.getElementById('precio-fecha-vigencia').value = hoy
+
+  // Preview foto
+  document.getElementById('precio-foto-lista').onchange = function() {
+    const file = this.files[0]
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader()
+      reader.onload = e => {
+        document.getElementById('precio-foto-img').src = e.target.result
+        document.getElementById('precio-foto-preview').style.display = 'block'
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const { data: categorias } = await db.from('categorias').select('id, nombre').order('orden')
+  const { data: productos }  = await db.from('productos').select('*').order('descripcion')
+
+  if (!productos) return
+
+  // Agrupar por categoría
+  const porCategoria = {}
+  categorias?.forEach(c => { porCategoria[c.id] = { nombre: c.nombre, productos: [] } })
+  productos.forEach(p => {
+    if (porCategoria[p.categoria_id]) porCategoria[p.categoria_id].productos.push(p)
+  })
+
+  let html = ''
+  Object.values(porCategoria).forEach(cat => {
+    if (cat.productos.length === 0) return
+    html += `<div class="categoria-grupo">
+      <div class="categoria-titulo">${cat.nombre}</div>
+      <table class="tabla-precios">
+        <thead><tr><th>Producto</th><th>Precio actual</th><th>Precio nuevo</th></tr></thead>
+        <tbody>
+          ${cat.productos.map(p => `<tr>
+            <td>
+              <b>${p.descripcion}</b><br>
+              <small>${p.unidad}</small>
+            </td>
+            <td class="precio-actual-col">
+              ${p.precio_1 > 0 ? '$' + Number(p.precio_1).toLocaleString('es-AR') : '<span class="precio-sin-definir">Sin precio</span>'}
+            </td>
+            <td>
+              <div class="input-con-sufijo">
+                <span>$</span>
+                <input type="number"
+                  class="input-precio-nuevo"
+                  data-producto-id="${p.id}"
+                  data-precio-actual="${p.precio_1}"
+                  placeholder="${p.precio_1 > 0 ? Number(p.precio_1).toLocaleString('es-AR') : '0'}"
+                  min="0" step="0.01">
+              </div>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`
+  })
+
+  document.getElementById('tabla-actualizar-precios').innerHTML = html
+}
+
+async function guardarNuevosPrecios() {
+  const fechaVigencia = document.getElementById('precio-fecha-vigencia').value
+  if (!fechaVigencia) {
+    document.getElementById('precio-error').textContent = 'Ingresá la fecha de vigencia'
+    document.getElementById('precio-error').style.display = 'block'
+    return
+  }
+  document.getElementById('precio-error').style.display = 'none'
+
+  // Recolectar precios que cambiaron
+  const inputs = document.querySelectorAll('.input-precio-nuevo')
+  const cambios = []
+  inputs.forEach(input => {
+    const nuevo = parseFloat(input.value)
+    const actual = parseFloat(input.dataset.precioActual)
+    if (nuevo && nuevo > 0 && nuevo !== actual) {
+      cambios.push({
+        id:       input.dataset.productoId,
+        anterior: actual,
+        nuevo:    nuevo
+      })
+    }
+  })
+
+  if (cambios.length === 0) {
+    alert('No ingresaste ningún precio nuevo.')
+    return
+  }
+
+  // Subir foto de referencia si hay
+  let fotoUrl = null
+  const fotoFile = document.getElementById('precio-foto-lista').files[0]
+  if (fotoFile) {
+    const ext  = fotoFile.name.split('.').pop()
+    const path = `listas/lista_${fechaVigencia}_${Date.now()}.${ext}`
+    const { error: upErr } = await db.storage.from('documentos').upload(path, fotoFile, { upsert: true })
+    if (!upErr) {
+      const { data: urlData } = db.storage.from('documentos').getPublicUrl(path)
+      fotoUrl = urlData.publicUrl
+    }
+  }
+
+  // Actualizar cada producto que cambió
+  let actualizados = 0
+  for (const c of cambios) {
+    const { error } = await db.from('productos').update({
+      precio_anterior:    c.anterior,
+      precio_1:           c.nuevo,
+      fecha_ultimo_precio: fechaVigencia
+    }).eq('id', c.id)
+    if (!error) actualizados++
+  }
+
+  // Guardar en historial
+  await db.from('historial_listas_precio').insert({
+    fecha_vigencia:         fechaVigencia,
+    imagen_url:             fotoUrl,
+    subido_por:             usuarioActual.id,
+    precios_confirmados:    cambios,
+    confirmado:             true,
+    productos_actualizados: actualizados
+  })
+
+  alert(`✅ Lista actualizada correctamente.\n${actualizados} precios actualizados.`)
+  mostrarVistaProductos('catalogo')
+  cargarProductos()
+}
+
+async function cargarHistorialPrecios() {
+  const { data: historial } = await db.from('historial_listas_precio')
+    .select('*, perfiles(nombre_completo)')
+    .order('created_at', { ascending: false })
+
+  const el = document.getElementById('lista-historial-precios')
+  if (!historial || historial.length === 0) {
+    el.innerHTML = '<p class="vacio">No hay listas de precios registradas</p>'
+    return
+  }
+
+  el.innerHTML = historial.map(h => `
+    <div class="historial-lista-item">
+      <div class="historial-lista-info">
+        <div class="historial-lista-fecha">📅 Vigente desde: <b>${formatFecha(h.fecha_vigencia)}</b></div>
+        <div class="historial-lista-detalle">
+          ${h.productos_actualizados} precios actualizados •
+          Subido por ${h.perfiles?.nombre_completo || '-'} •
+          ${formatFechaHora(h.created_at)}
+        </div>
+        ${h.precios_confirmados ? `
+        <div class="historial-lista-cambios">
+          ${h.precios_confirmados.slice(0,3).map(c =>
+            `<span class="cambio-badge">$${Number(c.anterior).toLocaleString('es-AR')} → $${Number(c.nuevo).toLocaleString('es-AR')}</span>`
+          ).join('')}
+          ${h.precios_confirmados.length > 3 ? `<span class="cambio-badge">+${h.precios_confirmados.length - 3} más</span>` : ''}
+        </div>` : ''}
+      </div>
+      ${h.imagen_url ? `<a href="${h.imagen_url}" target="_blank" class="btn-ver">📷 Ver lista</a>` : ''}
+    </div>`).join('')
+}
   return `<span class="badge ${c[e]||'badge-gris'}">${e}</span>`
 }
