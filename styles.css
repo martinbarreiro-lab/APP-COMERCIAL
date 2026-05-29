@@ -201,3 +201,61 @@ body { background:#f0f2f5; color:#1a1a1a; }
 .precio-col { font-size:14px; }
 .precio-col small { color:#888; font-size:11px; }
 .desc-detalle { color:#888; font-size:11px; }
+
+/* ── NUEVO PEDIDO ── */
+.pedido-selector-cliente { margin-bottom:16px; }
+.cliente-seleccionado { background:#e8f5e9; border-radius:10px; padding:14px 18px; display:flex; justify-content:space-between; align-items:center; font-weight:bold; }
+.btn-cambiar { background:white; border:1px solid #2d6a4f; color:#2d6a4f; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px; }
+.condiciones-cliente { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.resultado-cliente { padding:12px 16px; background:white; border-bottom:1px solid #f0f0f0; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:14px; }
+.resultado-cliente:hover { background:#f9fffe; }
+
+/* ── TABS CATEGORÍAS ── */
+.tabs-categorias { display:flex; gap:8px; overflow-x:auto; padding-bottom:8px; margin-bottom:16px; }
+.tab-cat { background:white; border:1px solid #ddd; color:#666; padding:8px 16px; border-radius:20px; cursor:pointer; font-size:13px; white-space:nowrap; }
+.tab-cat.activo { background:#2d6a4f; border-color:#2d6a4f; color:white; font-weight:bold; }
+
+/* ── PRODUCTO EN PEDIDO ── */
+.producto-pedido-card { background:white; border-radius:12px; padding:16px; margin-bottom:10px; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
+.prod-pedido-info { margin-bottom:12px; }
+.prod-pedido-nombre { font-size:15px; font-weight:bold; margin-bottom:4px; }
+.prod-pedido-precios { font-size:13px; color:#666; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.precio-dest { font-weight:bold; color:#2d6a4f; font-size:14px; }
+.sep { color:#ccc; }
+.prod-pedido-controles { display:flex; gap:16px; flex-wrap:wrap; }
+.control-cantidad { display:flex; flex-direction:column; gap:4px; }
+.control-label { font-size:12px; color:#888; }
+.cantidad-btns { display:flex; align-items:center; gap:4px; }
+.btn-cant { width:36px; height:36px; border-radius:8px; border:1px solid #ddd; background:white; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#2d6a4f; font-weight:bold; }
+.btn-cant:hover { background:#e8f5e9; }
+.input-cant { width:60px; height:36px; text-align:center; border:1px solid #ddd; border-radius:8px; font-size:15px; font-weight:bold; }
+
+/* ── BARRA TOTAL FLOTANTE ── */
+.barra-total-pedido { position:fixed; bottom:0; left:200px; right:0; background:#1a3a2a; color:white; padding:14px 24px; display:flex; justify-content:space-between; align-items:center; z-index:50; box-shadow:0 -4px 16px rgba(0,0,0,0.2); }
+.barra-total-info { display:flex; gap:12px; align-items:center; font-size:14px; }
+.barra-monto { font-size:20px; font-weight:bold; }
+.btn-ver-resumen { background:#2d6a4f; color:white; border:none; padding:12px 24px; border-radius:8px; font-size:15px; font-weight:bold; cursor:pointer; }
+.btn-ver-resumen:hover:not(.disabled) { background:#3d8a6f; }
+.btn-ver-resumen.disabled { opacity:0.4; cursor:not-allowed; }
+
+/* ── RESUMEN FISCAL ── */
+.resumen-fiscal { background:#f9f9f9; border-radius:10px; padding:16px; }
+.fiscal-fila { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee; font-size:14px; }
+.fiscal-separador { height:1px; background:#ddd; margin:8px 0; }
+.descuento-fila { color:#c00; }
+.total-fila { font-size:18px; font-weight:bold; color:#1a3a2a; border-bottom:none; }
+.bonif-box { background:#e3f2fd; border-radius:8px; padding:12px; margin-top:12px; font-size:14px; color:#1565c0; }
+
+/* ── PEDIDO CARD ── */
+.pedido-card { background:white; border-radius:12px; padding:16px 20px; margin-bottom:10px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.06); transition:all 0.2s; }
+.pedido-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.12); transform:translateY(-1px); }
+.pedido-card.pedido-alerta { border-left:4px solid #f59e0b; }
+.pedido-card-top { display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
+.pedido-numero { font-size:16px; font-weight:bold; color:#1a3a2a; }
+.pedido-cliente { font-size:14px; color:#666; margin-bottom:6px; }
+.pedido-card-bottom { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.pedido-total { font-size:16px; font-weight:bold; }
+.pedido-vence { font-size:12px; color:#888; }
+
+/* Padding bottom para que la barra no tape contenido */
+#vista-nuevo-pedido { padding-bottom:80px; }
