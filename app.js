@@ -1085,18 +1085,18 @@ async function renderizarFormPedido() {
       <div class="form-seccion">CLIENTE</div>
       ${pedidoActual.cliente
         ? `<div class="cliente-seleccionado">
-            <span>${pedidoActual.cliente.razon_social}</span>
+            <span class="cliente-sel-nombre">${pedidoActual.cliente.razon_social}</span>
             <button class="btn-cambiar" onclick="cambiarCliente()">Cambiar</button>
-           </div>`
+           </div>
+           ${renderCondicionesCliente()}`
         : `<div class="buscador-box">
             <input type="text" id="buscar-cliente-pedido"
               placeholder="🔍 Buscar cliente..."
-              oninput="buscarClientePedido()"
+              oninput="filtrarListaClientes()"
               class="buscador-input">
-            <div id="resultados-cliente-pedido"></div>
+            <div id="resultados-cliente-pedido" class="lista-clientes-pedido"></div>
            </div>`
       }
-      ${pedidoActual.cliente ? renderCondicionesCliente() : ''}
     </div>` : renderCondicionesCliente()
 
   el.innerHTML = `
@@ -1107,6 +1107,10 @@ async function renderizarFormPedido() {
   `
 
   await cargarCatalogoPedido()
+  // Cargar lista de clientes si no hay cliente seleccionado
+  if (!pedidoActual.cliente && rol !== 'cliente') {
+    await cargarListaClientesPedido()
+  }
   actualizarBarraTotal()
 }
 
@@ -1125,20 +1129,49 @@ function renderCondicionesCliente() {
   `
 }
 
-async function buscarClientePedido() {
-  const q = document.getElementById('buscar-cliente-pedido').value.toLowerCase()
-  if (q.length < 2) { document.getElementById('resultados-cliente-pedido').innerHTML = ''; return }
+// Cache de clientes para filtrar
+let _clientesPedidoCache = []
 
+async function cargarListaClientesPedido() {
   const { data: clientes } = await db.from('clientes')
     .select('id, razon_social, descuento_pct, bonificacion_pct, condicion_factura, pct_remito, pct_factura, alicuota_iva, bloqueado, saldo_pendiente, activo')
-    .ilike('razon_social', `%${q}%`).eq('activo', true).limit(8)
+    .eq('activo', true)
+    .order('razon_social')
+  _clientesPedidoCache = clientes || []
+  renderListaClientesPedido(_clientesPedidoCache)
+}
 
-  document.getElementById('resultados-cliente-pedido').innerHTML = clientes?.map(c => `
+function filtrarListaClientes() {
+  const q = document.getElementById('buscar-cliente-pedido').value.toLowerCase()
+  const filtrados = q.length === 0
+    ? _clientesPedidoCache
+    : _clientesPedidoCache.filter(c => c.razon_social.toLowerCase().includes(q))
+  renderListaClientesPedido(filtrados)
+}
+
+function renderListaClientesPedido(clientes) {
+  const el = document.getElementById('resultados-cliente-pedido')
+  if (!el) return
+  if (!clientes || clientes.length === 0) {
+    el.innerHTML = '<p class="vacio">No hay clientes</p>'
+    return
+  }
+  el.innerHTML = clientes.map(c => `
     <div class="resultado-cliente" onclick="seleccionarClientePedido('${c.id}')">
-      <span>${c.razon_social}</span>
-      ${c.bloqueado ? '<span class="badge badge-rojo">⚠️</span>' : ''}
-      ${c.descuento_pct > 0 ? `<span class="badge badge-verde">${c.descuento_pct}%</span>` : ''}
-    </div>`).join('') || '<p class="vacio">No encontrado</p>'
+      <div class="resultado-cliente-info">
+        <span class="resultado-cliente-nombre">${c.razon_social}</span>
+        <div class="resultado-cliente-badges">
+          ${c.bloqueado ? '<span class="badge badge-rojo">⚠️ Deuda</span>' : ''}
+          ${c.descuento_pct > 0 ? `<span class="badge badge-verde">Desc. ${c.descuento_pct}%</span>` : ''}
+          ${c.bonificacion_pct > 0 ? `<span class="badge badge-azul">Bonif. ${c.bonificacion_pct}%</span>` : ''}
+        </div>
+      </div>
+      <span class="resultado-cliente-arrow">›</span>
+    </div>`).join('')
+}
+
+async function buscarClientePedido() {
+  filtrarListaClientes()
 }
 
 async function seleccionarClientePedido(id) {
