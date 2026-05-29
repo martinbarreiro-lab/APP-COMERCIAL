@@ -67,6 +67,30 @@
             </div>
             <div id="lista-pedidos"></div>
           </div>
+
+          <!-- Vista: nuevo pedido -->
+          <div id="vista-nuevo-pedido" style="display:none">
+            <div class="seccion-header">
+              <button class="btn-volver" onclick="mostrarVistaPedidos('lista')">← Volver</button>
+              <h2>Nuevo Pedido</h2>
+            </div>
+            <div id="contenido-nuevo-pedido"></div>
+            <div class="barra-total-pedido" id="barra-total-pedido">
+              <div class="barra-total-info">
+                <span>0 productos • 0 kg • $0</span>
+              </div>
+              <button class="btn-ver-resumen disabled" disabled>Ver resumen →</button>
+            </div>
+          </div>
+
+          <!-- Vista: resumen pedido -->
+          <div id="vista-resumen-pedido" style="display:none">
+            <div class="seccion-header">
+              <button class="btn-volver" onclick="mostrarVistaPedidos('nuevo')">← Volver al catálogo</button>
+              <h2>Resumen del Pedido</h2>
+            </div>
+            <div id="contenido-resumen-pedido"></div>
+          </div>
           <div id="vista-detalle-pedido" style="display:none">
             <div class="seccion-header">
               <button class="btn-volver" onclick="volverAPedidos()">← Volver</button>
