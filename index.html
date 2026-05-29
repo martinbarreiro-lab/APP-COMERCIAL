@@ -221,7 +221,7 @@
     <!-- CLIENTES -->
     <div id="page-clientes" class="page">
       <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
-        <button class="btn btn-primary btn-sm" onclick="navegarA('form-cliente')"><i class="ti ti-plus"></i> Nuevo cliente</button>
+        <button class="btn btn-primary btn-sm" onclick="estadoApp.clienteActual=null;limpiarFormCliente();navegarA('form-cliente')"><i class="ti ti-plus"></i> Nuevo cliente</button>
       </div>
       <div class="search-bar">
         <i class="ti ti-search"></i>
@@ -237,10 +237,11 @@
     <!-- DETALLE CLIENTE -->
     <div id="page-detalle-cliente" class="page">
       <div class="tabs-header">
-        <button class="tab active" onclick="switchTab('resumen-cliente')">Resumen</button>
-        <button class="tab" onclick="switchTab('pedidos-cliente')">Pedidos</button>
-        <button class="tab" onclick="switchTab('pagos-cliente')">Pagos</button>
-        <button class="tab" onclick="switchTab('datos-cliente')">Datos</button>
+        <button class="tab active" onclick="switchTab('resumen-cliente',event)">Resumen</button>
+        <button class="tab" onclick="switchTab('pedidos-cliente',event)">Pedidos</button>
+        <button class="tab" onclick="switchTab('pagos-cliente',event)">Pagos</button>
+        <button class="tab" onclick="switchTab('facturas-cliente',event)">Facturas</button>
+        <button class="tab" onclick="switchTab('datos-cliente',event)">Datos</button>
       </div>
       <div id="tab-resumen-cliente" class="tab-content active">
         <div class="kpi-grid">
@@ -264,7 +265,14 @@
           <div class="kpi-card"><p class="kpi-label">Total pagado</p><p class="kpi-value green" id="cli-total-pagado">$0</p></div>
           <div class="kpi-card"><p class="kpi-label">Pendiente</p><p class="kpi-value" id="cli-pendiente">$0</p></div>
         </div>
+        <button class="btn btn-primary btn-full" onclick="nuevoCobroDesdeCliente()"><i class="ti ti-plus"></i> Registrar nuevo cobro</button>
+        <p class="section-title">Historial de pagos</p>
         <div id="historial-pagos-cliente"></div>
+      </div>
+      <div id="tab-facturas-cliente" class="tab-content" style="display:none;">
+        <button class="btn btn-primary btn-full" onclick="nuevaFacturaDesdeCliente()"><i class="ti ti-plus"></i> Cargar factura / remito</button>
+        <p class="section-title">Facturas y remitos</p>
+        <div id="historial-facturas-cliente"></div>
       </div>
       <div id="tab-datos-cliente" class="tab-content" style="display:none;">
         <div id="datos-cliente-form"></div>
