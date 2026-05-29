@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>La Cabaña — Sistema de Gestión</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+</head>
+<body>
+
+  <!-- ================================ -->
+  <!-- PANTALLA DE LOGIN                -->
+  <!-- ================================ -->
+  <div id="pantalla-login">
+    <div class="login-box">
+      <div class="login-logo">🥛</div>
+      <h1>La Cabaña</h1>
+      <p class="login-subtitulo">Sistema de Gestión</p>
+
+      <div id="login-error" class="error-msg" style="display:none"></div>
+
+      <div class="campo">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="tu@email.com">
+      </div>
+
+      <div class="campo">
+        <label>Contraseña</label>
+        <input type="password" id="login-password" placeholder="••••••••">
+      </div>
+
+      <button onclick="iniciarSesion()" class="btn-login">
+        Ingresar
+      </button>
+
+      <a href="#" onclick="olvidoPassword()" class="link-olvide">
+        Olvidé mi contraseña
+      </a>
+    </div>
+  </div>
+
+  <!-- ================================ -->
+  <!-- APP PRINCIPAL                    -->
+  <!-- ================================ -->
+  <div id="pantalla-app" style="display:none">
+
+    <!-- Barra superior -->
+    <div class="topbar">
+      <div class="topbar-titulo">🥛 La Cabaña</div>
+      <div class="topbar-usuario">
+        <span id="nombre-usuario"></span>
+        <button onclick="cerrarSesion()" class="btn-salir">Salir</button>
+      </div>
+    </div>
+
+    <!-- Menú lateral -->
+    <div class="layout">
+      <nav class="sidebar">
+        <button onclick="mostrarSeccion('dashboard')"   class="nav-btn" id="nav-dashboard">
+          📊 Dashboard
+        </button>
+        <button onclick="mostrarSeccion('preventa')"    class="nav-btn" id="nav-preventa">
+          📦 Preventa
+        </button>
+        <button onclick="mostrarSeccion('cobranza')"    class="nav-btn" id="nav-cobranza">
+          💰 Cobranza
+        </button>
+        <button onclick="mostrarSeccion('logistica')"   class="nav-btn" id="nav-logistica">
+          🚚 Logística
+        </button>
+        <button onclick="mostrarSeccion('clientes')"    class="nav-btn" id="nav-clientes">
+          👥 Clientes
+        </button>
+        <button onclick="mostrarSeccion('productos')"   class="nav-btn" id="nav-productos">
+          🧀 Productos
+        </button>
+      </nav>
+
+      <!-- Contenido principal -->
+      <main id="contenido-principal">
+
+        <!-- DASHBOARD -->
+        <section id="seccion-dashboard" class="seccion">
+          <h2>Dashboard</h2>
+          <div class="tarjetas">
+            <div class="tarjeta">
+              <div class="tarjeta-numero" id="total-pedidos-hoy">0</div>
+              <div class="tarjeta-label">Pedidos hoy</div>
+            </div>
+            <div class="tarjeta">
+              <div class="tarjeta-numero" id="total-cobros-hoy">$0</div>
+              <div class="tarjeta-label">Cobrado hoy</div>
+            </div>
+            <div class="tarjeta">
+              <div class="tarjeta-numero" id="total-pendientes">0</div>
+              <div class="tarjeta-label">Cobros pendientes</div>
+            </div>
+            <div class="tarjeta">
+              <div class="tarjeta-numero" id="total-envios">0</div>
+              <div class="tarjeta-label">Envíos activos</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- PREVENTA -->
+        <section id="seccion-preventa" class="seccion" style="display:none">
+          <div class="seccion-header">
+            <h2>Preventa — Pedidos</h2>
+            <button class="btn-nuevo" onclick="nuevoPedido()">+ Nuevo pedido</button>
+          </div>
+          <div id="lista-pedidos"></div>
+        </section>
+
+        <!-- COBRANZA -->
+        <section id="seccion-cobranza" class="seccion" style="display:none">
+          <h2>Cobranza</h2>
+          <div id="lista-cobranza"></div>
+        </section>
+
+        <!-- LOGISTICA -->
+        <section id="seccion-logistica" class="seccion" style="display:none">
+          <div class="seccion-header">
+            <h2>Logística — Envíos</h2>
+            <button class="btn-nuevo" onclick="nuevoEnvio()">+ Nuevo envío</button>
+          </div>
+          <div id="lista-envios"></div>
+        </section>
+
+        <!-- CLIENTES -->
+        <section id="seccion-clientes" class="sec
