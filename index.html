@@ -10,43 +10,30 @@
 </head>
 <body>
 
-  <!-- ================================ -->
-  <!-- PANTALLA DE LOGIN                -->
-  <!-- ================================ -->
+  <!-- LOGIN -->
   <div id="pantalla-login">
     <div class="login-box">
       <div class="login-logo">🥛</div>
       <h1>La Cabaña</h1>
       <p class="login-subtitulo">Sistema de Gestión</p>
-
       <div id="login-error" class="error-msg" style="display:none"></div>
-
       <div class="campo">
         <label>Email</label>
         <input type="email" id="login-email" placeholder="tu@email.com">
       </div>
-
       <div class="campo">
         <label>Contraseña</label>
         <input type="password" id="login-password" placeholder="••••••••">
       </div>
-
-      <button onclick="iniciarSesion()" class="btn-login">
-        Ingresar
-      </button>
-
-      <a href="#" onclick="olvidoPassword()" class="link-olvide">
-        Olvidé mi contraseña
-      </a>
+      <button onclick="iniciarSesion()" class="btn-login">Ingresar</button>
+      <a href="#" onclick="olvidoPassword()" class="link-olvide">Olvidé mi contraseña</a>
     </div>
   </div>
 
-  <!-- ================================ -->
-  <!-- APP PRINCIPAL                    -->
-  <!-- ================================ -->
+  <!-- APP PRINCIPAL -->
   <div id="pantalla-app" style="display:none">
 
-    <!-- Barra superior -->
+    <!-- Topbar -->
     <div class="topbar">
       <div class="topbar-titulo">🥛 La Cabaña</div>
       <div class="topbar-usuario">
@@ -55,30 +42,19 @@
       </div>
     </div>
 
-    <!-- Menú lateral -->
     <div class="layout">
+
+      <!-- Sidebar -->
       <nav class="sidebar">
-        <button onclick="mostrarSeccion('dashboard')"   class="nav-btn" id="nav-dashboard">
-          📊 Dashboard
-        </button>
-        <button onclick="mostrarSeccion('preventa')"    class="nav-btn" id="nav-preventa">
-          📦 Preventa
-        </button>
-        <button onclick="mostrarSeccion('cobranza')"    class="nav-btn" id="nav-cobranza">
-          💰 Cobranza
-        </button>
-        <button onclick="mostrarSeccion('logistica')"   class="nav-btn" id="nav-logistica">
-          🚚 Logística
-        </button>
-        <button onclick="mostrarSeccion('clientes')"    class="nav-btn" id="nav-clientes">
-          👥 Clientes
-        </button>
-        <button onclick="mostrarSeccion('productos')"   class="nav-btn" id="nav-productos">
-          🧀 Productos
-        </button>
+        <button onclick="mostrarSeccion('dashboard')"  class="nav-btn" id="nav-dashboard">📊 Dashboard</button>
+        <button onclick="mostrarSeccion('pedidos')"    class="nav-btn" id="nav-pedidos">📦 Pedidos</button>
+        <button onclick="mostrarSeccion('cobranza')"   class="nav-btn" id="nav-cobranza">💰 Cobranza</button>
+        <button onclick="mostrarSeccion('logistica')"  class="nav-btn" id="nav-logistica">🚚 Logística</button>
+        <button onclick="mostrarSeccion('clientes')"   class="nav-btn" id="nav-clientes">👥 Clientes</button>
+        <button onclick="mostrarSeccion('productos')"  class="nav-btn" id="nav-productos">🧀 Productos</button>
       </nav>
 
-      <!-- Contenido principal -->
+      <!-- Contenido -->
       <main id="contenido-principal">
 
         <!-- DASHBOARD -->
@@ -104,10 +80,10 @@
           </div>
         </section>
 
-        <!-- PREVENTA -->
-        <section id="seccion-preventa" class="seccion" style="display:none">
+        <!-- PEDIDOS -->
+        <section id="seccion-pedidos" class="seccion" style="display:none">
           <div class="seccion-header">
-            <h2>Preventa — Pedidos</h2>
+            <h2>Pedidos</h2>
             <button class="btn-nuevo" onclick="nuevoPedido()">+ Nuevo pedido</button>
           </div>
           <div id="lista-pedidos"></div>
@@ -122,7 +98,7 @@
         <!-- LOGISTICA -->
         <section id="seccion-logistica" class="seccion" style="display:none">
           <div class="seccion-header">
-            <h2>Logística — Envíos</h2>
+            <h2>Logística</h2>
             <button class="btn-nuevo" onclick="nuevoEnvio()">+ Nuevo envío</button>
           </div>
           <div id="lista-envios"></div>
@@ -130,11 +106,180 @@
 
         <!-- CLIENTES -->
         <section id="seccion-clientes" class="seccion" style="display:none">
-          <div class="seccion-header">
-            <h2>Clientes</h2>
-            <button class="btn-nuevo" onclick="nuevoCliente()">+ Nuevo cliente</button>
+
+          <!-- VISTA: Lista de clientes -->
+          <div id="vista-lista-clientes">
+            <div class="seccion-header">
+              <h2>Clientes</h2>
+              <button class="btn-nuevo" onclick="abrirFormCliente()">+ Nuevo cliente</button>
+            </div>
+            <div class="buscador-box">
+              <input type="text" id="buscador-clientes"
+                placeholder="🔍 Buscar cliente..."
+                oninput="filtrarClientes()"
+                class="buscador-input">
+            </div>
+            <div id="lista-clientes"></div>
           </div>
-          <div id="lista-clientes"></div>
+
+          <!-- VISTA: Ficha del cliente -->
+          <div id="vista-ficha-cliente" style="display:none">
+            <div class="seccion-header">
+              <button class="btn-volver" onclick="volverAClientes()">← Volver</button>
+              <button class="btn-nuevo" onclick="editarClienteActual()">✏️ Editar</button>
+            </div>
+            <div id="contenido-ficha-cliente"></div>
+          </div>
+
+          <!-- VISTA: Formulario nuevo/editar cliente -->
+          <div id="vista-form-cliente" style="display:none">
+            <div class="seccion-header">
+              <button class="btn-volver" onclick="volverAClientes()">← Volver</button>
+              <h2 id="titulo-form-cliente">Nuevo Cliente</h2>
+            </div>
+            <div class="form-card">
+
+              <div class="form-seccion">DATOS BÁSICOS</div>
+
+              <div class="campo">
+                <label>Razón Social *</label>
+                <input type="text" id="f-razon-social" placeholder="Nombre o empresa">
+              </div>
+              <div class="campo">
+                <label>CUIT</label>
+                <input type="text" id="f-cuit" placeholder="30-12345678-9">
+              </div>
+              <div class="campo">
+                <label>Teléfono</label>
+                <input type="text" id="f-telefono" placeholder="341-555-0000">
+              </div>
+              <div class="campo">
+                <label>Email</label>
+                <input type="email" id="f-email" placeholder="cliente@email.com">
+              </div>
+              <div class="campo">
+                <label>Dirección</label>
+                <input type="text" id="f-direccion" placeholder="Calle y número">
+              </div>
+              <div class="campo">
+                <label>Provincia</label>
+                <select id="f-provincia" onchange="cargarLocalidades()">
+                  <option value="">Seleccioná una provincia...</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label>Localidad</label>
+                <select id="f-localidad">
+                  <option value="">Primero seleccioná una provincia...</option>
+                </select>
+              </div>
+
+              <div class="form-seccion">CONDICIÓN FISCAL</div>
+
+              <div class="campo">
+                <label>Condición IVA</label>
+                <select id="f-condicion-iva">
+                  <option value="responsable_inscripto">Responsable Inscripto</option>
+                  <option value="monotributista">Monotributista</option>
+                  <option value="exento">Exento</option>
+                  <option value="consumidor_final">Consumidor Final</option>
+                </select>
+              </div>
+
+              <div class="form-seccion">FACTURACIÓN</div>
+
+              <div class="campo">
+                <label>Tipo de facturación</label>
+                <select id="f-condicion-factura" onchange="toggleMixto()">
+                  <option value="todo_factura">Todo Factura</option>
+                  <option value="todo_remito">Todo Remito</option>
+                  <option value="mixto">Mixto (Remito + Factura)</option>
+                </select>
+              </div>
+
+              <div id="campo-mixto" style="display:none">
+                <div class="campo-doble">
+                  <div class="campo">
+                    <label>% Remito</label>
+                    <input type="number" id="f-pct-remito" value="50" min="0" max="100"
+                      oninput="sincronizarPct('remito')">
+                  </div>
+                  <div class="campo">
+                    <label>% Factura</label>
+                    <input type="number" id="f-pct-factura" value="50" min="0" max="100"
+                      oninput="sincronizarPct('factura')">
+                  </div>
+                </div>
+              </div>
+
+              <div class="campo">
+                <label>Alícuota IVA</label>
+                <select id="f-alicuota-iva">
+                  <option value="21">21%</option>
+                  <option value="10.5">10.5%</option>
+                  <option value="0">0% (Exento)</option>
+                </select>
+              </div>
+
+              <div class="form-seccion">BENEFICIO COMERCIAL</div>
+
+              <div class="campo-doble">
+                <div class="campo">
+                  <label>Descuento en precio</label>
+                  <div class="input-con-sufijo">
+                    <input type="number" id="f-descuento" value="0" min="0" max="100" step="0.5">
+                    <span>%</span>
+                  </div>
+                </div>
+                <div class="campo">
+                  <label>Bonificación producto</label>
+                  <div class="input-con-sufijo">
+                    <input type="number" id="f-bonificacion" value="0" min="0" max="100" step="0.5">
+                    <span>%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-seccion">CONDICIONES DE PAGO</div>
+
+              <div class="campo">
+                <label>Vence a los (días desde la entrega)</label>
+                <div class="input-con-sufijo">
+                  <input type="number" id="f-dias-vencimiento" value="7" min="0">
+                  <span>días</span>
+                </div>
+              </div>
+
+              <div class="campo">
+                <label>Formas de pago aceptadas</label>
+                <div class="checkboxes">
+                  <label class="check-label">
+                    <input type="checkbox" id="f-pago-efectivo"> Efectivo
+                  </label>
+                  <label class="check-label">
+                    <input type="checkbox" id="f-pago-cheque"> Cheque
+                  </label>
+                  <label class="check-label">
+                    <input type="checkbox" id="f-pago-transferencia"> Transferencia
+                  </label>
+                </div>
+              </div>
+
+              <div class="form-seccion">OBSERVACIONES</div>
+
+              <div class="campo">
+                <textarea id="f-observaciones" rows="3"
+                  placeholder="Notas internas sobre el cliente..."></textarea>
+              </div>
+
+              <div id="form-error" class="error-msg" style="display:none"></div>
+
+              <button class="btn-guardar" onclick="guardarCliente()">
+                💾 Guardar cliente
+              </button>
+
+            </div>
+          </div>
         </section>
 
         <!-- PRODUCTOS -->
