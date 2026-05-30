@@ -65,6 +65,22 @@
               <h2>Pedidos</h2>
               <button class="btn-nuevo" onclick="nuevoPedido()">+ Nuevo pedido</button>
             </div>
+
+            <!-- Filtros -->
+            <div class="filtros-pedidos">
+              <input type="text" id="filtro-cliente-pedido"
+                placeholder="🔍 Buscar cliente..."
+                oninput="cargarPedidos()"
+                class="filtro-input">
+              <div class="filtro-fechas">
+                <label>Desde</label>
+                <input type="date" id="filtro-fecha-desde" onchange="cargarPedidos()" class="filtro-input-fecha">
+                <label>Hasta</label>
+                <input type="date" id="filtro-fecha-hasta" onchange="cargarPedidos()" class="filtro-input-fecha">
+              </div>
+              <button class="btn-limpiar" onclick="limpiarFiltrosPedidos()">✕ Limpiar</button>
+            </div>
+
             <div id="lista-pedidos"></div>
           </div>
 
