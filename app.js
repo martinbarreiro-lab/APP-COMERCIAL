@@ -116,7 +116,7 @@ async function cargarPedidos() {
   const fechaHasta = document.getElementById('filtro-fecha-hasta')?.value || ''
 
   let query = db.from('pedidos')
-    .select('id, numero, total, estado, etapa, estado_cobro, alerta_vencimiento, fecha_vencimiento_cobro, fecha_pedido, clientes(razon_social)')
+    .select('id, numero, total, estado, etapa, estado_cobro, alerta_vencimiento, fecha_vencimiento_cobro, fecha_pedido, created_at, updated_at, clientes(razon_social)')
     .order('created_at', { ascending: false })
     .limit(100)
 
@@ -145,6 +145,10 @@ async function cargarPedidos() {
             <span class="pedido-total">$${Number(p.total).toLocaleString('es-AR')}</span>
             ${badgeCobro(p.estado_cobro)}
             ${p.fecha_vencimiento_cobro ? `<span class="pedido-vence">Vence: ${formatFecha(p.fecha_vencimiento_cobro)}</span>` : ''}
+          </div>
+          <div class="pedido-card-fechas">
+            <span>📅 ${formatFechaHora(p.created_at)}</span>
+            ${p.updated_at !== p.created_at ? `<span>✏️ Modif: ${formatFechaHora(p.updated_at)}</span>` : ''}
           </div>
         </div>
         <div class="pedido-card-acciones">
@@ -1638,6 +1642,7 @@ async function confirmarPedido() {
       total:                   t.total,
       observaciones:           obs || null,
       fecha_vencimiento_cobro: fechaVenc,
+      updated_at:              new Date().toISOString(),
     }).eq('id', pedidoActual.borrador_id).select().single()
     pedido = res.data
     error  = res.error
