@@ -489,8 +489,7 @@ async function guardarCobro() {
     medio_pago: medio,
     foto_url:   fotoUrl,
     nota:       nota || null,
-    fecha_vencimiento_cheque: fechaCheque || null,
-    creado_offline: false
+    fecha_vencimiento_cheque: fechaCheque || null
   })
 
   if (error) { alert('Error al guardar el cobro: ' + error.message); return }
