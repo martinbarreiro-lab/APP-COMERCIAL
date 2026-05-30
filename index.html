@@ -81,7 +81,8 @@
               <button class="btn-limpiar" onclick="limpiarFiltrosPedidos()">✕ Limpiar</button>
             </div>
 
-            <div id="lista-pedidos"></div>
+            <!-- Kanban board -->
+            <div id="kanban-board" class="kanban-board"></div>
           </div>
 
           <!-- Vista: nuevo pedido -->
@@ -116,11 +117,13 @@
             <div class="progreso-bar">
               <div class="progreso-paso" id="prog-pedido"><div class="progreso-circulo">1</div><div class="progreso-label">Pedido</div></div>
               <div class="progreso-linea"></div>
-              <div class="progreso-paso" id="prog-documentado"><div class="progreso-circulo">2</div><div class="progreso-label">Facturado</div></div>
+              <div class="progreso-paso" id="prog-facturado"><div class="progreso-circulo">2</div><div class="progreso-label">Facturado</div></div>
               <div class="progreso-linea"></div>
-              <div class="progreso-paso" id="prog-cobrado"><div class="progreso-circulo">3</div><div class="progreso-label">Cobrado</div></div>
+              <div class="progreso-paso" id="prog-enviado"><div class="progreso-circulo">3</div><div class="progreso-label">Enviado</div></div>
               <div class="progreso-linea"></div>
-              <div class="progreso-paso" id="prog-cerrado"><div class="progreso-circulo">4</div><div class="progreso-label">Cerrado</div></div>
+              <div class="progreso-paso" id="prog-recibido"><div class="progreso-circulo">4</div><div class="progreso-label">Recibido</div></div>
+              <div class="progreso-linea"></div>
+              <div class="progreso-paso" id="prog-cobrado"><div class="progreso-circulo">5</div><div class="progreso-label">Cobrado</div></div>
             </div>
             <div id="alerta-vencimiento-pedido" style="display:none" class="alerta-box">⚠️ <span id="texto-alerta-vencimiento"></span></div>
             <div id="info-pedido" class="detalle-card"></div>
