@@ -1734,18 +1734,29 @@ async function guardarBorrador() {
 
 // ── APROBAR / RECHAZAR PEDIDO ────────────────────
 async function editarPedido(pedidoId) {
-  // Cargar el pedido completo
+  // 1. Cargar el pedido con su cliente
   const { data: p } = await db.from('pedidos')
     .select('*, clientes(*)')
     .eq('id', pedidoId).single()
   if (!p) return
 
-  // Cargar los items con todos los campos del producto
-  const { data: items } = await db.from('pedido_items')
-    .select('cantidad, producto_id, productos(id, descripcion, codigo, precio_1, precio_caja, unidad, tipo_precio, unidades_por_caja, kg_por_unidad, kg_por_caja, alicuota_iva, categoria_id, activo)')
+  // 2. Cargar items sin JOIN (más confiable)
+  const { data: rawItems } = await db.from('pedido_items')
+    .select('producto_id, cantidad')
     .eq('pedido_id', pedidoId)
 
-  // Restaurar estado del formulario
+  if (!rawItems || rawItems.length === 0) {
+    alert('No se encontraron productos en este pedido')
+    return
+  }
+
+  // 3. Cargar productos completos por separado
+  const productoIds = rawItems.map(i => i.producto_id)
+  const { data: productosData } = await db.from('productos')
+    .select('*')
+    .in('id', productoIds)
+
+  // 4. Inicializar estado
   pedidoActual = {
     cliente:     p.clientes,
     items:       {},
@@ -1753,30 +1764,28 @@ async function editarPedido(pedidoId) {
     editando:    true
   }
 
-  // Cargar items usando producto_id como clave
-  items?.forEach(item => {
-    const prod = item.productos
+  // 5. Armar items cruzando rawItems con productosData
+  rawItems.forEach(item => {
+    const prod = productosData?.find(pr => pr.id === item.producto_id)
     if (!prod) return
+
     const esPorKg   = prod.tipo_precio === 'por_kg'
-    const tieneCaja = (prod.unidades_por_caja || 0) > 1 || esPorKg
+    const unidCaja  = prod.unidades_por_caja || 1
+    const tieneCaja = unidCaja > 1 || esPorKg
     const cantidad  = Number(item.cantidad)
 
-    let cantCaja  = 0
-    let cantUnid  = 0
+    let cantCaja = 0
+    let cantUnid = 0
 
     if (esPorKg) {
-      // Mantecas: cantidad = número de cajas
       cantCaja = cantidad
     } else if (tieneCaja) {
-      // Crema: cantidad en potes → convertir a cajas y resto en potes
-      const unidPorCaja = prod.unidades_por_caja || 1
-      cantCaja = Math.floor(cantidad / unidPorCaja)
-      cantUnid = cantidad % unidPorCaja
+      cantCaja = Math.floor(cantidad / unidCaja)
+      cantUnid = cantidad % unidCaja
     } else {
       cantUnid = cantidad
     }
 
-    // Usar item.producto_id como clave (es el mismo UUID que prod.id)
     pedidoActual.items[item.producto_id] = {
       producto:        prod,
       cantidad_caja:   cantCaja,
