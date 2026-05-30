@@ -106,17 +106,23 @@ async function cargarPedidos() {
 
   const html = pedidos && pedidos.length > 0
     ? pedidos.map(p => `
-      <div class="pedido-card ${p.alerta_vencimiento ? 'pedido-alerta' : ''}" onclick="abrirPedido('${p.id}')">
-        <div class="pedido-card-top">
-          <span class="pedido-numero">#${p.numero}</span>
-          ${p.alerta_vencimiento ? '<span class="badge badge-rojo">⚠️ Vence pronto</span>' : ''}
-          ${badgeEtapa(p.etapa)}
+      <div class="pedido-card ${p.alerta_vencimiento ? 'pedido-alerta' : ''}">
+        <div class="pedido-card-main" onclick="abrirPedido('${p.id}')">
+          <div class="pedido-card-top">
+            <span class="pedido-numero">#${p.numero}</span>
+            ${p.alerta_vencimiento ? '<span class="badge badge-rojo">⚠️ Vence pronto</span>' : ''}
+            ${badgeEtapa(p.etapa)}
+          </div>
+          <div class="pedido-cliente">${p.clientes?.razon_social || '-'}</div>
+          <div class="pedido-card-bottom">
+            <span class="pedido-total">$${Number(p.total).toLocaleString('es-AR')}</span>
+            ${badgeCobro(p.estado_cobro)}
+            ${p.fecha_vencimiento_cobro ? `<span class="pedido-vence">Vence: ${formatFecha(p.fecha_vencimiento_cobro)}</span>` : ''}
+          </div>
         </div>
-        <div class="pedido-cliente">${p.clientes?.razon_social || '-'}</div>
-        <div class="pedido-card-bottom">
-          <span class="pedido-total">$${Number(p.total).toLocaleString('es-AR')}</span>
-          ${badgeCobro(p.estado_cobro)}
-          ${p.fecha_vencimiento_cobro ? `<span class="pedido-vence">Vence: ${formatFecha(p.fecha_vencimiento_cobro)}</span>` : ''}
+        <div class="pedido-card-acciones">
+          <button class="btn-icono-pedido" onclick="event.stopPropagation(); abrirPedido('${p.id}')" title="Ver pedido">👁️</button>
+          <button class="btn-icono-pedido rojo" onclick="event.stopPropagation(); confirmarEliminarPedido('${p.id}', ${p.numero})" title="Eliminar pedido">🗑️</button>
         </div>
       </div>`).join('')
     : '<p class="vacio">No hay pedidos todavía</p>'
@@ -1169,10 +1175,7 @@ async function cargarListaClientesPedido() {
     .eq('activo', true)
     .order('razon_social')
   _clientesPedidoCache = clientes || []
-  // Mostrar la lista automáticamente al cargar
-  renderListaClientesPedido(_clientesPedidoCache)
-  const el = document.getElementById('resultados-cliente-pedido')
-  if (el) el.style.display = 'block'
+  // NO mostrar automáticamente - solo al hacer foco o escribir
 }
 
 function filtrarListaClientes() {
@@ -1687,6 +1690,18 @@ async function guardarBorrador() {
 }
 
 // ── APROBAR / RECHAZAR PEDIDO ────────────────────
+async function confirmarEliminarPedido(pedidoId, numero) {
+  const ok = confirm(`¿Eliminar el pedido #${numero}? Esta acción no se puede deshacer.`)
+  if (!ok) return
+  await db.from('pedido_items').delete().eq('pedido_id', pedidoId)
+  await db.from('historial_pedido').delete().eq('pedido_id', pedidoId)
+  await db.from('documentos_pedido').delete().eq('pedido_id', pedidoId)
+  await db.from('cobros').delete().eq('pedido_id', pedidoId)
+  const { error } = await db.from('pedidos').delete().eq('id', pedidoId)
+  if (error) { alert('Error al eliminar: ' + error.message); return }
+  cargarPedidos()
+}
+
 async function cancelarPedido(pedidoId) {
   const confirmar = confirm('¿Seguro que querés cancelar este pedido? Esta acción no se puede deshacer.')
   if (!confirmar) return
