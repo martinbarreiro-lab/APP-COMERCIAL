@@ -92,6 +92,16 @@ async function cargarDashboard() {
 }
 
 // ── PEDIDOS ──────────────────────────────────────
+function limpiarFiltrosPedidos() {
+  const c = document.getElementById('filtro-cliente-pedido')
+  const d = document.getElementById('filtro-fecha-desde')
+  const h = document.getElementById('filtro-fecha-hasta')
+  if (c) c.value = ''
+  if (d) d.value = ''
+  if (h) h.value = ''
+  cargarPedidos()
+}
+
 function mostrarVistaPedidos(vista) {
   document.getElementById('vista-lista-pedidos').style.display   = vista === 'lista'   ? 'block' : 'none'
   document.getElementById('vista-detalle-pedido').style.display  = vista === 'detalle' ? 'block' : 'none'
@@ -100,9 +110,26 @@ function mostrarVistaPedidos(vista) {
 }
 
 async function cargarPedidos() {
-  const { data: pedidos } = await db.from('pedidos')
-    .select('id, numero, total, estado, etapa, estado_cobro, alerta_vencimiento, fecha_vencimiento_cobro, clientes(razon_social)')
-    .order('created_at', { ascending: false }).limit(50)
+  // Leer filtros
+  const busqueda   = document.getElementById('filtro-cliente-pedido')?.value?.trim() || ''
+  const fechaDesde = document.getElementById('filtro-fecha-desde')?.value || ''
+  const fechaHasta = document.getElementById('filtro-fecha-hasta')?.value || ''
+
+  let query = db.from('pedidos')
+    .select('id, numero, total, estado, etapa, estado_cobro, alerta_vencimiento, fecha_vencimiento_cobro, fecha_pedido, clientes(razon_social)')
+    .order('created_at', { ascending: false })
+    .limit(100)
+
+  if (fechaDesde) query = query.gte('fecha_pedido', fechaDesde)
+  if (fechaHasta) query = query.lte('fecha_pedido', fechaHasta + 'T23:59:59')
+
+  const { data: todosLosPedidos } = await query
+
+  // Filtrar por cliente en JS (más simple)
+  const pedidos = busqueda
+    ? todosLosPedidos?.filter(p =>
+        p.clientes?.razon_social?.toLowerCase().includes(busqueda.toLowerCase()))
+    : todosLosPedidos
 
   const html = pedidos && pedidos.length > 0
     ? pedidos.map(p => `
