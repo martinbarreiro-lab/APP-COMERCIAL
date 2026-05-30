@@ -301,3 +301,13 @@ body { background:#f0f2f5; color:#1a1a1a; }
   box-shadow:0 8px 24px rgba(0,0,0,0.15);
   z-index:500;
 }
+
+/* ── FILTROS PEDIDOS ── */
+.filtros-pedidos { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:16px; background:white; padding:14px 18px; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
+.filtro-input { padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; outline:none; min-width:200px; }
+.filtro-input:focus { border-color:#2d6a4f; }
+.filtro-fechas { display:flex; align-items:center; gap:8px; font-size:13px; color:#666; }
+.filtro-input-fecha { padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:14px; outline:none; }
+.filtro-input-fecha:focus { border-color:#2d6a4f; }
+.btn-limpiar { background:#f0f0f0; color:#666; border:none; padding:8px 14px; border-radius:8px; font-size:13px; cursor:pointer; }
+.btn-limpiar:hover { background:#e0e0e0; }
