@@ -237,13 +237,13 @@ async function abrirPedido(id) {
     if (infoEl) infoEl.innerHTML += botonesHtml
   }
 
-  // Auto-calcular y actualizar etapa según estado real
-  await actualizarEtapaPedido(id, p)
-
   await cargarDocumentosPedido(id)
   await cargarProductosPedido(id)
   await cargarCobrosPedido(id)
   await cargarHistorialPedido(id)
+
+  // Calcular etapa real DESPUÉS de cargar todos los datos
+  await actualizarEtapaPedido(id, p)
 }
 
 function volverAPedidos() {
@@ -1887,41 +1887,45 @@ async function confirmarEliminarPedido(pedidoId, numero) {
 }
 
 async function actualizarEtapaPedido(pedidoId, pedido) {
-  if (pedido.etapa === 'cerrado') return // No tocar pedidos cerrados
+  if (pedido.etapa === 'cerrado') return
 
-  // Verificar documentos
-  const { data: docs } = await db.from('documentos_pedido')
-    .select('id').eq('pedido_id', pedidoId)
+  // Leer datos directamente (ya están en el DOM pero volvemos a consultar para ser precisos)
+  const [{ data: docs }, { data: cobrosData }] = await Promise.all([
+    db.from('documentos_pedido').select('id').eq('pedido_id', pedidoId),
+    db.from('cobros').select('monto').eq('pedido_id', pedidoId)
+  ])
 
-  // Verificar cobros
-  const { data: cobrosData } = await db.from('cobros')
-    .select('monto').eq('pedido_id', pedidoId)
+  const totalCobrado    = cobrosData?.reduce((s, c) => s + Number(c.monto), 0) || 0
+  const totalPedido     = Number(pedido.total)
+  const pagadoCompleto  = totalPedido > 0 && Math.abs(totalCobrado - totalPedido) <= 1
+  const tieneDocumentos = docs && docs.length > 0
 
-  const totalCobrado = cobrosData?.reduce((s, c) => s + Number(c.monto), 0) || 0
-  const pagadoCompleto = Math.abs(totalCobrado - Number(pedido.total)) <= 1
-
-  // Calcular etapa real
+  // Calcular etapa
   let etapaReal = 'pedido'
-  if (docs && docs.length > 0) etapaReal = 'documentado'
-  if (pagadoCompleto) etapaReal = 'cobrado'
+  if (tieneDocumentos)  etapaReal = 'documentado'
+  if (pagadoCompleto)   etapaReal = 'cobrado'
 
-  // Actualizar si cambió
+  // Siempre actualizar el progreso visual
+  actualizarBarraProgreso(etapaReal)
+
+  // Actualizar DB si cambió
   if (etapaReal !== pedido.etapa) {
     await db.from('pedidos').update({
-      etapa: etapaReal,
-      estado_cobro: pagadoCompleto ? pedido.estado_cobro : 'pendiente',
+      etapa:        etapaReal,
       monto_cobrado: totalCobrado
     }).eq('id', pedidoId)
-
-    // Actualizar progreso visual
-    const etapas = ['pedido', 'documentado', 'cobrado', 'cerrado']
-    const idx = etapas.indexOf(etapaReal)
-    etapas.forEach((e, i) => {
-      const el = document.getElementById('prog-' + e)
-      if (el) el.querySelector('.progreso-circulo').className =
-        'progreso-circulo ' + (i <= idx ? 'activo' : '')
-    })
   }
+}
+
+function actualizarBarraProgreso(etapa) {
+  const etapas = ['pedido', 'documentado', 'cobrado', 'cerrado']
+  const idx    = etapas.indexOf(etapa)
+  etapas.forEach((e, i) => {
+    const el = document.getElementById('prog-' + e)
+    if (!el) return
+    const circulo = el.querySelector('.progreso-circulo')
+    if (circulo) circulo.className = 'progreso-circulo' + (i <= idx ? ' activo' : '')
+  })
 }
 
 async function cerrarPedido(pedidoId) {
