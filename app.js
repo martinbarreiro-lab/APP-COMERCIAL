@@ -237,6 +237,9 @@ async function abrirPedido(id) {
     if (infoEl) infoEl.innerHTML += botonesHtml
   }
 
+  // Auto-calcular y actualizar etapa según estado real
+  await actualizarEtapaPedido(id, p)
+
   await cargarDocumentosPedido(id)
   await cargarProductosPedido(id)
   await cargarCobrosPedido(id)
@@ -852,7 +855,7 @@ function badgeVerificacion(v) {
 }
 function badgeEtapa(e) {
   const c = { pedido:'badge-gris', documentado:'badge-azul', cobrado:'badge-amarillo', cerrado:'badge-verde' }
-  const l = { pedido:'Pedido', documentado:'Documentado', cobrado:'Cobrado', cerrado:'Cerrado' }
+  const l = { pedido:'Pedido', documentado:'Facturado', cobrado:'Cobrado', cerrado:'Cerrado' }
   return `<span class="badge ${c[e]||'badge-gris'}">${l[e]||e}</span>`
 }
 function badgeEstado(e) {
@@ -1881,6 +1884,44 @@ async function confirmarEliminarPedido(pedidoId, numero) {
     return
   }
   cargarPedidos()
+}
+
+async function actualizarEtapaPedido(pedidoId, pedido) {
+  if (pedido.etapa === 'cerrado') return // No tocar pedidos cerrados
+
+  // Verificar documentos
+  const { data: docs } = await db.from('documentos_pedido')
+    .select('id').eq('pedido_id', pedidoId)
+
+  // Verificar cobros
+  const { data: cobrosData } = await db.from('cobros')
+    .select('monto').eq('pedido_id', pedidoId)
+
+  const totalCobrado = cobrosData?.reduce((s, c) => s + Number(c.monto), 0) || 0
+  const pagadoCompleto = Math.abs(totalCobrado - Number(pedido.total)) <= 1
+
+  // Calcular etapa real
+  let etapaReal = 'pedido'
+  if (docs && docs.length > 0) etapaReal = 'documentado'
+  if (pagadoCompleto) etapaReal = 'cobrado'
+
+  // Actualizar si cambió
+  if (etapaReal !== pedido.etapa) {
+    await db.from('pedidos').update({
+      etapa: etapaReal,
+      estado_cobro: pagadoCompleto ? pedido.estado_cobro : 'pendiente',
+      monto_cobrado: totalCobrado
+    }).eq('id', pedidoId)
+
+    // Actualizar progreso visual
+    const etapas = ['pedido', 'documentado', 'cobrado', 'cerrado']
+    const idx = etapas.indexOf(etapaReal)
+    etapas.forEach((e, i) => {
+      const el = document.getElementById('prog-' + e)
+      if (el) el.querySelector('.progreso-circulo').className =
+        'progreso-circulo ' + (i <= idx ? 'activo' : '')
+    })
+  }
 }
 
 async function cerrarPedido(pedidoId) {
