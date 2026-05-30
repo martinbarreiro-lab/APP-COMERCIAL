@@ -1132,6 +1132,7 @@ async function renderizarFormPedido() {
                 onclick="mostrarDropdownClientes()"
                 onfocus="mostrarDropdownClientes()"
                 onblur="ocultarDropdownClientes()"
+                autocomplete="off"
                 class="buscador-input"
                 style="cursor:pointer">
               <div id="resultados-cliente-pedido"
@@ -1193,9 +1194,17 @@ function filtrarListaClientes() {
   renderListaClientesPedido(filtrados)
 }
 
-function mostrarDropdownClientes() {
+async function mostrarDropdownClientes() {
   const el = document.getElementById('resultados-cliente-pedido')
-  if (el) el.style.display = 'block'
+  if (!el) return
+  el.style.display = 'block'
+  // Cargar clientes si aún no están en cache
+  if (_clientesPedidoCache.length === 0) {
+    el.innerHTML = '<p class="vacio">Cargando clientes...</p>'
+    await cargarListaClientesPedido()
+  } else {
+    renderListaClientesPedido(_clientesPedidoCache)
+  }
 }
 
 function ocultarDropdownClientes() {
