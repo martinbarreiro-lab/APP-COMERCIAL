@@ -1125,13 +1125,20 @@ async function renderizarFormPedido() {
            </div>
            ${renderCondicionesCliente()}`
         : `<div class="buscador-box dropdown-cliente-wrap">
-            <input type="text" id="buscar-cliente-pedido"
-              placeholder="🔍 Buscar cliente..."
-              oninput="filtrarListaClientes()"
-              onfocus="mostrarDropdownClientes()"
-              onblur="ocultarDropdownClientes()"
-              class="buscador-input">
-            <div id="resultados-cliente-pedido" class="lista-clientes-pedido dropdown-clientes" style="display:none"></div>
+            <div style="position:relative">
+              <input type="text" id="buscar-cliente-pedido"
+                placeholder="▼ Tocá para ver clientes..."
+                oninput="filtrarListaClientes()"
+                onclick="mostrarDropdownClientes()"
+                onfocus="mostrarDropdownClientes()"
+                onblur="ocultarDropdownClientes()"
+                class="buscador-input"
+                style="cursor:pointer">
+              <div id="resultados-cliente-pedido"
+                class="lista-clientes-pedido dropdown-clientes"
+                style="display:none;position:absolute;top:100%;left:0;right:0;z-index:500;background:white;border:1px solid #ddd;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-height:280px;overflow-y:auto;margin-top:4px">
+              </div>
+            </div>
            </div>`
       }
     </div>` : renderCondicionesCliente()
@@ -1756,12 +1763,23 @@ async function editarPedido(pedidoId) {
 async function confirmarEliminarPedido(pedidoId, numero) {
   const ok = confirm(`¿Eliminar el pedido #${numero}? Esta acción no se puede deshacer.`)
   if (!ok) return
-  await db.from('pedido_items').delete().eq('pedido_id', pedidoId)
-  await db.from('historial_pedido').delete().eq('pedido_id', pedidoId)
-  await db.from('documentos_pedido').delete().eq('pedido_id', pedidoId)
-  await db.from('cobros').delete().eq('pedido_id', pedidoId)
+
+  // Eliminar en orden (primero tablas dependientes)
+  const pasos = [
+    db.from('pedido_items').delete().eq('pedido_id', pedidoId),
+    db.from('historial_pedido').delete().eq('pedido_id', pedidoId),
+    db.from('documentos_pedido').delete().eq('pedido_id', pedidoId),
+    db.from('cobros').delete().eq('pedido_id', pedidoId),
+    db.from('notificaciones_admin').delete().eq('pedido_id', pedidoId),
+  ]
+  for (const paso of pasos) await paso
+
   const { error } = await db.from('pedidos').delete().eq('id', pedidoId)
-  if (error) { alert('Error al eliminar: ' + error.message); return }
+  if (error) {
+    alert('Error al eliminar: ' + error.message)
+    console.error('Delete error:', error)
+    return
+  }
   cargarPedidos()
 }
 
