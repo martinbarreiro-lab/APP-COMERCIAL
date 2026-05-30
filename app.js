@@ -168,6 +168,26 @@ async function abrirPedido(id) {
       ${cliente?.bonificacion_pct > 0 ? `<div><span class="info-label">Bonificación</span><span class="info-valor">${cliente.bonificacion_pct}% en producto</span></div>` : ''}
     </div>`
 
+  // Botones de acción según estado
+  const accionesEl = document.getElementById('acciones-pedido')
+  if (accionesEl) {
+    const esAdmin = (await cargarRolUsuario()) === 'admin'
+    const puedeAprobar = p.estado === 'pendiente_aprobacion'
+    accionesEl.innerHTML = `
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${puedeAprobar ? `
+          <button onclick="aprobarPedido('${id}')"  class="btn-nuevo">✅ Aprobar</button>
+          <button onclick="rechazarPedido('${id}')" class="btn-cancelar" style="color:#c00">❌ Rechazar</button>
+        ` : ''}
+        ${['borrador','pendiente_aprobacion','confirmado'].includes(p.estado) ? `
+          <button onclick="cancelarPedido('${id}')" class="btn-cancelar">🚫 Cancelar</button>
+        ` : ''}
+        ${(esAdmin && ['cancelado','rechazado','borrador'].includes(p.estado)) ? `
+          <button onclick="eliminarPedido('${id}')" class="btn-cancelar" style="color:#c00;border-color:#c00">🗑️ Eliminar</button>
+        ` : ''}
+      </div>`
+  }
+
   await cargarDocumentosPedido(id)
   await cargarProductosPedido(id)
   await cargarCobrosPedido(id)
@@ -1089,12 +1109,14 @@ async function renderizarFormPedido() {
             <button class="btn-cambiar" onclick="cambiarCliente()">Cambiar</button>
            </div>
            ${renderCondicionesCliente()}`
-        : `<div class="buscador-box">
+        : `<div class="buscador-box dropdown-cliente-wrap">
             <input type="text" id="buscar-cliente-pedido"
               placeholder="🔍 Buscar cliente..."
               oninput="filtrarListaClientes()"
+              onfocus="mostrarDropdownClientes()"
+              onblur="ocultarDropdownClientes()"
               class="buscador-input">
-            <div id="resultados-cliente-pedido" class="lista-clientes-pedido"></div>
+            <div id="resultados-cliente-pedido" class="lista-clientes-pedido dropdown-clientes" style="display:none"></div>
            </div>`
       }
     </div>` : renderCondicionesCliente()
@@ -1149,9 +1171,23 @@ function filtrarListaClientes() {
   renderListaClientesPedido(filtrados)
 }
 
+function mostrarDropdownClientes() {
+  const el = document.getElementById('resultados-cliente-pedido')
+  if (el) el.style.display = 'block'
+}
+
+function ocultarDropdownClientes() {
+  // Pequeño delay para permitir el click en el item
+  setTimeout(() => {
+    const el = document.getElementById('resultados-cliente-pedido')
+    if (el) el.style.display = 'none'
+  }, 200)
+}
+
 function renderListaClientesPedido(clientes) {
   const el = document.getElementById('resultados-cliente-pedido')
   if (!el) return
+  el.style.display = 'block'
   if (!clientes || clientes.length === 0) {
     el.innerHTML = '<p class="vacio">No hay clientes</p>'
     return
@@ -1508,6 +1544,10 @@ function mostrarResumenPedido() {
 
 // ── CONFIRMAR PEDIDO ─────────────────────────────
 async function confirmarPedido() {
+  // Evitar doble guardado
+  const btnConfirmar = document.querySelector('[onclick="confirmarPedido()"]')
+  if (btnConfirmar) { btnConfirmar.disabled = true; btnConfirmar.textContent = '⏳ Guardando...' }
+
   const rol     = await cargarRolUsuario()
   const t       = calcularTotales()
   const cliente = pedidoActual.cliente
@@ -1635,6 +1675,33 @@ async function guardarBorrador() {
 }
 
 // ── APROBAR / RECHAZAR PEDIDO ────────────────────
+async function cancelarPedido(pedidoId) {
+  const confirmar = confirm('¿Seguro que querés cancelar este pedido? Esta acción no se puede deshacer.')
+  if (!confirmar) return
+
+  const { error } = await db.from('pedidos').update({
+    estado: 'cancelado',
+    etapa:  'pedido'
+  }).eq('id', pedidoId)
+
+  if (error) { alert('Error al cancelar: ' + error.message); return }
+
+  await registrarHistorial(pedidoId, 'estado_cambiado', 'Pedido cancelado')
+  await abrirPedido(pedidoId)
+}
+
+async function eliminarPedido(pedidoId) {
+  const confirmar = confirm('⚠️ ¿Eliminar este pedido definitivamente?')
+  if (!confirmar) return
+
+  await db.from('pedido_items').delete().eq('pedido_id', pedidoId)
+  await db.from('historial_pedido').delete().eq('pedido_id', pedidoId)
+  await db.from('pedidos').delete().eq('id', pedidoId)
+
+  mostrarVistaPedidos('lista')
+  cargarPedidos()
+}
+
 async function aprobarPedido(pedidoId) {
   const { error } = await db.from('pedidos').update({
     estado:           'confirmado',
