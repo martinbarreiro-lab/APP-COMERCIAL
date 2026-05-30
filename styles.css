@@ -261,6 +261,15 @@ body { background:#f0f2f5; color:#1a1a1a; }
 #vista-nuevo-pedido { padding-bottom:80px; }
 
 /* ── LISTA CLIENTES EN PEDIDO ── */
+.dropdown-cliente-wrap { position:relative; }
+.dropdown-clientes {
+  position:absolute; top:100%; left:0; right:0;
+  max-height:280px; overflow-y:auto;
+  border:1px solid #e0e0e0; border-radius:10px;
+  background:white; margin-top:4px;
+  box-shadow:0 8px 24px rgba(0,0,0,0.12);
+  z-index:200;
+}
 .lista-clientes-pedido { max-height:320px; overflow-y:auto; border:1px solid #e0e0e0; border-radius:10px; background:white; margin-top:8px; }
 .resultado-cliente { padding:14px 16px; border-bottom:1px solid #f0f0f0; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition:background 0.15s; }
 .resultado-cliente:hover { background:#f0f7f4; }
