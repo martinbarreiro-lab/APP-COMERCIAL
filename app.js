@@ -121,7 +121,7 @@ async function cargarPedidos() {
           </div>
         </div>
         <div class="pedido-card-acciones">
-          <button class="btn-icono-pedido" onclick="event.stopPropagation(); abrirPedido('${p.id}')" title="Ver pedido">👁️</button>
+          <button class="btn-icono-pedido" onclick="event.stopPropagation(); editarPedido('${p.id}')" title="Editar pedido">✏️</button>
           <button class="btn-icono-pedido rojo" onclick="event.stopPropagation(); confirmarEliminarPedido('${p.id}', ${p.numero})" title="Eliminar pedido">🗑️</button>
         </div>
       </div>`).join('')
@@ -1582,22 +1582,46 @@ async function confirmarPedido() {
     ? new Date(new Date(fecha).getTime() + diasVenc * 86400000).toISOString().split('T')[0]
     : new Date(Date.now() + diasVenc * 86400000).toISOString().split('T')[0]
 
-  // Crear pedido
-  const { data: pedido, error } = await db.from('pedidos').insert({
-    cliente_id:              cliente.id,
-    vendedor_id:             rol === 'cliente' ? null : usuarioActual.id,
-    estado,
-    fecha_entrega:           fecha || null,
-    subtotal:                t.subtotal,
-    descuento:               t.descuentoMonto,
-    iva_total:               t.ivaTotal,
-    total:                   t.total,
-    condicion_pago:          'contado',
-    observaciones:           obs || null,
-    fecha_vencimiento_cobro: fechaVenc,
-    creado_por_rol:          rol,
-    etapa:                   'pedido'
-  }).select().single()
+  // Actualizar o crear pedido
+  let pedido, error
+
+  if (pedidoActual.editando && pedidoActual.borrador_id) {
+    // UPDATE pedido existente
+    const res = await db.from('pedidos').update({
+      fecha_entrega:           fecha || null,
+      subtotal:                t.subtotal,
+      descuento:               t.descuentoMonto,
+      iva_total:               t.ivaTotal,
+      total:                   t.total,
+      observaciones:           obs || null,
+      fecha_vencimiento_cobro: fechaVenc,
+    }).eq('id', pedidoActual.borrador_id).select().single()
+    pedido = res.data
+    error  = res.error
+
+    // Borrar items anteriores para reemplazarlos
+    if (!error) await db.from('pedido_items').delete().eq('pedido_id', pedidoActual.borrador_id)
+
+  } else {
+    // INSERT pedido nuevo
+    const res = await db.from('pedidos').insert({
+      cliente_id:              cliente.id,
+      vendedor_id:             rol === 'cliente' ? null : usuarioActual.id,
+      estado,
+      fecha_entrega:           fecha || null,
+      subtotal:                t.subtotal,
+      descuento:               t.descuentoMonto,
+      iva_total:               t.ivaTotal,
+      total:                   t.total,
+      condicion_pago:          'contado',
+      observaciones:           obs || null,
+      fecha_vencimiento_cobro: fechaVenc,
+      creado_por_rol:          rol,
+      etapa:                   'pedido'
+    }).select().single()
+    pedido = res.data
+    error  = res.error
+  }
 
   if (error) { alert('Error al guardar: ' + error.message); return }
 
@@ -1629,8 +1653,11 @@ async function confirmarPedido() {
   await db.from('pedido_items').insert(itemsParaInsertar)
 
   // Registrar en historial
-  await registrarHistorial(pedido.id, 'pedido_creado',
-    `Pedido creado por ${rol} — $${Number(t.total).toLocaleString('es-AR')}`)
+  const accionHistorial = pedidoActual.editando ? 'estado_cambiado' : 'pedido_creado'
+  const detalleHistorial = pedidoActual.editando
+    ? `Pedido modificado — $${Number(t.total).toLocaleString('es-AR')}`
+    : `Pedido creado por ${rol} — $${Number(t.total).toLocaleString('es-AR')}`
+  await registrarHistorial(pedido.id, accionHistorial, detalleHistorial)
 
   // Borrar borrador si había
   if (pedidoActual.borrador_id) {
@@ -1690,6 +1717,42 @@ async function guardarBorrador() {
 }
 
 // ── APROBAR / RECHAZAR PEDIDO ────────────────────
+async function editarPedido(pedidoId) {
+  // Cargar el pedido completo
+  const { data: p } = await db.from('pedidos').select('*, clientes(*)').eq('id', pedidoId).single()
+  if (!p) return
+
+  // Cargar los items
+  const { data: items } = await db.from('pedido_items')
+    .select('*, productos(*)')
+    .eq('pedido_id', pedidoId)
+
+  // Restaurar estado del formulario
+  pedidoActual = {
+    cliente:    p.clientes,
+    items:      {},
+    borrador_id: pedidoId,  // Reusar el ID existente
+    editando:   true
+  }
+
+  // Cargar items en el estado
+  items?.forEach(item => {
+    const prod = item.productos
+    if (!prod) return
+    const esPorKg   = prod.tipo_precio === 'por_kg'
+    const tieneCaja = prod.unidades_por_caja > 1 || esPorKg
+
+    pedidoActual.items[prod.id] = {
+      producto:         prod,
+      cantidad_unidad:  tieneCaja ? 0 : item.cantidad,
+      cantidad_caja:    tieneCaja ? (esPorKg ? item.cantidad : Math.floor(item.cantidad / (prod.unidades_por_caja || 1))) : 0
+    }
+  })
+
+  mostrarVistaPedidos('nuevo')
+  await renderizarFormPedido()
+}
+
 async function confirmarEliminarPedido(pedidoId, numero) {
   const ok = confirm(`¿Eliminar el pedido #${numero}? Esta acción no se puede deshacer.`)
   if (!ok) return
