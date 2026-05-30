@@ -169,23 +169,32 @@ async function abrirPedido(id) {
     </div>`
 
   // Botones de acción según estado
+  const rol2      = await cargarRolUsuario()
+  const esAdmin2  = rol2 === 'admin'
+  const puedeAprobar = p.estado === 'pendiente_aprobacion'
+
+  // Insertar botones dentro del info-pedido
+  const botonesHtml = `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid #eee">
+      ${puedeAprobar ? `
+        <button onclick="aprobarPedido('${id}')"  class="btn-nuevo">✅ Aprobar</button>
+        <button onclick="rechazarPedido('${id}')" class="btn-cancelar" style="color:#c00">❌ Rechazar</button>
+      ` : ''}
+      ${['borrador','pendiente_aprobacion','confirmado'].includes(p.estado) ? `
+        <button onclick="cancelarPedido('${id}')" class="btn-cancelar">🚫 Cancelar</button>
+      ` : ''}
+      ${esAdmin2 ? `
+        <button onclick="eliminarPedido('${id}')" class="btn-cancelar" style="color:#c00;border-color:#c00">🗑️ Eliminar</button>
+      ` : ''}
+    </div>`
+
+  // También intentar actualizar el div de acciones si existe
   const accionesEl = document.getElementById('acciones-pedido')
-  if (accionesEl) {
-    const esAdmin = (await cargarRolUsuario()) === 'admin'
-    const puedeAprobar = p.estado === 'pendiente_aprobacion'
-    accionesEl.innerHTML = `
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${puedeAprobar ? `
-          <button onclick="aprobarPedido('${id}')"  class="btn-nuevo">✅ Aprobar</button>
-          <button onclick="rechazarPedido('${id}')" class="btn-cancelar" style="color:#c00">❌ Rechazar</button>
-        ` : ''}
-        ${['borrador','pendiente_aprobacion','confirmado'].includes(p.estado) ? `
-          <button onclick="cancelarPedido('${id}')" class="btn-cancelar">🚫 Cancelar</button>
-        ` : ''}
-        ${(esAdmin && ['cancelado','rechazado','borrador'].includes(p.estado)) ? `
-          <button onclick="eliminarPedido('${id}')" class="btn-cancelar" style="color:#c00;border-color:#c00">🗑️ Eliminar</button>
-        ` : ''}
-      </div>`
+  if (accionesEl) accionesEl.innerHTML = botonesHtml
+  else {
+    // Agregar al final de info-pedido
+    const infoEl = document.getElementById('info-pedido')
+    if (infoEl) infoEl.innerHTML += botonesHtml
   }
 
   await cargarDocumentosPedido(id)
@@ -1160,7 +1169,10 @@ async function cargarListaClientesPedido() {
     .eq('activo', true)
     .order('razon_social')
   _clientesPedidoCache = clientes || []
+  // Mostrar la lista automáticamente al cargar
   renderListaClientesPedido(_clientesPedidoCache)
+  const el = document.getElementById('resultados-cliente-pedido')
+  if (el) el.style.display = 'block'
 }
 
 function filtrarListaClientes() {
