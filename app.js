@@ -220,6 +220,9 @@ async function abrirPedido(id) {
       ${['borrador','pendiente_aprobacion','confirmado'].includes(p.estado) ? `
         <button onclick="cancelarPedido('${id}')" class="btn-cancelar">🚫 Cancelar</button>
       ` : ''}
+      ${p.etapa === 'cobrado' ? `
+        <button onclick="cerrarPedido('${id}')" class="btn-nuevo" style="background:#1565c0">🔒 Cerrar pedido</button>
+      ` : ''}
       ${esAdmin2 ? `
         <button onclick="eliminarPedido('${id}')" class="btn-cancelar" style="color:#c00;border-color:#c00">🗑️ Eliminar</button>
       ` : ''}
@@ -497,8 +500,24 @@ async function guardarCobro() {
   // Actualizar monto cobrado en el pedido
   const nuevoMonto = Number(pedido.monto_cobrado) + monto
   const nuevoPendiente = Number(pedido.total) - nuevoMonto
-  const nuevoEstado = nuevoPendiente <= 0.01 ? 'cobrado_efectivo' : 'pendiente'
-  const nuevaEtapa  = nuevoPendiente <= 0.01 ? 'cobrado' : undefined
+  const pagoCompleto = nuevoPendiente <= 0.01
+
+  // Determinar estado cobro según medio de pago
+  const estadoMap = {
+    efectivo:      'cobrado_efectivo',
+    transferencia: 'cobrado_transferencia',
+    cheque:        'cobrado_cheque',
+    echeq:         'cobrado_cheque',
+    tarjeta:       'cobrado_tarjeta'
+  }
+  // Si ya había cobros anteriores y este es diferente → mixto
+  const { data: cobrosAnteriores } = await db.from('cobros')
+    .select('medio_pago').eq('pedido_id', pedidoActualId)
+  const hayOtroMedio = cobrosAnteriores?.some(c => c.medio_pago !== medio)
+  const nuevoEstado = pagoCompleto
+    ? (hayOtroMedio ? 'cobrado_transferencia' : (estadoMap[medio] || 'cobrado_efectivo'))
+    : 'pendiente'
+  const nuevaEtapa = pagoCompleto ? 'cobrado' : undefined
 
   const updateData = { monto_cobrado: nuevoMonto, estado_cobro: nuevoEstado }
   if (nuevaEtapa) updateData.etapa = nuevaEtapa
@@ -841,8 +860,21 @@ function badgeEstado(e) {
   return `<span class="badge ${c[e]||'badge-gris'}">${e}</span>`
 }
 function badgeCobro(e) {
-  const c = { pendiente:'badge-amarillo', cobrado_efectivo:'badge-verde', cobrado_transferencia:'badge-verde', cobrado_cheque:'badge-verde', cobrado_tarjeta:'badge-verde', incobrable:'badge-rojo' }
-  const l = { pendiente:'Pendiente', cobrado_efectivo:'Efectivo', cobrado_transferencia:'Transferencia', cobrado_cheque:'Cheque', cobrado_tarjeta:'Tarjeta', incobrable:'Incobrable' }
+  const c = {
+    pendiente:'badge-amarillo',
+    cobrado_efectivo:'badge-verde', cobrado_transferencia:'badge-verde',
+    cobrado_cheque:'badge-verde', cobrado_tarjeta:'badge-verde',
+    incobrable:'badge-rojo', en_gestion:'badge-gris'
+  }
+  const l = {
+    pendiente:'💰 Pendiente',
+    cobrado_efectivo:'✅ Cobrado',
+    cobrado_transferencia:'✅ Cobrado',
+    cobrado_cheque:'✅ Cobrado',
+    cobrado_tarjeta:'✅ Cobrado',
+    incobrable:'❌ Incobrable',
+    en_gestion:'🔄 En gestión'
+  }
   return `<span class="badge ${c[e]||'badge-gris'}">${l[e]||e}</span>`
 }
 function badgeEnvio(e) {
@@ -1849,6 +1881,14 @@ async function confirmarEliminarPedido(pedidoId, numero) {
     return
   }
   cargarPedidos()
+}
+
+async function cerrarPedido(pedidoId) {
+  const ok = confirm('¿Cerrar este pedido definitivamente? No podrá editarse.')
+  if (!ok) return
+  await db.from('pedidos').update({ etapa: 'cerrado' }).eq('id', pedidoId)
+  await registrarHistorial(pedidoId, 'pedido_cerrado', 'Pedido cerrado')
+  await abrirPedido(pedidoId)
 }
 
 async function cancelarPedido(pedidoId) {
