@@ -416,3 +416,27 @@ body { background:#f0f2f5; color:#1a1a1a; }
   60%      { transform: rotate(-10deg); }
   80%      { transform: rotate(10deg); }
 }
+
+/* ── DASHBOARD ─────────────────────────────────── */
+.dash-card {
+  background: var(--color-background-primary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-lg);
+  padding: 16px;
+}
+.dash-card-titulo {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+@media (max-width: 900px) {
+  #dash-root [style*="grid-template-columns:repeat(4"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
