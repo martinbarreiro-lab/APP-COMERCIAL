@@ -336,3 +336,48 @@ body { background:#f0f2f5; color:#1a1a1a; }
 /* ── BOTONES ETAPA ── */
 .btn-enviado { background:#1a3a2a; color:white; border:none; padding:9px 18px; border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; }
 .btn-recibido { background:#1565c0; color:white; border:none; padding:9px 18px; border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; }
+
+/* ══ COBRANZA ══════════════════════════════════ */
+.cob-stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }
+.cob-stat-card { background:var(--color-background-secondary); border-radius:var(--border-radius-md); padding:1rem; }
+.cob-stat-card.rojo { background:#fcebeb; }
+.cob-stat-label { font-size:13px; color:var(--color-text-secondary); margin-bottom:6px; }
+.cob-stat-num { font-size:22px; font-weight:500; color:var(--color-text-primary); }
+.cob-stat-num.rojo { color:#a32d2d; }
+.cob-stat-sub { font-size:12px; color:var(--color-text-tertiary); margin-top:4px; }
+.cob-stat-sub.rojo { color:#a32d2d; }
+
+.cob-filtro-btn { padding:7px 12px; border:0.5px solid var(--color-border-tertiary); border-radius:8px; font-size:12px; font-weight:500; cursor:pointer; background:var(--color-background-primary); color:var(--color-text-secondary); }
+.cob-filtro-btn.activo { background:#1a3a2a; color:white; border-color:#1a3a2a; }
+.cob-filtro-btn.rojo { color:#a32d2d; background:#fcebeb; border-color:#f7c1c1; }
+.cob-filtro-btn.naranja { color:#633806; background:#faeeda; border-color:#fac775; }
+.cob-filtro-btn.verde { color:#085041; background:#e1f5ee; border-color:#9fe1cb; }
+
+.cob-seccion-titulo { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px; }
+.cob-seccion-count { background:var(--color-background-secondary); color:var(--color-text-secondary); font-size:11px; padding:1px 8px; border-radius:20px; }
+
+.cob-card { background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); padding:14px 18px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.cob-card-cobrada { opacity:0.7; }
+.cob-card-main { flex:1; }
+.cob-card-top { display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
+.cob-card-cliente { font-size:15px; font-weight:500; color:var(--color-text-primary); }
+.cob-alerta-badge { font-size:11px; font-weight:500; padding:2px 8px; border-radius:20px; display:flex; align-items:center; gap:4px; }
+.cob-card-meta { display:flex; gap:14px; font-size:13px; color:var(--color-text-secondary); flex-wrap:wrap; }
+.cob-barra-mini { height:4px; background:var(--color-background-secondary); border-radius:4px; margin-top:8px; overflow:hidden; }
+.cob-barra-mini-fill { height:100%; border-radius:4px; transition:width 0.3s; }
+.cob-parcial-info { display:flex; gap:14px; font-size:12px; color:var(--color-text-secondary); margin-top:4px; }
+.cob-card-right { display:flex; flex-direction:column; align-items:flex-end; gap:8px; min-width:140px; }
+.cob-card-monto { font-size:18px; font-weight:500; }
+.cob-card-acciones { display:flex; gap:8px; align-items:center; }
+
+.btn-whatsapp { width:36px; height:36px; border-radius:8px; border:0.5px solid #9fe1cb; background:#e1f5ee; color:#085041; display:flex; align-items:center; justify-content:center; font-size:18px; text-decoration:none; }
+.btn-whatsapp:hover { background:#9fe1cb; }
+.btn-cobrar { padding:8px 16px; background:#1a3a2a; color:white; border:none; border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; }
+.btn-cobrar:hover { background:#2d6a4f; }
+
+.cob-dropdown-item { padding:10px 16px; font-size:14px; cursor:pointer; border-bottom:0.5px solid var(--color-border-tertiary); color:var(--color-text-primary); }
+.cob-dropdown-item:hover { background:var(--color-background-secondary); }
+.cob-dropdown-item:last-child { border-bottom:none; }
+
+#modal-cobro { display:none !important; }
+#modal-cobro[style*="flex"] { display:flex !important; }
