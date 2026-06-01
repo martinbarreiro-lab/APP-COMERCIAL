@@ -2634,7 +2634,12 @@ async function confirmarNuevoEnvio() {
     creado_por:    usuarioActual.id
   }).select().single()
 
-  if (error) { alert('Error al crear envío: ' + error.message); return }
+  if (error) {
+    console.error('Error envio:', error)
+    alert('Error al crear envío: ' + error.message + '\n\nCódigo: ' + error.code)
+    return
+  }
+  if (!envio) { alert('No se pudo crear el envío. Verificá que el SQL fue ejecutado.'); return }
 
   // Asociar pedidos al envío
   const items = _envioActual.pedidos.map(pid => ({
@@ -2642,7 +2647,12 @@ async function confirmarNuevoEnvio() {
     pedido_id:  pid,
     estado:     'pendiente'
   }))
-  await db.from('envio_pedidos').insert(items)
+  const { error: itemsErr } = await db.from('envio_pedidos').insert(items)
+  if (itemsErr) {
+    console.error('Error envio_pedidos:', itemsErr)
+    alert('Error al asociar pedidos: ' + itemsErr.message)
+    return
+  }
 
   // Actualizar etapa de cada pedido a "enviado" y notificar
   for (const pid of _envioActual.pedidos) {
