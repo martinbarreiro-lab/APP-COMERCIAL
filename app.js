@@ -2917,11 +2917,13 @@ async function toggleEnvioDetalle(envioId) {
 
 async function cargarPedidosDeEnvio(envioId) {
   const { data: items } = await db.from('envio_pedidos')
-    .select('*, pedidos(id, numero, etapa, clientes(razon_social, telefono))')
+    .select('envio_id, pedido_id, estado, pedidos(id, numero, etapa, clientes(razon_social, telefono))')
     .eq('envio_id', envioId)
 
   const el = document.getElementById(`pedidos-envio-${envioId}`)
   if (!el) return
+
+  console.log('envio_pedidos items:', JSON.stringify(items))
 
   if (!items || items.length === 0) {
     el.innerHTML = '<p class="vacio">Sin pedidos</p>'
@@ -2930,6 +2932,8 @@ async function cargarPedidosDeEnvio(envioId) {
 
   el.innerHTML = items.map(item => {
     const p         = item.pedidos
+    const pedidoId  = item.pedido_id || p?.id || ''
+    console.log('item pedido_id:', item.pedido_id, 'p.id:', p?.id, 'usando:', pedidoId)
     const entregado = p?.etapa === 'recibido'
     const tel       = p?.clientes?.telefono?.replace(/\D/g, '') || ''
     return `
@@ -2952,7 +2956,7 @@ async function cargarPedidosDeEnvio(envioId) {
           </div>
         </div>
         ${!entregado ? `
-          <button onclick="event.stopPropagation(); marcarRecibido('${item.pedido_id}')"
+          <button onclick="event.stopPropagation(); marcarRecibido('${pedidoId}')"
             style="margin-top:10px;width:100%;background:#185fa5;color:white;border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
             <i class="ti ti-circle-check" style="font-size:15px" aria-hidden="true"></i>
             Confirmar entrega del Pedido #${p?.numero}
