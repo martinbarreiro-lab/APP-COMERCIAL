@@ -381,3 +381,15 @@ body { background:#f0f2f5; color:#1a1a1a; }
 
 #modal-cobro { display:none !important; }
 #modal-cobro[style*="flex"] { display:flex !important; }
+
+/* ── MODAL DETALLE COBRANZA ── */
+#modal-detalle-cob[style*="flex"] { display:flex !important; }
+.mdc-doc-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:0.5px solid var(--color-border-tertiary); }
+.mdc-doc-item:last-child { border-bottom:none; }
+.btn-ver-doc { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border:0.5px solid var(--color-border-tertiary); border-radius:8px; font-size:13px; color:var(--color-text-primary); text-decoration:none; background:var(--color-background-secondary); cursor:pointer; }
+.btn-ver-doc:hover { background:var(--color-background-primary); }
+.btn-ver-doc.foto { background:#e3f2fd; border-color:#b5d4f4; color:#0c447c; }
+.mdc-cobro-item { padding:12px 0; border-bottom:0.5px solid var(--color-border-tertiary); }
+.mdc-cobro-item:last-child { border-bottom:none; }
+.mdc-cobro-info { display:flex; flex-direction:column; gap:4px; }
+.mdc-foto-wrap { margin-top:8px; }
