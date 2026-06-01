@@ -2836,7 +2836,7 @@ async function renderEnviosActivos() {
 
 async function cargarPedidosPreview(envioId) {
   const { data: items } = await db.from('envio_pedidos')
-    .select('pedidos(numero, etapa, clientes(razon_social))')
+    .select('pedidos(id, numero, etapa, clientes(razon_social))')
     .eq('envio_id', envioId)
   const el = document.getElementById(`pedidos-preview-${envioId}`)
   if (!el || !items) return
@@ -2902,7 +2902,7 @@ async function toggleEnvioDetalle(envioId) {
 
 async function cargarPedidosDeEnvio(envioId) {
   const { data: items } = await db.from('envio_pedidos')
-    .select('*, pedidos(numero, etapa, clientes(razon_social, telefono))')
+    .select('*, pedidos(id, numero, etapa, clientes(razon_social, telefono))')
     .eq('envio_id', envioId)
 
   const el = document.getElementById(`pedidos-envio-${envioId}`)
