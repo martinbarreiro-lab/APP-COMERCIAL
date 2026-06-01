@@ -2078,7 +2078,8 @@ function renderCobCard(p, hoy, esAdmin, esCobrado = false) {
   const tel = p.clientes?.telefono?.replace(/\D/g, '') || ''
 
   return `
-    <div class="cob-card ${esCobrado ? 'cob-card-cobrada' : ''}" style="border-left:3px solid ${color}">
+    <div class="cob-card ${esCobrado ? 'cob-card-cobrada' : ''}" style="border-left:3px solid ${color};cursor:pointer"
+      onclick="abrirDetalleCob('${p.id}')">
       <div class="cob-card-main">
         <div class="cob-card-top">
           <span class="cob-card-cliente">${p.clientes?.razon_social || '-'}</span>
@@ -2107,7 +2108,7 @@ function renderCobCard(p, hoy, esAdmin, esCobrado = false) {
           ${tel ? `<a href="https://wa.me/54${tel}" target="_blank" class="btn-whatsapp" onclick="event.stopPropagation()">
             <i class="ti ti-brand-whatsapp" aria-hidden="true"></i>
           </a>` : ''}
-          ${!esCobrado ? `<button onclick="abrirModalCobro('${p.id}', '${p.clientes?.razon_social || ''}', ${pendiente})"
+          ${!esCobrado ? `<button onclick="event.stopPropagation(); abrirModalCobro('${p.id}', '${p.clientes?.razon_social || ''}', ${pendiente})"
             class="btn-cobrar">
             <i class="ti ti-cash" aria-hidden="true"></i> Cobrar
           </button>` : `<button onclick="descargarPDF('${p.id}')" class="btn-secundario" style="font-size:12px;padding:6px 12px">
@@ -2330,6 +2331,145 @@ async function exportarCobranza() {
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
 }
+
+
+// ── DETALLE PEDIDO EN COBRANZA ───────────────────
+let _detalleCobPedidoId = null
+
+async function abrirDetalleCob(pedidoId) {
+  _detalleCobPedidoId = pedidoId
+  const modal = document.getElementById('modal-detalle-cob')
+  if (modal) modal.style.display = 'flex'
+
+  // Cargar datos en paralelo
+  const [
+    { data: p },
+    { data: items },
+    { data: cobros },
+    { data: docs },
+    { data: historial }
+  ] = await Promise.all([
+    db.from('pedidos').select('*, clientes(*)').eq('id', pedidoId).single(),
+    db.from('pedido_items').select('*, productos(descripcion, unidad, codigo)').eq('pedido_id', pedidoId),
+    db.from('cobros').select('*').eq('pedido_id', pedidoId).order('created_at'),
+    db.from('documentos_pedido').select('*').eq('pedido_id', pedidoId).order('created_at'),
+    db.from('historial_pedido').select('*').eq('pedido_id', pedidoId).order('created_at')
+  ])
+
+  if (!p) return
+
+  document.getElementById('mdc-titulo').textContent = `Pedido #${p.numero}`
+
+  // Cliente
+  const c = p.clientes
+  const totalCobrado = cobros?.reduce((s, cb) => s + Number(cb.monto), 0) || 0
+  const pendiente    = Number(p.total) - totalCobrado
+  const pct          = p.total > 0 ? Math.min((totalCobrado / Number(p.total)) * 100, 100) : 0
+
+  document.getElementById('mdc-cliente').innerHTML = `
+    <div class="info-grid">
+      <div><span class="info-label">Cliente</span><span class="info-valor">${c?.razon_social || '-'}</span></div>
+      <div><span class="info-label">Total</span><span class="info-valor" style="font-size:18px;font-weight:500;color:#1a3a2a">$${Number(p.total).toLocaleString('es-AR')}</span></div>
+      <div><span class="info-label">CUIT</span><span class="info-valor">${c?.cuit || '-'}</span></div>
+      <div><span class="info-label">Facturación</span><span class="info-valor">${labelFacturacion(c?.condicion_factura, c?.pct_remito, c?.pct_factura)}</span></div>
+    </div>
+    <div style="margin-top:12px">
+      <div class="cobro-barra-wrap">
+        <div class="cobro-barra"><div class="cobro-barra-fill" style="width:${pct}%"></div></div>
+        <span style="font-size:13px;font-weight:500">${Math.round(pct)}%</span>
+      </div>
+      <div style="display:flex;gap:16px;font-size:13px;margin-top:6px">
+        <span>Cobrado: <b style="color:#1d9e75">$${totalCobrado.toLocaleString('es-AR')}</b></span>
+        <span>Pendiente: <b style="color:${pendiente > 0 ? '#e24b4a' : '#1d9e75'}">$${pendiente.toLocaleString('es-AR')}</b></span>
+      </div>
+    </div>`
+
+  // Productos
+  document.getElementById('mdc-productos').innerHTML = items?.length
+    ? `<table class="tabla">
+        <thead><tr><th>Producto</th><th>Cantidad</th><th>Subtotal</th></tr></thead>
+        <tbody>${items.map(i => `<tr>
+          <td>${i.productos?.descripcion || '-'}</td>
+          <td>${i.cantidad} ${i.productos?.unidad || ''}</td>
+          <td>$${Number(i.subtotal).toLocaleString('es-AR')}</td>
+        </tr>`).join('')}</tbody>
+      </table>`
+    : '<p class="vacio">Sin productos</p>'
+
+  // Documentos (facturas)
+  document.getElementById('mdc-documentos').innerHTML = docs?.length
+    ? docs.map(d => `
+        <div class="mdc-doc-item">
+          <div>
+            <span class="doc-tipo">${labelTipoDoc(d.tipo)}</span>
+            ${badgeVerificacion(d.verificacion)}
+            <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:2px">${formatFechaHora(d.created_at)}</div>
+          </div>
+          <a href="${d.archivo_url}" target="_blank" class="btn-ver-doc">
+            <i class="ti ti-${d.archivo_tipo === 'pdf' ? 'file-type-pdf' : 'photo'}" aria-hidden="true"></i>
+            Ver ${d.archivo_tipo === 'pdf' ? 'PDF' : 'imagen'}
+          </a>
+        </div>`).join('')
+    : '<p class="vacio">Sin documentos subidos</p>'
+
+  // Cobros con fotos
+  document.getElementById('mdc-cobros').innerHTML = cobros?.length
+    ? cobros.map(cb => `
+        <div class="mdc-cobro-item">
+          <div class="mdc-cobro-info">
+            <span class="cobro-medio">${iconMedio(cb.medio_pago)} ${labelMedio(cb.medio_pago)}</span>
+            <span class="cobro-monto">$${Number(cb.monto).toLocaleString('es-AR')}</span>
+            ${cb.fecha_vencimiento_cheque ? `<span style="font-size:12px;color:#633806">📅 Vence cheque: ${formatFecha(cb.fecha_vencimiento_cheque)}</span>` : ''}
+            ${cb.nota ? `<span style="font-size:12px;color:var(--color-text-secondary)">📝 ${cb.nota}</span>` : ''}
+            <span style="font-size:12px;color:var(--color-text-tertiary)">${formatFechaHora(cb.created_at)}</span>
+          </div>
+          ${cb.foto_url ? `
+            <div class="mdc-foto-wrap">
+              <a href="${cb.foto_url}" target="_blank" class="btn-ver-doc foto">
+                <i class="ti ti-photo" aria-hidden="true"></i> Ver comprobante
+              </a>
+              <img src="${cb.foto_url}" alt="Comprobante"
+                style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;margin-top:8px;cursor:pointer"
+                onclick="window.open('${cb.foto_url}', '_blank')">
+            </div>` : ''}
+        </div>`).join('')
+    : '<p class="vacio">Sin cobros registrados</p>'
+
+  // Historial
+  document.getElementById('mdc-historial').innerHTML = historial?.length
+    ? historial.map(h => `
+        <div class="historial-item">
+          <div class="historial-icono">${iconAccion(h.accion)}</div>
+          <div class="historial-info">
+            <span class="historial-detalle">${h.detalle}</span>
+            <span class="historial-quien">${formatFechaHora(h.created_at)}</span>
+          </div>
+        </div>`).join('')
+    : '<p class="vacio">Sin historial</p>'
+
+  // Botón cobrar si pendiente
+  const btnEl = document.getElementById('mdc-btn-cobrar')
+  if (pendiente > 0.01) {
+    btnEl.innerHTML = `
+      <button onclick="cerrarDetalleCob(); abrirModalCobro('${pedidoId}', '${c?.razon_social || ''}', ${pendiente})"
+        class="btn-cobrar" style="width:100%;justify-content:center;padding:14px">
+        <i class="ti ti-cash" aria-hidden="true"></i> Registrar cobro ($${pendiente.toLocaleString('es-AR')} pendiente)
+      </button>`
+  } else {
+    btnEl.innerHTML = ''
+  }
+}
+
+function cerrarDetalleCob() {
+  const modal = document.getElementById('modal-detalle-cob')
+  if (modal) modal.style.display = 'none'
+  _detalleCobPedidoId = null
+}
+
+function abrirPDFDesdeCobranza() {
+  if (_detalleCobPedidoId) descargarPDF(_detalleCobPedidoId)
+}
+
 
 // ── HELPERS COBRANZA ─────────────────────────────
 function formatMonto(n) {
