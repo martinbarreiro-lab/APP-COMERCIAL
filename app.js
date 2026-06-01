@@ -1345,6 +1345,33 @@ async function confirmarRecepcion() {
 
   await registrarHistorial(_recibidoPedidoId, 'estado_cambiado', detalle)
 
+  // ── Verificar si el envío de este pedido quedó completo ──
+  try {
+    // Buscar a qué envío(s) pertenece este pedido
+    const { data: vinculos } = await db.from('envio_pedidos')
+      .select('envio_id')
+      .eq('pedido_id', _recibidoPedidoId)
+
+    for (const v of (vinculos || [])) {
+      const envioId = v.envio_id
+      // Traer todos los pedidos de ese envío con su etapa actual
+      const { data: pedidosEnvio } = await db.from('envio_pedidos')
+        .select('pedidos(etapa)')
+        .eq('envio_id', envioId)
+
+      const todosRecibidos = pedidosEnvio && pedidosEnvio.length > 0 &&
+        pedidosEnvio.every(pe => pe.pedidos?.etapa === 'recibido')
+
+      if (todosRecibidos) {
+        await db.from('envios')
+          .update({ estado: 'completado' })
+          .eq('id', envioId)
+      }
+    }
+  } catch (e) {
+    console.error('Error actualizando estado del envío:', e)
+  }
+
   // Si hubo problema → notificar admin, empresa y vendedor
   if (!todoOk) {
     // Notificar admin/empresa
