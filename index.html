@@ -278,6 +278,50 @@
             </div>
           </div>
 
+          <!-- Modal confirmar recepción -->
+          <div id="modal-recibido"
+            style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+            <div style="background:var(--color-background-primary);border-radius:var(--border-radius-lg);padding:24px;max-width:480px;width:90%">
+              <h3 style="font-size:16px;font-weight:500;margin:0 0 6px">Confirmar recepción</h3>
+              <p style="font-size:13px;color:var(--color-text-secondary);margin:0 0 20px" id="mr-subtitulo">¿Cómo llegó el pedido?</p>
+
+              <div style="display:flex;gap:10px;margin-bottom:20px">
+                <button id="mr-btn-ok" onclick="seleccionarEstadoRecepcion('ok')"
+                  style="flex:1;padding:16px;border-radius:10px;border:2px solid #e0e0e0;background:white;cursor:pointer;font-size:14px;font-weight:500;display:flex;flex-direction:column;align-items:center;gap:8px">
+                  <i class="ti ti-circle-check" style="font-size:28px;color:#1d9e75" aria-hidden="true"></i>
+                  Todo en orden
+                </button>
+                <button id="mr-btn-problema" onclick="seleccionarEstadoRecepcion('problema')"
+                  style="flex:1;padding:16px;border-radius:10px;border:2px solid #e0e0e0;background:white;cursor:pointer;font-size:14px;font-weight:500;display:flex;flex-direction:column;align-items:center;gap:8px">
+                  <i class="ti ti-alert-triangle" style="font-size:28px;color:#ba7517" aria-hidden="true"></i>
+                  Hubo un problema
+                </button>
+              </div>
+
+              <div id="mr-campo-problema" style="display:none;margin-bottom:16px">
+                <label style="font-size:13px;font-weight:500;display:block;margin-bottom:6px">¿Qué pasó? <span style="color:#e24b4a">*</span></label>
+                <textarea id="mr-descripcion" rows="3"
+                  placeholder="Ej: Faltaron 2 cajas de crema, llegó roto el pote x200cc..."
+                  style="width:100%;padding:10px;border:0.5px solid var(--color-border-tertiary);border-radius:8px;font-size:13px;resize:vertical"></textarea>
+              </div>
+
+              <div class="campo" style="margin-bottom:16px">
+                <label>Foto de la recepción (opcional)</label>
+                <input type="file" id="mr-foto" accept="image/*">
+              </div>
+
+              <div id="mr-error" class="error-msg" style="display:none;margin-bottom:12px"></div>
+
+              <div style="display:flex;gap:10px">
+                <button onclick="cerrarModalRecibido()" class="btn-cancelar" style="flex:1">Cancelar</button>
+                <button id="mr-btn-confirmar" onclick="confirmarRecepcion()"
+                  class="btn-guardar-inline" style="flex:2" disabled>
+                  Confirmar recepción
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- Modal cobro rápido -->
           <div id="modal-cobro" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
             <div style="background:var(--color-background-primary);border-radius:var(--border-radius-lg);padding:24px;max-width:440px;width:90%;max-height:90vh;overflow-y:auto">
