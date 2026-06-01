@@ -1294,8 +1294,6 @@ function cerrarModalRecibido() {
 }
 
 async function confirmarRecepcion() {
-  console.log('confirmarRecepcion - pedidoId:', _recibidoPedidoId, 'estado:', _recibidoEstado)
-
   if (!_recibidoPedidoId) {
     alert('Error: no hay pedido seleccionado. Cerrá y reintentá.')
     return
@@ -1314,10 +1312,16 @@ async function confirmarRecepcion() {
     return
   }
 
+  const todoOk      = _recibidoEstado === 'ok'
+  const pedidoIdCopy = _recibidoPedidoId
+
+  // Cerrar modal inmediatamente para que el usuario vea que respondió
+  cerrarModalRecibido()
+
   let fotoUrl = null
   if (foto) {
     const ext  = foto.name.split('.').pop()
-    const path = `recepcion/${_recibidoPedidoId}_${Date.now()}.${ext}`
+    const path = `recepcion/${pedidoIdCopy}_${Date.now()}.${ext}`
     const { error: upErr } = await db.storage.from('comprobantes').upload(path, foto, { upsert: true })
     if (!upErr) {
       const { data: ud } = db.storage.from('comprobantes').getPublicUrl(path)
@@ -1325,80 +1329,81 @@ async function confirmarRecepcion() {
     }
   }
 
-  const todoOk  = _recibidoEstado === 'ok'
   const detalle = todoOk
     ? `Recepción confirmada ✅ — Todo en orden${fotoUrl ? ' (con foto)' : ''}`
     : `Recepción con problema ⚠️: ${descripcion}${fotoUrl ? ' (con foto)' : ''}`
 
-  const { error: updErr } = await db.from('pedidos').update({
-    etapa:          'recibido',
-    fecha_recibido: new Date().toISOString(),
-    recibido_por:   todoOk ? 'ok' : 'problema: ' + descripcion,
-    updated_at:     new Date().toISOString()
-  }).eq('id', _recibidoPedidoId)
+  // Update solo con columnas que siempre existen
+  const updateData = { etapa: 'recibido', updated_at: new Date().toISOString() }
 
-  if (updErr) {
-    console.error('Error update pedido:', updErr)
-    alert('Error al confirmar: ' + updErr.message)
-    return
+  // Intentar agregar columnas opcionales (no fallan si no existen en el schema)
+  try {
+    const { error: updErr } = await db.from('pedidos').update({
+      ...updateData,
+      fecha_recibido: new Date().toISOString(),
+      recibido_por:   todoOk ? 'ok' : 'problema: ' + descripcion,
+    }).eq('id', pedidoIdCopy)
+
+    if (updErr) {
+      // Si falla por columnas inexistentes, intentar solo con las básicas
+      console.warn('Update completo falló, intentando update básico:', updErr.message)
+      const { error: updErr2 } = await db.from('pedidos')
+        .update(updateData)
+        .eq('id', pedidoIdCopy)
+      if (updErr2) {
+        console.error('Error update pedido:', updErr2)
+        alert('Error al guardar: ' + (updErr2.message || JSON.stringify(updErr2)))
+        return
+      }
+    }
+  } catch(e) {
+    console.error('Error inesperado:', e)
   }
 
-  await registrarHistorial(_recibidoPedidoId, 'estado_cambiado', detalle)
+  await registrarHistorial(pedidoIdCopy, 'estado_cambiado', detalle).catch(() => {})
 
-  // ── Verificar si el envío de este pedido quedó completo ──
+  // ── Verificar si el envío quedó completo ──
   try {
-    // Buscar a qué envío(s) pertenece este pedido
     const { data: vinculos } = await db.from('envio_pedidos')
-      .select('envio_id')
-      .eq('pedido_id', _recibidoPedidoId)
+      .select('envio_id').eq('pedido_id', pedidoIdCopy)
 
     for (const v of (vinculos || [])) {
-      const envioId = v.envio_id
-      // Traer todos los pedidos de ese envío con su etapa actual
       const { data: pedidosEnvio } = await db.from('envio_pedidos')
-        .select('pedidos(etapa)')
-        .eq('envio_id', envioId)
+        .select('pedidos(etapa)').eq('envio_id', v.envio_id)
 
-      const todosRecibidos = pedidosEnvio && pedidosEnvio.length > 0 &&
+      const todosRecibidos = pedidosEnvio?.length > 0 &&
         pedidosEnvio.every(pe => pe.pedidos?.etapa === 'recibido')
 
       if (todosRecibidos) {
-        await db.from('envios')
-          .update({ estado: 'completado' })
-          .eq('id', envioId)
+        await db.from('envios').update({ estado: 'completado' }).eq('id', v.envio_id)
       }
     }
   } catch (e) {
-    console.error('Error actualizando estado del envío:', e)
+    console.error('Error actualizando envío:', e)
   }
 
-  // Si hubo problema → notificar admin, empresa y vendedor
+  // Si hubo problema → notificar
   if (!todoOk) {
-    // Notificar admin/empresa
     await db.from('notificaciones_admin').insert({
-      tipo:      'problema_recepcion',
-      mensaje:   `⚠️ Problema en recepción del Pedido #${_recibidoPedidoId.slice(-4)}: ${descripcion}`,
-      pedido_id: _recibidoPedidoId,
-      leida:     false
+      tipo: 'problema_recepcion',
+      mensaje: `⚠️ Problema en recepción: ${descripcion}`,
+      pedido_id: pedidoIdCopy,
+      leida: false
     }).catch(() => {})
 
-    // Notificar al vendedor del pedido
     const { data: ped } = await db.from('pedidos')
-      .select('vendedor_id, numero').eq('id', _recibidoPedidoId).single()
+      .select('vendedor_id, numero').eq('id', pedidoIdCopy).single()
     if (ped?.vendedor_id) {
       await db.from('notificaciones').insert({
         usuario_id: ped.vendedor_id,
-        tipo:       'problema_recepcion',
-        titulo:     `⚠️ Problema en Pedido #${ped.numero}`,
-        mensaje:    `El cliente reportó un problema al recibir: ${descripcion}`,
-        leida:      false
+        tipo: 'problema_recepcion',
+        titulo: `⚠️ Problema en Pedido #${ped.numero}`,
+        mensaje: `El cliente reportó un problema al recibir: ${descripcion}`,
+        leida: false
       }).catch(() => {})
     }
   }
 
-  cerrarModalRecibido()
-
-  // Actualizar logística
   await cargarLogistica()
 
   alert(todoOk
