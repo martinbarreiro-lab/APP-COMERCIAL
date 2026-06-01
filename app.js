@@ -782,18 +782,7 @@ async function abrirPedido(id) {
         <button onclick="marcarEnviado('${id}')" class="btn-enviado">
           <i class="ti ti-truck" aria-hidden="true"></i> Marcar como enviado
         </button>` : ''}
-      ${etapaActual3 === 'enviado' ? `
-        <div style="width:100%;background:#e3f2fd;border:2px solid #378add;border-radius:10px;padding:16px;margin-top:8px">
-          <div style="font-size:13px;color:#0c447c;margin-bottom:10px;font-weight:500">
-            <i class="ti ti-truck" style="font-size:15px;vertical-align:-2px;margin-right:6px" aria-hidden="true"></i>
-            Tu pedido está en camino — ¿Ya lo recibiste?
-          </div>
-          <button onclick="marcarRecibido('${id}')" 
-            style="background:#185fa5;color:white;border:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px">
-            <i class="ti ti-circle-check" style="font-size:18px" aria-hidden="true"></i>
-            Confirmar recepción del pedido
-          </button>
-        </div>` : ''}
+
       ${etapaActual3 === 'cobrado' ? `
         <button onclick="descargarPDF('${id}')" class="btn-secundario">
           <i class="ti ti-file-download" aria-hidden="true"></i> Descargar PDF
@@ -2925,26 +2914,34 @@ async function cargarPedidosDeEnvio(envioId) {
   }
 
   el.innerHTML = items.map(item => {
-    const p       = item.pedidos
+    const p         = item.pedidos
     const entregado = p?.etapa === 'recibido'
-    const tel     = p?.clientes?.telefono?.replace(/\D/g, '') || ''
+    const tel       = p?.clientes?.telefono?.replace(/\D/g, '') || ''
     return `
-      <div style="display:flex;justify-content:space-between;align-items:center;background:var(--color-background-secondary);padding:10px 12px;border-radius:8px;margin-bottom:6px">
-        <div>
-          <div style="font-size:13px;font-weight:500">#${p?.numero} · ${p?.clientes?.razon_social || '-'}</div>
-          <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:2px">${formatFechaHora(item.created_at)}</div>
+      <div style="background:var(--color-background-secondary);padding:12px;border-radius:8px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:13px;font-weight:500">#${p?.numero} · ${p?.clientes?.razon_social || '-'}</div>
+            <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:2px">${formatFechaHora(item.created_at)}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            ${tel ? `<a href="https://wa.me/54${tel}" target="_blank"
+              onclick="event.stopPropagation()"
+              style="width:32px;height:32px;border-radius:8px;border:0.5px solid #9fe1cb;background:#e1f5ee;color:#085041;display:flex;align-items:center;justify-content:center;text-decoration:none;">
+              <i class="ti ti-brand-whatsapp" aria-hidden="true"></i>
+            </a>` : ''}
+            ${entregado
+              ? `<span class="badge badge-verde"><i class="ti ti-check" aria-hidden="true"></i> Entregado</span>`
+              : `<span class="badge badge-amarillo">En camino</span>`
+            }
+          </div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          ${tel ? `<a href="https://wa.me/54${tel}" target="_blank"
-            onclick="event.stopPropagation()"
-            style="width:32px;height:32px;border-radius:8px;border:0.5px solid #9fe1cb;background:#e1f5ee;color:#085041;display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:16px">
-            <i class="ti ti-brand-whatsapp" aria-hidden="true"></i>
-          </a>` : ''}
-          ${entregado
-            ? `<span class="badge badge-verde">✅ Entregado</span>`
-            : `<span class="badge badge-amarillo">En camino</span>`
-          }
-        </div>
+        ${!entregado ? `
+          <button onclick="event.stopPropagation(); marcarRecibido('${p?.id}')"
+            style="margin-top:10px;width:100%;background:#185fa5;color:white;border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+            <i class="ti ti-circle-check" style="font-size:15px" aria-hidden="true"></i>
+            Confirmar entrega del Pedido #${p?.numero}
+          </button>` : ''}
       </div>`
   }).join('')
 
