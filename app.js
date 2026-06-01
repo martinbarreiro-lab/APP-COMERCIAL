@@ -2863,13 +2863,24 @@ async function cargarPedidosPreview(envioId) {
   if (!el || !items) return
   el.innerHTML = items.map(item => {
     const p = item.pedidos
+    const pedidoId = p?.id || ''
     const entregado = p?.etapa === 'recibido'
-    return `<span class="log-pedido-pill ${entregado ? 'entregado' : ''}">
+    return `<span class="log-pedido-pill ${entregado ? 'entregado' : ''}"
+      style="cursor:pointer"
+      onclick="event.stopPropagation(); abrirPedidoDesdeLogistica('${pedidoId}')"
+      title="Ver detalle del pedido">
       <i class="ti ti-package" style="font-size:11px" aria-hidden="true"></i>
       Pedido #${p?.numero} · ${p?.clientes?.razon_social || '-'}
-      ${entregado ? '<i class="ti ti-check" style="font-size:11px;color:#0f6e56" aria-hidden="true"></i>' : ''}
+      ${entregado ? '<i class="ti ti-check" style="font-size:11px;color:#0f6e56" aria-hidden="true"></i>' : '<i class="ti ti-arrow-right" style="font-size:10px;opacity:0.5" aria-hidden="true"></i>'}
     </span>`
   }).join('')
+}
+
+function abrirPedidoDesdeLogistica(pedidoId) {
+  if (!pedidoId) return
+  mostrarSeccion('pedidos')
+  // Pequeño delay para que la sección cargue antes de abrir el detalle
+  setTimeout(() => abrirPedido(pedidoId), 150)
 }
 
 function renderEnvioCard(envio, activo) {
@@ -2922,14 +2933,19 @@ async function toggleEnvioDetalle(envioId) {
 }
 
 async function cargarPedidosDeEnvio(envioId) {
-  const { data: items } = await db.from('envio_pedidos')
+  // Traer pedido_id explícitamente con la columna real de la tabla
+  const { data: items, error } = await db.from('envio_pedidos')
     .select('envio_id, pedido_id, estado, pedidos(id, numero, etapa, clientes(razon_social, telefono))')
     .eq('envio_id', envioId)
 
   const el = document.getElementById(`pedidos-envio-${envioId}`)
   if (!el) return
 
-  console.log('envio_pedidos items:', JSON.stringify(items))
+  if (error) {
+    console.error('Error cargando pedidos del envío:', error)
+    el.innerHTML = '<p class="vacio">Error al cargar pedidos</p>'
+    return
+  }
 
   if (!items || items.length === 0) {
     el.innerHTML = '<p class="vacio">Sin pedidos</p>'
@@ -2938,8 +2954,8 @@ async function cargarPedidosDeEnvio(envioId) {
 
   el.innerHTML = items.map(item => {
     const p         = item.pedidos
-    const pedidoId  = item.pedido_id || p?.id || ''
-    console.log('item pedido_id:', item.pedido_id, 'p.id:', p?.id, 'usando:', pedidoId)
+    // Supabase a veces no devuelve pedido_id como campo raíz en joins — usamos p.id como fuente segura
+    const pedidoId  = p?.id || item.pedido_id || ''
     const entregado = p?.etapa === 'recibido'
     const tel       = p?.clientes?.telefono?.replace(/\D/g, '') || ''
     return `
@@ -2947,7 +2963,6 @@ async function cargarPedidosDeEnvio(envioId) {
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div>
             <div style="font-size:13px;font-weight:500">#${p?.numero} · ${p?.clientes?.razon_social || '-'}</div>
-            <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:2px">${formatFechaHora(item.created_at)}</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             ${tel ? `<a href="https://wa.me/54${tel}" target="_blank"
@@ -2961,12 +2976,13 @@ async function cargarPedidosDeEnvio(envioId) {
             }
           </div>
         </div>
-        ${!entregado ? `
+        ${!entregado && pedidoId ? `
           <button onclick="event.stopPropagation(); marcarRecibido('${pedidoId}')"
             style="margin-top:10px;width:100%;background:#185fa5;color:white;border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
             <i class="ti ti-circle-check" style="font-size:15px" aria-hidden="true"></i>
             Confirmar entrega del Pedido #${p?.numero}
           </button>` : ''}
+        ${!entregado && !pedidoId ? `<p style="color:#e24b4a;font-size:12px;margin-top:6px">⚠️ Error: no se pudo obtener el ID del pedido</p>` : ''}
       </div>`
   }).join('')
 
