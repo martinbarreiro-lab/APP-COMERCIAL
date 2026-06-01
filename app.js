@@ -2626,12 +2626,19 @@ async function confirmarNuevoEnvio() {
 
   const obs = prompt('Observaciones del envío (opcional):') || null
 
+  // Calcular totales del envío
+  const { data: pedidosData } = await db.from('pedidos')
+    .select('total').in('id', _envioActual.pedidos)
+  const totalMonto = pedidosData?.reduce((s, p) => s + Number(p.total), 0) || 0
+
   // Crear envío
   const { data: envio, error } = await db.from('envios').insert({
-    estado:        'en_camino',
-    fecha_salida:  new Date().toISOString(),
-    observaciones: obs,
-    creado_por:    usuarioActual.id
+    estado:         'en_camino',
+    fecha_salida:   new Date().toISOString(),
+    observaciones:  obs,
+    creado_por:     usuarioActual.id,
+    total_pedidos:  _envioActual.pedidos.length,
+    total_monto:    totalMonto
   }).select().single()
 
   if (error) {
@@ -2720,31 +2727,58 @@ async function renderEnviosActivos() {
   }
 
   el.innerHTML = html
+
+  // Cargar preview de pedidos automáticamente
+  for (const e of envios) {
+    cargarPedidosPreview(e.id)
+  }
+}
+
+async function cargarPedidosPreview(envioId) {
+  const { data: items } = await db.from('envio_pedidos')
+    .select('pedidos(numero, etapa, clientes(razon_social))')
+    .eq('envio_id', envioId)
+  const el = document.getElementById(`pedidos-preview-${envioId}`)
+  if (!el || !items) return
+  el.innerHTML = items.map(item => {
+    const p = item.pedidos
+    const entregado = p?.etapa === 'recibido'
+    return `<span class="log-pedido-pill ${entregado ? 'entregado' : ''}">
+      <i class="ti ti-package" style="font-size:11px" aria-hidden="true"></i>
+      Pedido #${p?.numero} · ${p?.clientes?.razon_social || '-'}
+      ${entregado ? '<i class="ti ti-check" style="font-size:11px;color:#0f6e56" aria-hidden="true"></i>' : ''}
+    </span>`
+  }).join('')
 }
 
 function renderEnvioCard(envio, activo) {
-  const codigo = envio.id.slice(-6).toUpperCase()
+  const num = envio.numero || envio.id.slice(-4).toUpperCase()
   return `
     <div class="log-envio-card" id="log-envio-${envio.id}"
-      onclick="toggleEnvioDetalle('${envio.id}')"
       style="border-left:3px solid ${activo ? '#1d9e75' : '#888780'}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
         <div>
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
             <i class="ti ti-truck" style="font-size:15px;color:${activo ? '#1d9e75' : '#888780'}" aria-hidden="true"></i>
-            <span style="font-size:15px;font-weight:500">Envío ${codigo}</span>
+            <span style="font-size:15px;font-weight:500">Envío #${num}</span>
             <span class="badge ${activo ? 'badge-verde' : 'badge-gris'}">${activo ? 'En camino' : 'Completado'}</span>
           </div>
-          <div style="font-size:12px;color:var(--color-text-secondary)">
-            <i class="ti ti-calendar" style="font-size:12px" aria-hidden="true"></i>
-            Salida: ${formatFechaHora(envio.fecha_salida)}
+          <div style="display:flex;gap:14px;font-size:12px;color:var(--color-text-secondary)">
+            <span><i class="ti ti-calendar" style="font-size:12px" aria-hidden="true"></i> Salida: ${formatFechaHora(envio.fecha_salida)}</span>
+            ${envio.total_pedidos ? `<span><i class="ti ti-package" style="font-size:12px" aria-hidden="true"></i> ${envio.total_pedidos} pedido${envio.total_pedidos !== 1 ? 's' : ''}</span>` : ''}
+            ${envio.total_monto ? `<span><i class="ti ti-cash" style="font-size:12px" aria-hidden="true"></i> $${Number(envio.total_monto).toLocaleString('es-AR')}</span>` : ''}
           </div>
-          ${envio.observaciones ? `<div style="font-size:12px;color:var(--color-text-tertiary);margin-top:2px">📝 ${envio.observaciones}</div>` : ''}
+          ${envio.observaciones ? `<div style="font-size:12px;color:var(--color-text-tertiary);margin-top:4px">📝 ${envio.observaciones}</div>` : ''}
         </div>
-        <i class="ti ti-chevron-down" id="chevron-${envio.id}" style="font-size:16px;color:var(--color-text-tertiary)" aria-hidden="true"></i>
+        <button onclick="toggleEnvioDetalle('${envio.id}')" id="btn-detalle-${envio.id}"
+          style="background:none;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--color-text-secondary);display:flex;align-items:center;gap:4px">
+          <i class="ti ti-list" aria-hidden="true"></i> Ver pedidos
+        </button>
       </div>
-      <div id="detalle-envio-${envio.id}" style="display:none;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--color-border-tertiary)">
-        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Pedidos en este envío:</div>
+
+      <div id="pedidos-preview-${envio.id}" class="log-pedidos-preview"></div>
+
+      <div id="detalle-envio-${envio.id}" style="display:none;margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary)">
         <div id="pedidos-envio-${envio.id}">
           <span style="color:var(--color-text-tertiary);font-size:13px">Cargando...</span>
         </div>
