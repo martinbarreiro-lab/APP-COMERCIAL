@@ -2883,9 +2883,30 @@ async function cargarPedidosPreview(envioId) {
     .eq('envio_id', envioId)
   const el = document.getElementById(`pedidos-preview-${envioId}`)
   if (!el || !items) return
+
+  const total     = items.length
+  const entregados = items.filter(i => i.pedidos?.etapa === 'recibido').length
+  const todosOk   = total > 0 && entregados === total
+
+  // Actualizar badge del envío en base al estado real de los pedidos
+  const badgeEl = document.getElementById(`badge-envio-${envioId}`)
+  const cardEl  = document.getElementById(`log-envio-${envioId}`)
+  if (badgeEl) {
+    if (todosOk) {
+      badgeEl.textContent = 'Entregado'
+      badgeEl.className = 'badge badge-verde'
+      if (cardEl) cardEl.style.borderLeftColor = '#1d9e75'
+      // Actualizar en DB si aún no está completado
+      db.from('envios').update({ estado: 'completado' }).eq('id', envioId).then(() => {})
+    } else if (entregados > 0) {
+      badgeEl.textContent = `${entregados}/${total} entregados`
+      badgeEl.className = 'badge badge-amarillo'
+    }
+  }
+
   el.innerHTML = items.map(item => {
     const p = item.pedidos
-    const pedidoId = p?.id || ''
+    const pedidoId  = p?.id || ''
     const entregado = p?.etapa === 'recibido'
     return `<span class="log-pedido-pill ${entregado ? 'entregado' : ''}"
       style="cursor:pointer"
@@ -2916,7 +2937,7 @@ function renderEnvioCard(envio, activo) {
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
             <i class="ti ti-truck" style="font-size:15px;color:${activo ? '#1d9e75' : '#888780'}" aria-hidden="true"></i>
             <span style="font-size:15px;font-weight:500">Envío #${num}</span>
-            <span class="badge ${activo ? 'badge-verde' : 'badge-gris'}">${activo ? 'En camino' : 'Completado'}</span>
+            <span class="badge ${activo ? 'badge-verde' : 'badge-gris'}" id="badge-envio-${envio.id}">${activo ? 'En camino' : 'Completado'}</span>
           </div>
           <div style="display:flex;gap:14px;font-size:12px;color:var(--color-text-secondary)">
             <span><i class="ti ti-calendar" style="font-size:12px" aria-hidden="true"></i> Salida: ${formatFechaHora(envio.fecha_salida)}</span>
@@ -2959,7 +2980,6 @@ async function toggleEnvioDetalle(envioId) {
 }
 
 async function cargarPedidosDeEnvio(envioId) {
-  // Traer pedido_id explícitamente con la columna real de la tabla
   const { data: items, error } = await db.from('envio_pedidos')
     .select('envio_id, pedido_id, estado, pedidos(id, numero, etapa, clientes(razon_social, telefono))')
     .eq('envio_id', envioId)
@@ -2968,14 +2988,26 @@ async function cargarPedidosDeEnvio(envioId) {
   if (!el) return
 
   if (error) {
-    console.error('Error cargando pedidos del envío:', error)
     el.innerHTML = '<p class="vacio">Error al cargar pedidos</p>'
     return
   }
-
   if (!items || items.length === 0) {
     el.innerHTML = '<p class="vacio">Sin pedidos</p>'
     return
+  }
+
+  // Traer historial de recepción para cada pedido en paralelo
+  const pedidoIds = items.map(i => i.pedidos?.id).filter(Boolean)
+  const historialesMap = {}
+  if (pedidoIds.length > 0) {
+    const { data: historiales } = await db.from('historial_pedido')
+      .select('pedido_id, accion, detalle, created_at')
+      .in('pedido_id', pedidoIds)
+      .in('accion', ['recepcion_ok', 'recepcion_problema'])
+      .order('created_at', { ascending: false })
+    for (const h of (historiales || [])) {
+      if (!historialesMap[h.pedido_id]) historialesMap[h.pedido_id] = h
+    }
   }
 
   el.innerHTML = items.map(item => {
@@ -2983,24 +3015,61 @@ async function cargarPedidosDeEnvio(envioId) {
     const pedidoId  = p?.id || item.pedido_id || ''
     const entregado = p?.etapa === 'recibido'
     const tel       = p?.clientes?.telefono?.replace(/\D/g, '') || ''
+    const recepcion = historialesMap[pedidoId]
+    const hayProblema = recepcion?.accion === 'recepcion_problema'
+
+    // Extraer URL de foto del detalle del historial
+    let fotoUrl = null
+    if (recepcion?.detalle) {
+      const match = recepcion.detalle.match(/foto:\s*(https?:\/\/\S+)/)
+      if (match) fotoUrl = match[1]
+    }
+
+    // Extraer descripción del problema
+    let descripcionProblema = ''
+    if (hayProblema && recepcion?.detalle) {
+      const m = recepcion.detalle.match(/⚠️ Problema en recepción:\s*(.+?)(?:\s*\||\s*$)/)
+      if (m) descripcionProblema = m[1]
+    }
+
     return `
-      <div style="background:var(--color-background-secondary);padding:12px;border-radius:8px;margin-bottom:8px">
+      <div style="background:var(--color-background-secondary);padding:12px;border-radius:8px;margin-bottom:8px;border-left:3px solid ${entregado ? (hayProblema ? '#ef9f27' : '#1d9e75') : 'transparent'}">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div>
             <div style="font-size:13px;font-weight:500">#${p?.numero} · ${p?.clientes?.razon_social || '-'}</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
-            ${tel ? `<a href="https://wa.me/54${tel}" target="_blank"
-              onclick="event.stopPropagation()"
+            ${tel ? `<a href="https://wa.me/54${tel}" target="_blank" onclick="event.stopPropagation()"
               style="width:32px;height:32px;border-radius:8px;border:0.5px solid #9fe1cb;background:#e1f5ee;color:#085041;display:flex;align-items:center;justify-content:center;text-decoration:none;">
               <i class="ti ti-brand-whatsapp" aria-hidden="true"></i>
             </a>` : ''}
             ${entregado
-              ? `<span class="badge badge-verde"><i class="ti ti-check" aria-hidden="true"></i> Entregado</span>`
+              ? hayProblema
+                ? `<span class="badge badge-amarillo"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Entregado c/problema</span>`
+                : `<span class="badge badge-verde"><i class="ti ti-check" aria-hidden="true"></i> Entregado</span>`
               : `<span class="badge badge-amarillo">En camino</span>`
             }
           </div>
         </div>
+
+        ${entregado && hayProblema ? `
+          <div style="margin-top:10px;padding:10px;background:#faeeda;border-radius:8px;border:0.5px solid #ef9f27">
+            <div style="font-size:12px;font-weight:600;color:#633806;margin-bottom:4px">
+              <i class="ti ti-alert-triangle" aria-hidden="true"></i> Problema reportado:
+            </div>
+            <div style="font-size:12px;color:#633806">${descripcionProblema || 'Sin detalle'}</div>
+            ${fotoUrl ? `<a href="${fotoUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;margin-top:8px;font-size:12px;color:#185fa5;text-decoration:none;">
+              <i class="ti ti-photo" aria-hidden="true"></i> Ver foto de recepción
+            </a>` : ''}
+          </div>` : ''}
+
+        ${entregado && !hayProblema && recepcion ? `
+          <div style="margin-top:8px;font-size:11px;color:var(--color-text-tertiary);display:flex;align-items:center;gap:4px">
+            <i class="ti ti-circle-check" style="color:#1d9e75" aria-hidden="true"></i>
+            Todo en orden · ${formatFechaHora(recepcion.created_at)}
+            ${fotoUrl ? `· <a href="${fotoUrl}" target="_blank" style="color:#185fa5;text-decoration:none;"><i class="ti ti-photo" aria-hidden="true"></i> foto</a>` : ''}
+          </div>` : ''}
+
         ${!entregado && pedidoId ? `
           <button onclick="event.stopPropagation(); marcarRecibido('${pedidoId}')"
             style="margin-top:10px;width:100%;background:#185fa5;color:white;border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
