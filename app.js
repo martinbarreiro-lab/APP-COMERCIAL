@@ -1059,6 +1059,88 @@ function renderKanbanCard(p, etapa) {
     </div>`
 }
 
+
+// ── DROPDOWN CLIENTE EN PEDIDO ───────────────────
+let _clientesPedidoCache = []
+
+async function cargarListaClientesPedido() {
+  const { data: clientes } = await db.from('clientes')
+    .select('id, razon_social, descuento_pct, bonificacion_pct, condicion_factura, pct_remito, pct_factura, alicuota_iva, bloqueado, saldo_pendiente, activo')
+    .eq('activo', true).order('razon_social')
+  _clientesPedidoCache = clientes || []
+  renderListaClientesPedido(_clientesPedidoCache)
+}
+
+async function mostrarDropdownClientes() {
+  const el = document.getElementById('resultados-cliente-pedido')
+  if (!el) return
+  el.style.display = 'block'
+  if (_clientesPedidoCache.length === 0) {
+    el.innerHTML = '<p style="padding:12px;color:#888;font-size:13px">Cargando...</p>'
+    await cargarListaClientesPedido()
+  } else {
+    renderListaClientesPedido(_clientesPedidoCache)
+  }
+}
+
+function ocultarDropdownClientes() {
+  setTimeout(() => {
+    const el = document.getElementById('resultados-cliente-pedido')
+    if (el) el.style.display = 'none'
+  }, 250)
+}
+
+function filtrarListaClientes() {
+  const q = document.getElementById('buscar-cliente-pedido')?.value?.toLowerCase() || ''
+  const filtrados = q.length === 0 ? _clientesPedidoCache
+    : _clientesPedidoCache.filter(c => c.razon_social.toLowerCase().includes(q))
+  renderListaClientesPedido(filtrados)
+  const el = document.getElementById('resultados-cliente-pedido')
+  if (el) el.style.display = 'block'
+}
+
+function renderListaClientesPedido(clientes) {
+  const el = document.getElementById('resultados-cliente-pedido')
+  if (!el) return
+  if (!clientes || clientes.length === 0) {
+    el.innerHTML = '<p style="padding:12px;color:#888;font-size:13px">No hay clientes</p>'
+    return
+  }
+  el.innerHTML = clientes.map(c => `
+    <div onclick="seleccionarClientePedido('${c.id}')"
+      style="padding:12px 16px;border-bottom:1px solid #f0f0f0;cursor:pointer;display:flex;justify-content:space-between;align-items:center;"
+      onmouseover="this.style.background='#f0f7f4'" onmouseout="this.style.background='white'">
+      <div>
+        <div style="font-size:14px;font-weight:bold;color:#1a1a1a">${c.razon_social}</div>
+        <div style="display:flex;gap:6px;margin-top:3px;flex-wrap:wrap">
+          ${c.bloqueado ? '<span style="background:#fee;color:#c00;font-size:11px;padding:1px 7px;border-radius:20px;font-weight:500">⚠️ Deuda</span>' : ''}
+          ${c.descuento_pct > 0 ? `<span style="background:#e8f5e9;color:#2d6a4f;font-size:11px;padding:1px 7px;border-radius:20px;font-weight:500">Desc. ${c.descuento_pct}%</span>` : ''}
+          ${c.bonificacion_pct > 0 ? `<span style="background:#e3f2fd;color:#1565c0;font-size:11px;padding:1px 7px;border-radius:20px;font-weight:500">Bonif. ${c.bonificacion_pct}%</span>` : ''}
+        </div>
+      </div>
+      <span style="color:#ccc;font-size:20px">›</span>
+    </div>`).join('')
+}
+
+async function seleccionarClientePedido(id) {
+  const { data: c } = await db.from('clientes').select('*').eq('id', id).single()
+  pedidoActual.cliente = c
+  _clientesPedidoCache = []
+  await renderizarFormPedido()
+}
+
+function cambiarCliente() {
+  pedidoActual.cliente = null
+  pedidoActual.items = {}
+  _clientesPedidoCache = []
+  renderizarFormPedido()
+}
+
+async function buscarClientePedido() {
+  filtrarListaClientes()
+}
+
+
 function limpiarFiltrosPedidos() {
   const c = document.getElementById('filtro-cliente-pedido')
   const d = document.getElementById('filtro-fecha-desde')
@@ -1242,12 +1324,23 @@ async function renderizarFormPedido() {
             <span>${pedidoActual.cliente.razon_social}</span>
             <button class="btn-cambiar" onclick="cambiarCliente()">Cambiar</button>
            </div>`
-        : `<div class="buscador-box">
-            <input type="text" id="buscar-cliente-pedido"
-              placeholder="🔍 Buscar cliente..."
-              oninput="buscarClientePedido()"
-              class="buscador-input">
-            <div id="resultados-cliente-pedido"></div>
+        : `<div class="buscador-box" style="position:relative">
+            <input type="search" id="buscar-cliente-pedido"
+              placeholder="▼ Tocá para ver clientes..."
+              oninput="filtrarListaClientes()"
+              onclick="mostrarDropdownClientes()"
+              onfocus="mostrarDropdownClientes()"
+              onblur="ocultarDropdownClientes()"
+              autocomplete="new-password"
+              autocorrect="off"
+              spellcheck="false"
+              class="buscador-input"
+              style="cursor:pointer">
+            <div id="resultados-cliente-pedido"
+              style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;
+                z-index:999;background:white;border:1px solid #ddd;border-radius:10px;
+                box-shadow:0 8px 24px rgba(0,0,0,0.2);max-height:300px;overflow-y:auto;">
+            </div>
            </div>`
       }
       ${pedidoActual.cliente ? renderCondicionesCliente() : ''}
