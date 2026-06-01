@@ -1921,3 +1921,410 @@ async function rechazarPedido(pedidoId) {
   await registrarHistorial(pedidoId, 'estado_cambiado', `Pedido rechazado: ${motivo}`)
   await abrirPedido(pedidoId)
 }
+
+
+// ================================================
+// LA CABAÑA — Módulo de Cobranza
+// ================================================
+
+let _cobFiltroClienteId   = null
+let _cobFiltroClienteNombre = null
+let _cobFiltroVendedorId  = null
+let _cobFiltroVendedorNombre = null
+let _cobEstado            = 'todos'
+let _cobClientesCache     = []
+let _cobVendedoresCache   = []
+let _cobroPedidoActualId  = null
+
+// ── CARGAR COBRANZA ──────────────────────────────
+async function cargarCobranza() {
+  const rol      = await cargarRolUsuario()
+  const esAdmin  = rol === 'admin'
+  const hoy      = new Date().toISOString().split('T')[0]
+  const desde    = document.getElementById('cob-fecha-desde')?.value || ''
+  const hasta    = document.getElementById('cob-fecha-hasta')?.value || ''
+
+  // Mostrar/ocultar filtro vendedor según rol
+  const vendWrap = document.getElementById('cob-vendedor-wrap')
+  if (vendWrap) vendWrap.style.display = esAdmin ? 'block' : 'none'
+
+  // Query pedidos con cobros pendientes o cobrados
+  let query = db.from('pedidos')
+    .select(`id, numero, total, monto_cobrado, estado_cobro, etapa,
+             fecha_vencimiento_cobro, fecha_pedido,
+             clientes(id, razon_social, telefono),
+             perfiles(id, nombre_completo)`)
+    .not('estado', 'eq', 'cancelado')
+    .order('fecha_vencimiento_cobro', { ascending: true, nullsFirst: false })
+
+  if (!esAdmin) query = query.eq('vendedor_id', usuarioActual.id)
+  if (_cobFiltroClienteId)  query = query.eq('cliente_id', _cobFiltroClienteId)
+  if (_cobFiltroVendedorId) query = query.eq('vendedor_id', _cobFiltroVendedorId)
+  if (desde) query = query.gte('fecha_pedido', desde)
+  if (hasta) query = query.lte('fecha_pedido', hasta + 'T23:59:59')
+
+  // Filtro por estado
+  if (_cobEstado === 'vencido')   query = query.eq('estado_cobro', 'pendiente').lt('fecha_vencimiento_cobro', hoy)
+  if (_cobEstado === 'pendiente') query = query.eq('estado_cobro', 'pendiente')
+  if (_cobEstado === 'cobrado')   query = query.neq('estado_cobro', 'pendiente')
+
+  const { data: pedidos } = await query
+
+  // Calcular stats
+  await renderCobStats(pedidos, hoy, esAdmin)
+
+  // Renderizar lista
+  renderListaCobranza(pedidos, hoy, esAdmin)
+}
+
+// ── STATS ────────────────────────────────────────
+async function renderCobStats(pedidos, hoy, esAdmin) {
+  const pendientes = pedidos?.filter(p => p.estado_cobro === 'pendiente') || []
+  const cobrados   = pedidos?.filter(p => p.estado_cobro !== 'pendiente') || []
+  const vencidos   = pendientes.filter(p => p.fecha_vencimiento_cobro && p.fecha_vencimiento_cobro < hoy)
+
+  const totalPendiente = pendientes.reduce((s, p) => s + (Number(p.total) - Number(p.monto_cobrado)), 0)
+  const totalVencido   = vencidos.reduce((s, p) => s + (Number(p.total) - Number(p.monto_cobrado)), 0)
+
+  // Cobrado este mes
+  const inicioMes = new Date(); inicioMes.setDate(1); inicioMes.setHours(0,0,0,0)
+  const { data: cobrosDelMes } = await db.from('cobros')
+    .select('monto')
+    .gte('created_at', inicioMes.toISOString())
+    .eq(esAdmin ? 'vendedor_id' : 'vendedor_id', esAdmin ? undefined : usuarioActual.id)
+
+  // Quitar filtro si admin
+  let cobMesQuery = db.from('cobros').select('monto').gte('created_at', inicioMes.toISOString())
+  if (!esAdmin) cobMesQuery = cobMesQuery.eq('vendedor_id', usuarioActual.id)
+  const { data: cobMes } = await cobMesQuery
+  const totalCobradoMes = cobMes?.reduce((s, c) => s + Number(c.monto), 0) || 0
+
+  document.getElementById('cob-stats').innerHTML = `
+    <div class="cob-stats-grid">
+      <div class="cob-stat-card">
+        <div class="cob-stat-label">Total pendiente</div>
+        <div class="cob-stat-num">${formatMonto(totalPendiente)}</div>
+        <div class="cob-stat-sub">${pendientes.length} pedido${pendientes.length !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="cob-stat-card">
+        <div class="cob-stat-label">Cobrado este mes</div>
+        <div class="cob-stat-num">${formatMonto(totalCobradoMes)}</div>
+        <div class="cob-stat-sub">${cobMes?.length || 0} cobro${(cobMes?.length || 0) !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="cob-stat-card rojo">
+        <div class="cob-stat-label">Total vencido</div>
+        <div class="cob-stat-num rojo">${formatMonto(totalVencido)}</div>
+        <div class="cob-stat-sub rojo">${vencidos.length} vencido${vencidos.length !== 1 ? 's' : ''}</div>
+      </div>
+    </div>`
+}
+
+// ── LISTA ─────────────────────────────────────────
+function renderListaCobranza(pedidos, hoy, esAdmin) {
+  const el = document.getElementById('lista-cobranza')
+  if (!pedidos || pedidos.length === 0) {
+    el.innerHTML = '<p class="vacio">No hay cobros en este período</p>'
+    return
+  }
+
+  // Separar pendientes y cobrados
+  const pendientes = pedidos.filter(p => p.estado_cobro === 'pendiente')
+  const cobrados   = pedidos.filter(p => p.estado_cobro !== 'pendiente')
+
+  let html = ''
+
+  if (pendientes.length > 0) {
+    html += `<div class="cob-seccion-titulo">
+      <i class="ti ti-clock" aria-hidden="true"></i> Pendientes de cobro
+      <span class="cob-seccion-count">${pendientes.length}</span>
+    </div>`
+    html += pendientes.map(p => renderCobCard(p, hoy, esAdmin)).join('')
+  }
+
+  if (cobrados.length > 0) {
+    html += `<div class="cob-seccion-titulo" style="margin-top:20px">
+      <i class="ti ti-circle-check" aria-hidden="true"></i> Cobrados
+      <span class="cob-seccion-count">${cobrados.length}</span>
+    </div>`
+    html += cobrados.map(p => renderCobCard(p, hoy, esAdmin, true)).join('')
+  }
+
+  el.innerHTML = html
+}
+
+function renderCobCard(p, hoy, esAdmin, esCobrado = false) {
+  const venc     = p.fecha_vencimiento_cobro
+  const pendiente = Number(p.total) - Number(p.monto_cobrado)
+  const pct      = p.total > 0 ? Math.min((Number(p.monto_cobrado) / Number(p.total)) * 100, 100) : 0
+
+  // Color según urgencia
+  let color = '#1d9e75', bgAlerta = '#e1f5ee', textAlerta = '#085041', textoAlerta = ''
+  if (!esCobrado && venc) {
+    const diasRestantes = Math.ceil((new Date(venc) - new Date(hoy)) / 86400000)
+    if (diasRestantes < 0) {
+      color = '#e24b4a'; bgAlerta = '#fcebeb'; textAlerta = '#a32d2d'
+      textoAlerta = `Vencido hace ${Math.abs(diasRestantes)} día${Math.abs(diasRestantes) !== 1 ? 's' : ''}`
+    } else if (diasRestantes <= 3) {
+      color = '#ef9f27'; bgAlerta = '#faeeda'; textAlerta = '#633806'
+      textoAlerta = `Vence en ${diasRestantes} día${diasRestantes !== 1 ? 's' : ''}`
+    } else if (diasRestantes <= 7) {
+      color = '#ba7517'; bgAlerta = '#faeeda'; textAlerta = '#633806'
+      textoAlerta = `Vence en ${diasRestantes} días`
+    } else {
+      textoAlerta = `Vence en ${diasRestantes} días`
+    }
+  }
+
+  const tel = p.clientes?.telefono?.replace(/\D/g, '') || ''
+
+  return `
+    <div class="cob-card ${esCobrado ? 'cob-card-cobrada' : ''}" style="border-left:3px solid ${color}">
+      <div class="cob-card-main">
+        <div class="cob-card-top">
+          <span class="cob-card-cliente">${p.clientes?.razon_social || '-'}</span>
+          ${textoAlerta ? `<span class="cob-alerta-badge" style="background:${bgAlerta};color:${textAlerta}">${textoAlerta}</span>` : ''}
+          ${esCobrado ? `<span class="cob-alerta-badge" style="background:#e1f5ee;color:#085041"><i class="ti ti-circle-check" aria-hidden="true"></i> Cobrado</span>` : ''}
+        </div>
+        <div class="cob-card-meta">
+          <span>Pedido #${p.numero}</span>
+          ${venc ? `<span><i class="ti ti-calendar" style="font-size:12px" aria-hidden="true"></i> Vence: ${formatFecha(venc)}</span>` : ''}
+          ${esAdmin ? `<span><i class="ti ti-user" style="font-size:12px" aria-hidden="true"></i> ${p.perfiles?.nombre_completo || '-'}</span>` : ''}
+        </div>
+        ${Number(p.monto_cobrado) > 0 ? `
+          <div class="cob-barra-mini">
+            <div class="cob-barra-mini-fill" style="width:${pct}%;background:${color}"></div>
+          </div>
+          <div class="cob-parcial-info">
+            <span>Cobrado: ${formatMonto(Number(p.monto_cobrado))}</span>
+            <span style="color:${color}">Pendiente: ${formatMonto(pendiente)}</span>
+          </div>` : ''}
+      </div>
+      <div class="cob-card-right">
+        <div class="cob-card-monto" style="color:${esCobrado ? 'var(--color-text-secondary)' : 'var(--color-text-primary)'}">
+          ${formatMonto(esCobrado ? Number(p.total) : pendiente)}
+        </div>
+        <div class="cob-card-acciones">
+          ${tel ? `<a href="https://wa.me/54${tel}" target="_blank" class="btn-whatsapp" onclick="event.stopPropagation()">
+            <i class="ti ti-brand-whatsapp" aria-hidden="true"></i>
+          </a>` : ''}
+          ${!esCobrado ? `<button onclick="abrirModalCobro('${p.id}', '${p.clientes?.razon_social || ''}', ${pendiente})"
+            class="btn-cobrar">
+            <i class="ti ti-cash" aria-hidden="true"></i> Cobrar
+          </button>` : `<button onclick="descargarPDF('${p.id}')" class="btn-secundario" style="font-size:12px;padding:6px 12px">
+            <i class="ti ti-file-download" aria-hidden="true"></i> PDF
+          </button>`}
+        </div>
+      </div>
+    </div>`
+}
+
+// ── MODAL COBRO RÁPIDO ───────────────────────────
+function abrirModalCobro(pedidoId, clienteNombre, pendiente) {
+  _cobroPedidoActualId = pedidoId
+  document.getElementById('modal-cobro-titulo').textContent = 'Registrar cobro'
+  document.getElementById('modal-cobro-info').innerHTML = `
+    <div style="font-weight:500">${clienteNombre}</div>
+    <div style="color:var(--color-text-secondary);margin-top:4px">Pendiente: ${formatMonto(pendiente)}</div>`
+  document.getElementById('mc-monto').value = pendiente.toFixed(2)
+  document.getElementById('mc-nota').value = ''
+  document.getElementById('mc-foto').value = ''
+  document.getElementById('mc-error').style.display = 'none'
+  document.getElementById('mc-medio').onchange = function() {
+    const es = this.value === 'cheque' || this.value === 'echeq'
+    document.getElementById('mc-campo-cheque').style.display = es ? 'block' : 'none'
+  }
+  const modal = document.getElementById('modal-cobro')
+  modal.style.display = 'flex'
+}
+
+function cerrarModalCobro() {
+  document.getElementById('modal-cobro').style.display = 'none'
+  _cobroPedidoActualId = null
+}
+
+async function guardarCobroRapido() {
+  if (!_cobroPedidoActualId) return
+  const medio  = document.getElementById('mc-medio').value
+  const monto  = parseFloat(document.getElementById('mc-monto').value)
+  const nota   = document.getElementById('mc-nota').value.trim()
+  const foto   = document.getElementById('mc-foto').files[0]
+  const fechaCheque = document.getElementById('mc-fecha-cheque').value
+
+  if (!monto || monto <= 0) {
+    document.getElementById('mc-error').textContent = 'Ingresá un monto válido'
+    document.getElementById('mc-error').style.display = 'block'
+    return
+  }
+
+  const { data: pedido } = await db.from('pedidos')
+    .select('total, monto_cobrado').eq('id', _cobroPedidoActualId).single()
+
+  const pendiente = Number(pedido.total) - Number(pedido.monto_cobrado)
+  if (monto > pendiente + 0.01) {
+    document.getElementById('mc-error').textContent = 'El monto supera el saldo pendiente'
+    document.getElementById('mc-error').style.display = 'block'
+    return
+  }
+
+  let fotoUrl = null
+  if (foto) {
+    const ext = foto.name.split('.').pop()
+    const path = `${_cobroPedidoActualId}/${medio}_${Date.now()}.${ext}`
+    const { error: upErr } = await db.storage.from('comprobantes').upload(path, foto, { upsert: true })
+    if (!upErr) { const { data: ud } = db.storage.from('comprobantes').getPublicUrl(path); fotoUrl = ud.publicUrl }
+  }
+
+  const estadoMap = { efectivo:'cobrado_efectivo', transferencia:'cobrado_transferencia', cheque:'cobrado_cheque', echeq:'cobrado_cheque' }
+  const nuevoMonto = Number(pedido.monto_cobrado) + monto
+  const pagoCompleto = (Number(pedido.total) - nuevoMonto) <= 0.01
+
+  const { error } = await db.from('cobros').insert({
+    pedido_id:  _cobroPedidoActualId,
+    vendedor_id: usuarioActual.id,
+    estado:     estadoMap[medio] || 'cobrado_efectivo',
+    monto, medio_pago: medio,
+    foto_url: fotoUrl, nota: nota || null,
+    fecha_vencimiento_cheque: fechaCheque || null
+  })
+
+  if (error) {
+    document.getElementById('mc-error').textContent = 'Error: ' + error.message
+    document.getElementById('mc-error').style.display = 'block'
+    return
+  }
+
+  const updateData = { monto_cobrado: nuevoMonto }
+  if (pagoCompleto) { updateData.estado_cobro = estadoMap[medio]; updateData.etapa = 'cobrado' }
+  await db.from('pedidos').update(updateData).eq('id', _cobroPedidoActualId)
+  await registrarHistorial(_cobroPedidoActualId, 'cobro_registrado',
+    `${labelMedio(medio)} por ${formatMonto(monto)}`)
+
+  cerrarModalCobro()
+  await cargarCobranza()
+}
+
+// ── FILTROS COBRANZA ─────────────────────────────
+async function toggleCobFiltroClientes() {
+  const dropdown = document.getElementById('cob-filtro-cliente-dropdown')
+  if (!dropdown) return
+  const visible = dropdown.style.display !== 'none'
+  if (visible) { dropdown.style.display = 'none'; return }
+  dropdown.style.display = 'block'
+  if (_cobClientesCache.length === 0) {
+    document.getElementById('cob-filtro-cliente-lista').innerHTML =
+      '<p style="padding:12px;color:var(--color-text-secondary);font-size:13px">Cargando...</p>'
+    const { data } = await db.from('clientes').select('id, razon_social').eq('activo', true).order('razon_social')
+    _cobClientesCache = data || []
+  }
+  renderCobFiltroClientes(_cobClientesCache)
+  setTimeout(() => { document.addEventListener('click', cerrarCobDropdownAfuera, { once: true }) }, 100)
+}
+
+function cerrarCobDropdownAfuera(e) {
+  ['cob-filtro-cliente-dropdown','cob-filtro-vendedor-dropdown'].forEach(id => {
+    const el = document.getElementById(id)
+    if (el && !el.contains(e.target)) el.style.display = 'none'
+  })
+}
+
+function filtrarCobClientes() {
+  const q = document.getElementById('cob-filtro-cliente-buscar')?.value?.toLowerCase() || ''
+  renderCobFiltroClientes(q ? _cobClientesCache.filter(c => c.razon_social.toLowerCase().includes(q)) : _cobClientesCache)
+}
+
+function renderCobFiltroClientes(clientes) {
+  document.getElementById('cob-filtro-cliente-lista').innerHTML = [
+    `<div onclick="seleccionarCobCliente(null,'Todos los clientes')" class="cob-dropdown-item">Todos los clientes</div>`,
+    ...clientes.map(c => `<div onclick="seleccionarCobCliente('${c.id}','${c.razon_social.replace(/'/g,"\\'")}'')" class="cob-dropdown-item">${c.razon_social}</div>`)
+  ].join('')
+}
+
+function seleccionarCobCliente(id, nombre) {
+  _cobFiltroClienteId = id
+  document.getElementById('cob-filtro-cliente-label').textContent = nombre || 'Todos los clientes'
+  document.getElementById('cob-filtro-cliente-dropdown').style.display = 'none'
+  cargarCobranza()
+}
+
+async function toggleCobFiltroVendedores() {
+  const dropdown = document.getElementById('cob-filtro-vendedor-dropdown')
+  if (!dropdown) return
+  const visible = dropdown.style.display !== 'none'
+  if (visible) { dropdown.style.display = 'none'; return }
+  dropdown.style.display = 'block'
+  if (_cobVendedoresCache.length === 0) {
+    const { data } = await db.from('perfiles').select('id, nombre_completo').neq('rol', 'cliente').order('nombre_completo')
+    _cobVendedoresCache = data || []
+  }
+  document.getElementById('cob-filtro-vendedor-lista').innerHTML = [
+    `<div onclick="seleccionarCobVendedor(null,'Todos los vendedores')" class="cob-dropdown-item">Todos los vendedores</div>`,
+    ..._cobVendedoresCache.map(v => `<div onclick="seleccionarCobVendedor('${v.id}','${v.nombre_completo.replace(/'/g,"\\'")}'')" class="cob-dropdown-item">${v.nombre_completo}</div>`)
+  ].join('')
+  setTimeout(() => { document.addEventListener('click', cerrarCobDropdownAfuera, { once: true }) }, 100)
+}
+
+function seleccionarCobVendedor(id, nombre) {
+  _cobFiltroVendedorId = id
+  document.getElementById('cob-filtro-vendedor-label').textContent = nombre || 'Todos los vendedores'
+  document.getElementById('cob-filtro-vendedor-dropdown').style.display = 'none'
+  cargarCobranza()
+}
+
+function setCobEstado(estado) {
+  _cobEstado = estado
+  ;['vencido','pendiente','cobrado','todos'].forEach(e => {
+    const btn = document.getElementById('cob-btn-' + e)
+    if (btn) btn.classList.toggle('activo', e === estado)
+  })
+  cargarCobranza()
+}
+
+function limpiarCobFiltros() {
+  _cobFiltroClienteId = null; _cobFiltroVendedorId = null; _cobEstado = 'todos'
+  const cl = document.getElementById('cob-filtro-cliente-label')
+  const vl = document.getElementById('cob-filtro-vendedor-label')
+  if (cl) cl.textContent = 'Todos los clientes'
+  if (vl) vl.textContent = 'Todos los vendedores'
+  ;['vencido','pendiente','cobrado'].forEach(e => document.getElementById('cob-btn-' + e)?.classList.remove('activo'))
+  document.getElementById('cob-btn-todos')?.classList.add('activo')
+  const d = document.getElementById('cob-fecha-desde'); if (d) d.value = ''
+  const h = document.getElementById('cob-fecha-hasta'); if (h) h.value = ''
+  cargarCobranza()
+}
+
+// ── EXPORTAR ─────────────────────────────────────
+async function exportarCobranza() {
+  const hoy    = new Date().toISOString().split('T')[0]
+  const { data: pedidos } = await db.from('pedidos')
+    .select('numero, total, monto_cobrado, estado_cobro, fecha_vencimiento_cobro, clientes(razon_social), perfiles(nombre_completo)')
+    .not('estado', 'eq', 'cancelado')
+    .order('fecha_vencimiento_cobro', { ascending: true })
+
+  const rows = pedidos?.map(p => [
+    `#${p.numero}`,
+    p.clientes?.razon_social || '-',
+    p.perfiles?.nombre_completo || '-',
+    `$${Number(p.total).toLocaleString('es-AR')}`,
+    `$${Number(p.monto_cobrado).toLocaleString('es-AR')}`,
+    `$${(Number(p.total) - Number(p.monto_cobrado)).toLocaleString('es-AR')}`,
+    p.estado_cobro === 'pendiente' ? 'Pendiente' : 'Cobrado',
+    p.fecha_vencimiento_cobro ? formatFecha(p.fecha_vencimiento_cobro) : '-',
+    p.fecha_vencimiento_cobro && p.fecha_vencimiento_cobro < hoy && p.estado_cobro === 'pendiente' ? 'VENCIDO' : ''
+  ]) || []
+
+  const csv = [
+    ['Pedido','Cliente','Vendedor','Total','Cobrado','Pendiente','Estado','Vencimiento','Alerta'],
+    ...rows
+  ].map(r => r.map(c => `"${c}"`).join(',')).join('\n')
+
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href = url; a.download = `cobranza_${hoy}.csv`; a.click()
+  URL.revokeObjectURL(url)
+}
+
+// ── HELPERS COBRANZA ─────────────────────────────
+function formatMonto(n) {
+  return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+}
