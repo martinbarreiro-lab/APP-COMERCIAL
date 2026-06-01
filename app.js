@@ -45,6 +45,7 @@ async function mostrarApp(usuario) {
   const { data: perfil } = await db.from('perfiles').select('nombre_completo').eq('id', usuario.id).single()
   if (perfil) document.getElementById('nombre-usuario').textContent = perfil.nombre_completo
   mostrarSeccion('dashboard')
+  iniciarSistemaAlertas()
 }
 
 // ── NAVEGACIÓN ───────────────────────────────────
@@ -3086,3 +3087,212 @@ async function cerrarEnvio(envioId) {
   await db.from('envios').update({ estado: 'completado' }).eq('id', envioId)
   await cargarLogistica()
 }
+
+
+// ================================================
+// SISTEMA DE ALERTAS — Problemas de recepción
+// ================================================
+
+let _alertasInterval = null
+
+async function iniciarSistemaAlertas() {
+  await cargarAlertas()
+  // Polling cada 60s para nuevas alertas
+  if (_alertasInterval) clearInterval(_alertasInterval)
+  _alertasInterval = setInterval(cargarAlertas, 60000)
+}
+
+async function cargarAlertas() {
+  const rol    = await cargarRolUsuario()
+  const esAdmin = rol === 'admin'
+
+  let alertas = []
+
+  if (esAdmin) {
+    // Admin ve todas las alertas de notificaciones_admin no respondidas
+    const { data } = await db.from('notificaciones_admin')
+      .select('*, pedidos(numero, clientes(razon_social))')
+      .eq('leida', false)
+      .order('created_at', { ascending: false })
+    alertas = data || []
+  } else {
+    // Vendedor ve sus propias notificaciones no leídas de problema
+    const { data } = await db.from('notificaciones')
+      .select('*, pedidos(numero, clientes(razon_social))')
+      .eq('usuario_id', usuarioActual.id)
+      .eq('leida', false)
+      .eq('tipo', 'problema_recepcion')
+      .order('created_at', { ascending: false })
+    alertas = data || []
+  }
+
+  actualizarCampana(alertas.length)
+  return alertas
+}
+
+function actualizarCampana(count) {
+  const badge = document.getElementById('campana-badge')
+  const btn   = document.getElementById('btn-campana')
+  if (!badge || !btn) return
+  if (count > 0) {
+    badge.textContent = count > 9 ? '9+' : count
+    badge.style.display = 'flex'
+    btn.style.animation = 'shake 0.5s ease'
+    setTimeout(() => { if (btn) btn.style.animation = '' }, 500)
+  } else {
+    badge.style.display = 'none'
+  }
+}
+
+async function togglePanelAlertas() {
+  const panel = document.getElementById('panel-alertas')
+  if (!panel) return
+  const visible = panel.style.display !== 'none'
+  panel.style.display = visible ? 'none' : 'block'
+  if (!visible) await renderPanelAlertas()
+}
+
+async function renderPanelAlertas() {
+  const panel = document.getElementById('panel-alertas-contenido')
+  if (!panel) return
+  panel.innerHTML = '<p style="color:var(--color-text-tertiary);font-size:13px;padding:8px">Cargando...</p>'
+
+  const rol     = await cargarRolUsuario()
+  const esAdmin = rol === 'admin'
+  const alertas = await cargarAlertas()
+
+  if (alertas.length === 0) {
+    panel.innerHTML = `<div style="text-align:center;padding:32px 16px;color:var(--color-text-tertiary)">
+      <i class="ti ti-bell-off" style="font-size:32px;display:block;margin-bottom:8px" aria-hidden="true"></i>
+      Sin alertas pendientes
+    </div>`
+    return
+  }
+
+  panel.innerHTML = alertas.map(a => {
+    const pedidoNum = a.pedidos?.numero || a.pedido_id?.slice(-4) || '?'
+    const cliente   = a.pedidos?.clientes?.razon_social || ''
+    const mensaje   = a.mensaje || a.titulo || ''
+    const pedidoId  = a.pedido_id || ''
+    const alertaId  = a.id
+    const tabla     = esAdmin ? 'notificaciones_admin' : 'notificaciones'
+
+    return `
+      <div id="alerta-${alertaId}" style="padding:14px;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#633806">⚠️ Pedido #${pedidoNum}${cliente ? ' · ' + cliente : ''}</div>
+            <div style="font-size:12px;color:var(--color-text-secondary);margin-top:3px">${mensaje}</div>
+            <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:3px">${formatFechaHora(a.created_at)}</div>
+          </div>
+          <button onclick="verPedidoDesdeAlerta('${pedidoId}')"
+            style="white-space:nowrap;background:none;border:0.5px solid var(--color-border-tertiary);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;color:var(--color-text-secondary)">
+            Ver pedido
+          </button>
+        </div>
+
+        <!-- Acciones -->
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+          <button onclick="accionAlerta('${alertaId}','${pedidoId}','${tabla}','credito')"
+            style="background:#e1f5ee;color:#085041;border:0.5px solid #9fe1cb;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px">
+            <i class="ti ti-coins" aria-hidden="true"></i> Generar crédito
+          </button>
+          <button onclick="accionAlerta('${alertaId}','${pedidoId}','${tabla}','reenvio')"
+            style="background:#e8f0fe;color:#1a56db;border:0.5px solid #a4cafe;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px">
+            <i class="ti ti-truck" aria-hidden="true"></i> Reenviar producto
+          </button>
+          <button onclick="accionAlerta('${alertaId}','${pedidoId}','${tabla}','sin_accion')"
+            style="background:#f3f4f6;color:#6b7280;border:0.5px solid #d1d5db;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px">
+            <i class="ti ti-check" aria-hidden="true"></i> Sin acción necesaria
+          </button>
+        </div>
+
+        <!-- Respuesta con comentario -->
+        <div style="display:flex;gap:6px">
+          <input id="resp-${alertaId}" type="text" placeholder="Agregar comentario..."
+            style="flex:1;padding:7px 10px;border:0.5px solid var(--color-border-tertiary);border-radius:6px;font-size:12px"
+            onkeydown="if(event.key==='Enter') responderAlerta('${alertaId}','${pedidoId}','${tabla}')">
+          <button onclick="responderAlerta('${alertaId}','${pedidoId}','${tabla}')"
+            style="background:#185fa5;color:white;border:none;border-radius:6px;padding:7px 12px;font-size:12px;cursor:pointer">
+            Enviar
+          </button>
+        </div>
+      </div>`
+  }).join('')
+}
+
+async function accionAlerta(alertaId, pedidoId, tabla, accion) {
+  const labels = {
+    credito:    '💰 Crédito generado para el cliente',
+    reenvio:    '🚚 Se programó reenvío del producto',
+    sin_accion: '✅ Revisado — sin acción necesaria'
+  }
+  const label = labels[accion] || accion
+
+  // Registrar en historial del pedido
+  if (pedidoId) {
+    await db.from('historial_pedido').insert({
+      pedido_id:  pedidoId,
+      usuario_id: usuarioActual?.id,
+      accion:     'resolucion_problema',
+      detalle:    label
+    }).catch(() => {})
+  }
+
+  // Marcar alerta como leída/resuelta
+  await db.from(tabla).update({ leida: true, respuesta: label }).eq('id', alertaId).catch(() => {})
+
+  // Quitar del panel
+  const el = document.getElementById(`alerta-${alertaId}`)
+  if (el) {
+    el.style.opacity = '0'
+    el.style.transition = 'opacity 0.3s'
+    setTimeout(() => { el.remove(); renderPanelAlertas() }, 300)
+  }
+
+  await cargarAlertas()
+}
+
+async function responderAlerta(alertaId, pedidoId, tabla) {
+  const input = document.getElementById(`resp-${alertaId}`)
+  const comentario = input?.value.trim()
+  if (!comentario) return
+
+  // Guardar en historial
+  if (pedidoId) {
+    await db.from('historial_pedido').insert({
+      pedido_id:  pedidoId,
+      usuario_id: usuarioActual?.id,
+      accion:     'resolucion_problema',
+      detalle:    `💬 Respuesta: ${comentario}`
+    }).catch(() => {})
+  }
+
+  // Marcar como leída con la respuesta
+  await db.from(tabla).update({ leida: true, respuesta: comentario }).eq('id', alertaId).catch(() => {})
+
+  const el = document.getElementById(`alerta-${alertaId}`)
+  if (el) {
+    el.style.opacity = '0'
+    el.style.transition = 'opacity 0.3s'
+    setTimeout(() => { el.remove(); renderPanelAlertas() }, 300)
+  }
+
+  await cargarAlertas()
+}
+
+function verPedidoDesdeAlerta(pedidoId) {
+  if (!pedidoId) return
+  document.getElementById('panel-alertas').style.display = 'none'
+  mostrarSeccion('pedidos')
+  setTimeout(() => abrirPedido(pedidoId), 150)
+}
+
+// Cerrar panel al hacer click afuera
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('panel-alertas')
+  const btn   = document.getElementById('btn-campana')
+  if (panel && btn && !panel.contains(e.target) && !btn.contains(e.target)) {
+    panel.style.display = 'none'
+  }
+})
