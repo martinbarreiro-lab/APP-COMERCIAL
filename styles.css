@@ -392,3 +392,13 @@ body { background:#f0f2f5; color:#1a1a1a; }
 .mdc-cobro-item:last-child { border-bottom:none; }
 .mdc-cobro-info { display:flex; flex-direction:column; gap:4px; }
 .mdc-foto-wrap { margin-top:8px; }
+
+/* ── LOGÍSTICA ── */
+.log-pedido-card { background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); padding:14px 18px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
+.log-pedido-card.seleccionado { background:#e8f5e9; border-color:#9fe1cb; }
+.log-btn-agregar { padding:7px 14px; border-radius:8px; border:0.5px solid #1d9e75; background:white; color:#0f6e56; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; }
+.log-btn-agregar:hover { background:#e8f5e9; }
+.log-btn-quitar { padding:7px 14px; border-radius:8px; border:0.5px solid #e24b4a; background:white; color:#a32d2d; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; }
+.log-btn-quitar:hover { background:#fcebeb; }
+.log-envio-card { background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); padding:16px 18px; margin-bottom:10px; cursor:pointer; transition:box-shadow 0.2s; }
+.log-envio-card:hover { box-shadow:0 4px 12px rgba(0,0,0,0.08); }
