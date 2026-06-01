@@ -1294,7 +1294,16 @@ function cerrarModalRecibido() {
 }
 
 async function confirmarRecepcion() {
-  if (!_recibidoPedidoId || !_recibidoEstado) return
+  console.log('confirmarRecepcion - pedidoId:', _recibidoPedidoId, 'estado:', _recibidoEstado)
+
+  if (!_recibidoPedidoId) {
+    alert('Error: no hay pedido seleccionado. Cerrá y reintentá.')
+    return
+  }
+  if (!_recibidoEstado) {
+    alert('Seleccioná si llegó todo en orden o si hubo un problema.')
+    return
+  }
 
   const descripcion = document.getElementById('mr-descripcion').value.trim()
   const foto        = document.getElementById('mr-foto').files[0]
@@ -1321,12 +1330,18 @@ async function confirmarRecepcion() {
     ? `Recepción confirmada ✅ — Todo en orden${fotoUrl ? ' (con foto)' : ''}`
     : `Recepción con problema ⚠️: ${descripcion}${fotoUrl ? ' (con foto)' : ''}`
 
-  await db.from('pedidos').update({
+  const { error: updErr } = await db.from('pedidos').update({
     etapa:          'recibido',
     fecha_recibido: new Date().toISOString(),
     recibido_por:   todoOk ? 'ok' : 'problema: ' + descripcion,
     updated_at:     new Date().toISOString()
   }).eq('id', _recibidoPedidoId)
+
+  if (updErr) {
+    console.error('Error update pedido:', updErr)
+    alert('Error al confirmar: ' + updErr.message)
+    return
+  }
 
   await registrarHistorial(_recibidoPedidoId, 'estado_cambiado', detalle)
 
@@ -2937,7 +2952,7 @@ async function cargarPedidosDeEnvio(envioId) {
           </div>
         </div>
         ${!entregado ? `
-          <button onclick="event.stopPropagation(); marcarRecibido('${p?.id}')"
+          <button onclick="event.stopPropagation(); marcarRecibido('${item.pedido_id}')"
             style="margin-top:10px;width:100%;background:#185fa5;color:white;border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
             <i class="ti ti-circle-check" style="font-size:15px" aria-hidden="true"></i>
             Confirmar entrega del Pedido #${p?.numero}
