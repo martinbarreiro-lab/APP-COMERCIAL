@@ -1964,9 +1964,9 @@ async function cargarCobranza() {
   if (hasta) query = query.lte('fecha_pedido', hasta + 'T23:59:59')
 
   // Filtro por estado
-  if (_cobEstado === 'vencido')   query = query.eq('estado_cobro', 'pendiente').lt('fecha_vencimiento_cobro', hoy)
-  if (_cobEstado === 'pendiente') query = query.eq('estado_cobro', 'pendiente')
-  if (_cobEstado === 'cobrado')   query = query.neq('estado_cobro', 'pendiente')
+  if (_cobEstado === 'vencido')   query = query.in('estado_cobro', ['pendiente']).lt('fecha_vencimiento_cobro', hoy)
+  if (_cobEstado === 'pendiente') query = query.or('estado_cobro.eq.pendiente,estado_cobro.is.null')
+  if (_cobEstado === 'cobrado')   query = query.not('estado_cobro', 'in', '("pendiente")')
 
   const { data: pedidos } = await query
 
@@ -1979,8 +1979,8 @@ async function cargarCobranza() {
 
 // ── STATS ────────────────────────────────────────
 async function renderCobStats(pedidos, hoy, esAdmin) {
-  const pendientes = pedidos?.filter(p => p.estado_cobro === 'pendiente') || []
-  const cobrados   = pedidos?.filter(p => p.estado_cobro !== 'pendiente') || []
+  const pendientes = pedidos?.filter(p => !p.estado_cobro || p.estado_cobro === 'pendiente') || []
+  const cobrados   = pedidos?.filter(p => p.estado_cobro && p.estado_cobro !== 'pendiente') || []
   const vencidos   = pendientes.filter(p => p.fecha_vencimiento_cobro && p.fecha_vencimiento_cobro < hoy)
 
   const totalPendiente = pendientes.reduce((s, p) => s + (Number(p.total) - Number(p.monto_cobrado)), 0)
@@ -2028,8 +2028,8 @@ function renderListaCobranza(pedidos, hoy, esAdmin) {
   }
 
   // Separar pendientes y cobrados
-  const pendientes = pedidos.filter(p => p.estado_cobro === 'pendiente')
-  const cobrados   = pedidos.filter(p => p.estado_cobro !== 'pendiente')
+  const pendientes = pedidos.filter(p => !p.estado_cobro || p.estado_cobro === 'pendiente')
+  const cobrados   = pedidos.filter(p => p.estado_cobro && p.estado_cobro !== 'pendiente')
 
   let html = ''
 
@@ -2312,15 +2312,22 @@ async function exportarCobranza() {
     p.fecha_vencimiento_cobro && p.fecha_vencimiento_cobro < hoy && p.estado_cobro === 'pendiente' ? 'VENCIDO' : ''
   ]) || []
 
+  // Usar ; como separador (estándar Excel Argentina)
+  const SEP = ';'
   const csv = [
     ['Pedido','Cliente','Vendedor','Total','Cobrado','Pendiente','Estado','Vencimiento','Alerta'],
     ...rows
-  ].map(r => r.map(c => `"${c}"`).join(',')).join('\n')
+  ].map(r => r.map(c => String(c).replace(/;/g, ',')).join(SEP)).join('\r\n')
 
-  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
+  // BOM para que Excel reconozca UTF-8
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
   const url  = URL.createObjectURL(blob)
   const a    = document.createElement('a')
-  a.href = url; a.download = `cobranza_${hoy}.csv`; a.click()
+  a.href = url
+  a.download = `cobranza_${hoy}.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
   URL.revokeObjectURL(url)
 }
 
