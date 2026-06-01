@@ -64,32 +64,254 @@ function mostrarSeccion(nombre) {
 
 // ── DASHBOARD ────────────────────────────────────
 async function cargarDashboard() {
-  const hoy = new Date().toISOString().split('T')[0]
-  const { data: pedidos }    = await db.from('pedidos').select('id').gte('created_at', hoy)
-  const { data: cobros }     = await db.from('cobros').select('monto').gte('created_at', hoy)
-  const { data: pendientes } = await db.from('pedidos').select('id').eq('estado_cobro', 'pendiente')
-  const { data: envios }     = await db.from('envios').select('id').eq('estado', 'en_camino')
-  const { data: porVencer }  = await db.from('pedidos')
-    .select('numero, fecha_vencimiento_cobro, clientes(razon_social)')
-    .eq('estado_cobro', 'pendiente')
-    .lte('fecha_vencimiento_cobro', new Date(Date.now() + 2*86400000).toISOString().split('T')[0])
-    .gte('fecha_vencimiento_cobro', hoy)
+  const rol     = await cargarRolUsuario()
+  const esAdmin = rol === 'admin'
 
-  document.getElementById('total-pedidos-hoy').textContent  = pedidos?.length || 0
-  document.getElementById('total-cobros-hoy').textContent   = '$' + (cobros?.reduce((s,c) => s + Number(c.monto), 0) || 0).toLocaleString('es-AR')
-  document.getElementById('total-pendientes').textContent   = pendientes?.length || 0
-  document.getElementById('total-envios').textContent       = envios?.length || 0
+  const hoy        = new Date()
+  const hoyStr     = hoy.toISOString().split('T')[0]
+  const inicioMes  = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString()
+  const en7dias    = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]
 
-  const alertasEl = document.getElementById('alertas-vencimiento')
-  if (porVencer && porVencer.length > 0) {
-    alertasEl.innerHTML = `
-      <div class="alerta-box">
-        ⚠️ <b>${porVencer.length} pedido(s) vencen en los próximos 2 días:</b><br>
-        ${porVencer.map(p => `#${p.numero} — ${p.clientes?.razon_social} — vence ${formatFecha(p.fecha_vencimiento_cobro)}`).join('<br>')}
-      </div>`
-  } else {
-    alertasEl.innerHTML = ''
+  // ── Todas las queries en paralelo ───────────────
+  let qPedidosMes   = db.from('pedidos').select('id, total, etapa, estado_cobro, monto_cobrado, vendedor_id, created_at').gte('created_at', inicioMes).neq('estado', 'cancelado')
+  let qCobrosMes    = db.from('cobros').select('monto, medio_pago, vendedor_id').gte('created_at', inicioMes)
+  let qVencidos     = db.from('pedidos').select('id, numero, total, monto_cobrado, fecha_vencimiento_cobro, clientes(razon_social)').eq('estado_cobro', 'pendiente').lt('fecha_vencimiento_cobro', hoyStr)
+  let qPorVencer    = db.from('pedidos').select('id, numero, total, monto_cobrado, fecha_vencimiento_cobro, clientes(razon_social)').eq('estado_cobro', 'pendiente').gte('fecha_vencimiento_cobro', hoyStr).lte('fecha_vencimiento_cobro', en7dias)
+  let qAtascados    = db.from('pedidos').select('id, numero, clientes(razon_social), created_at').eq('etapa', 'facturado').lte('created_at', new Date(Date.now() - 3 * 86400000).toISOString())
+  let qEnvios       = db.from('envios').select('id').eq('estado', 'en_camino')
+  let qAlertas      = db.from('notificaciones_admin').select('id').eq('leida', false)
+  let qVendedores   = esAdmin ? db.from('perfiles').select('id, nombre_completo').eq('rol', 'vendedor') : null
+
+  if (!esAdmin) {
+    qPedidosMes = qPedidosMes.eq('vendedor_id', usuarioActual.id)
+    qCobrosMes  = qCobrosMes.eq('vendedor_id', usuarioActual.id)
+    qVencidos   = qVencidos.eq('vendedor_id', usuarioActual.id)
+    qPorVencer  = qPorVencer.eq('vendedor_id', usuarioActual.id)
+    qAtascados  = qAtascados.eq('vendedor_id', usuarioActual.id)
   }
+
+  const [
+    { data: pedidosMes },
+    { data: cobrosMes },
+    { data: vencidos },
+    { data: porVencer },
+    { data: atascados },
+    { data: enviosActivos },
+    { data: alertasPend },
+    vendedoresRes
+  ] = await Promise.all([
+    qPedidosMes, qCobrosMes, qVencidos, qPorVencer,
+    qAtascados, qEnvios, qAlertas,
+    qVendedores ? qVendedores : Promise.resolve({ data: [] })
+  ])
+
+  // ── Calcular métricas ───────────────────────────
+  const facturadoMes  = pedidosMes?.reduce((s, p) => s + Number(p.total), 0) || 0
+  const cobradoMes    = cobrosMes?.reduce((s, c) => s + Number(c.monto), 0) || 0
+  const pendienteCobro = pedidosMes?.filter(p => p.estado_cobro === 'pendiente')
+                          .reduce((s, p) => s + (Number(p.total) - Number(p.monto_cobrado || 0)), 0) || 0
+  const pedidosMesCount = pedidosMes?.length || 0
+
+  // Pipeline: cantidad y monto por etapa
+  const pipeline = {}
+  for (const e of ['pedido','facturado','enviado','recibido','cobrado']) {
+    const grupo = pedidosMes?.filter(p => p.etapa === e) || []
+    pipeline[e] = { count: grupo.length, monto: grupo.reduce((s,p) => s + Number(p.total), 0) }
+  }
+
+  // Medios de pago del mes
+  const medios = {}
+  for (const c of (cobrosMes || [])) {
+    medios[c.medio_pago] = (medios[c.medio_pago] || 0) + Number(c.monto)
+  }
+
+  // Ranking vendedores (solo admin)
+  let rankingHTML = ''
+  if (esAdmin && vendedoresRes.data?.length > 0) {
+    const vendedores = vendedoresRes.data
+    const ranking = vendedores.map(v => {
+      const peds   = pedidosMes?.filter(p => p.vendedor_id === v.id) || []
+      const cobs   = cobrosMes?.filter(c => c.vendedor_id === v.id) || []
+      return {
+        nombre:    v.nombre_completo,
+        pedidos:   peds.length,
+        facturado: peds.reduce((s,p) => s+Number(p.total),0),
+        cobrado:   cobs.reduce((s,c) => s+Number(c.monto),0)
+      }
+    }).filter(v => v.pedidos > 0).sort((a,b) => b.facturado - a.facturado)
+
+    if (ranking.length > 0) {
+      rankingHTML = `
+        <div class="dash-card" style="margin-top:20px">
+          <div class="dash-card-titulo"><i class="ti ti-users" aria-hidden="true"></i> Rendimiento por vendedor — este mes</div>
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="color:var(--color-text-tertiary);text-align:left">
+              <th style="padding:8px 0;font-weight:500">Vendedor</th>
+              <th style="padding:8px 0;font-weight:500;text-align:right">Pedidos</th>
+              <th style="padding:8px 0;font-weight:500;text-align:right">Facturado</th>
+              <th style="padding:8px 0;font-weight:500;text-align:right">Cobrado</th>
+            </tr></thead>
+            <tbody>
+              ${ranking.map((v,i) => `
+                <tr style="border-top:0.5px solid var(--color-border-tertiary)">
+                  <td style="padding:10px 0;display:flex;align-items:center;gap:8px">
+                    <span style="background:#1d9e7520;color:#085041;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">${i+1}</span>
+                    ${v.nombre}
+                  </td>
+                  <td style="text-align:right;padding:10px 0">${v.pedidos}</td>
+                  <td style="text-align:right;padding:10px 0;font-weight:500">${fmtM(v.facturado)}</td>
+                  <td style="text-align:right;padding:10px 0;color:#1d9e75;font-weight:500">${fmtM(v.cobrado)}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`
+    }
+  }
+
+  // ── Alertas urgentes ────────────────────────────
+  const alertasHTML = renderDashAlertas(vencidos, porVencer, atascados, alertasPend)
+
+  // ── Medios de pago ──────────────────────────────
+  const mediosIconos = { efectivo:'💵', transferencia:'🏦', cheque:'📋', echeq:'📱' }
+  const mediosHTML = Object.keys(medios).length > 0
+    ? Object.entries(medios).sort((a,b) => b[1]-a[1]).map(([m, v]) =>
+        `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+          <span style="font-size:13px">${mediosIconos[m]||'•'} ${labelMedio(m)}</span>
+          <span style="font-size:13px;font-weight:500">${fmtM(v)}</span>
+        </div>`).join('')
+    : '<p style="font-size:13px;color:var(--color-text-tertiary)">Sin cobros este mes</p>'
+
+  // ── Pipeline HTML ───────────────────────────────
+  const etapasDef = [
+    { id:'pedido',    label:'Pedido',    color:'#888780', icono:'ti-package' },
+    { id:'facturado', label:'Facturado', color:'#378add', icono:'ti-file-invoice' },
+    { id:'enviado',   label:'Enviado',   color:'#1d9e75', icono:'ti-truck' },
+    { id:'recibido',  label:'Recibido',  color:'#ba7517', icono:'ti-hand-stop' },
+    { id:'cobrado',   label:'Cobrado',   color:'#1d9e75', icono:'ti-circle-check' },
+  ]
+  const pipelineHTML = etapasDef.map(e => {
+    const d = pipeline[e.id]
+    return `
+      <div style="flex:1;text-align:center;padding:14px 8px;border-right:0.5px solid var(--color-border-tertiary)">
+        <i class="ti ${e.icono}" style="font-size:18px;color:${e.color};display:block;margin-bottom:6px" aria-hidden="true"></i>
+        <div style="font-size:22px;font-weight:600;color:${d.count > 0 ? e.color : 'var(--color-text-tertiary)'}">${d.count}</div>
+        <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px">${e.label}</div>
+        ${d.monto > 0 ? `<div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">${fmtM(d.monto)}</div>` : ''}
+      </div>`
+  }).join('')
+
+  // ── Mes actual ──────────────────────────────────
+  const nombreMes = hoy.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
+
+  // ── Render final ────────────────────────────────
+  document.getElementById('dash-root').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <h2 style="margin:0;font-size:20px;font-weight:600">Dashboard</h2>
+      <span style="font-size:13px;color:var(--color-text-tertiary);text-transform:capitalize">${nombreMes}</span>
+    </div>
+
+    ${alertasHTML}
+
+    <!-- Métricas principales -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+      ${dashMetrica('ti-chart-bar','Facturado este mes', fmtM(facturadoMes), pedidosMesCount + ' pedidos', '#378add')}
+      ${dashMetrica('ti-circle-check','Cobrado este mes', fmtM(cobradoMes), cobrosMes?.length + ' cobros', '#1d9e75')}
+      ${dashMetrica('ti-clock','Pendiente de cobro', fmtM(pendienteCobro), vencidos?.length > 0 ? vencidos.length + ' vencidos' : 'Al día', vencidos?.length > 0 ? '#e24b4a' : '#888780')}
+      ${dashMetrica('ti-truck','Envíos en camino', enviosActivos?.length || 0, 'activos ahora', '#ba7517')}
+    </div>
+
+    <!-- Pipeline del mes -->
+    <div class="dash-card" style="margin-bottom:20px">
+      <div class="dash-card-titulo"><i class="ti ti-git-branch" aria-hidden="true"></i> Pipeline de pedidos — este mes</div>
+      <div style="display:flex;margin:-12px -16px 0">
+        ${pipelineHTML}
+      </div>
+    </div>
+
+    <!-- Medios de pago + ranking -->
+    <div style="display:grid;grid-template-columns:${esAdmin ? '1fr 2fr' : '1fr'};gap:12px;margin-bottom:20px">
+      <div class="dash-card">
+        <div class="dash-card-titulo"><i class="ti ti-cash" aria-hidden="true"></i> Cobros por medio — este mes</div>
+        ${mediosHTML}
+      </div>
+      ${rankingHTML && !esAdmin ? '' : ''}
+    </div>
+
+    ${rankingHTML}
+  `
+}
+
+function dashMetrica(icono, label, valor, sub, color) {
+  return `
+    <div class="dash-card" style="border-top:3px solid ${color}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <i class="ti ${icono}" style="font-size:16px;color:${color}" aria-hidden="true"></i>
+        <span style="font-size:12px;color:var(--color-text-secondary)">${label}</span>
+      </div>
+      <div style="font-size:26px;font-weight:700;color:var(--color-text-primary);line-height:1">${valor}</div>
+      <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:6px">${sub}</div>
+    </div>`
+}
+
+function renderDashAlertas(vencidos, porVencer, atascados, alertasPend) {
+  const items = []
+
+  if (alertasPend?.length > 0) {
+    items.push({
+      color: '#e24b4a', bg: '#fcebeb',
+      icono: 'ti-bell',
+      texto: `<b>${alertasPend.length} problema${alertasPend.length !== 1 ? 's' : ''} de recepción sin responder</b>`,
+      accion: `onclick="togglePanelAlertas()" style="cursor:pointer"`
+    })
+  }
+
+  if (vencidos?.length > 0) {
+    const totalVenc = vencidos.reduce((s,p) => s + (Number(p.total) - Number(p.monto_cobrado||0)), 0)
+    items.push({
+      color: '#e24b4a', bg: '#fcebeb',
+      icono: 'ti-calendar-x',
+      texto: `<b>${vencidos.length} cobro${vencidos.length!==1?'s':''} vencido${vencidos.length!==1?'s':''} — ${fmtM(totalVenc)}</b><br>
+        <span style="font-size:12px">${vencidos.slice(0,3).map(p => `#${p.numero} · ${p.clientes?.razon_social}`).join(' · ')}${vencidos.length>3?' y más...':''}</span>`,
+      accion: `onclick="mostrarSeccion('cobranza');setCobEstado('vencidos')" style="cursor:pointer"`
+    })
+  }
+
+  if (porVencer?.length > 0) {
+    const totalPV = porVencer.reduce((s,p) => s + (Number(p.total) - Number(p.monto_cobrado||0)), 0)
+    items.push({
+      color: '#ba7517', bg: '#faeeda',
+      icono: 'ti-clock',
+      texto: `<b>${porVencer.length} cobro${porVencer.length!==1?'s':''} vencen en 7 días — ${fmtM(totalPV)}</b><br>
+        <span style="font-size:12px">${porVencer.slice(0,3).map(p => `#${p.numero} · ${p.clientes?.razon_social} · vence ${formatFecha(p.fecha_vencimiento_cobro)}`).join('<br>')}</span>`,
+      accion: `onclick="mostrarSeccion('cobranza')" style="cursor:pointer"`
+    })
+  }
+
+  if (atascados?.length > 0) {
+    items.push({
+      color: '#378add', bg: '#e3f2fd',
+      icono: 'ti-alert-triangle',
+      texto: `<b>${atascados.length} pedido${atascados.length!==1?'s':''} facturado${atascados.length!==1?'s':''} sin enviar hace más de 3 días</b><br>
+        <span style="font-size:12px">${atascados.slice(0,3).map(p => `#${p.numero} · ${p.clientes?.razon_social}`).join(' · ')}</span>`,
+      accion: `onclick="mostrarSeccion('logistica')" style="cursor:pointer"`
+    })
+  }
+
+  if (items.length === 0) return `
+    <div style="background:#e1f5ee;border-radius:10px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px;font-size:13px;color:#085041">
+      <i class="ti ti-circle-check" style="font-size:16px" aria-hidden="true"></i>
+      Todo al día — sin alertas urgentes
+    </div>`
+
+  return items.map(a => `
+    <div ${a.accion} style="background:${a.bg};border-radius:10px;padding:12px 16px;margin-bottom:10px;display:flex;align-items:flex-start;gap:10px;font-size:13px;color:${a.color};border-left:3px solid ${a.color}">
+      <i class="ti ${a.icono}" style="font-size:16px;margin-top:1px;flex-shrink:0" aria-hidden="true"></i>
+      <div>${a.texto}</div>
+    </div>`).join('')
+}
+
+function fmtM(n) {
+  return '$' + Number(n||0).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }
 
 // ── PEDIDOS ──────────────────────────────────────
