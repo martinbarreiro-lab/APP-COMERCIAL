@@ -985,8 +985,12 @@ const ETAPAS_KANBAN = [
   { id: 'cobrado',   label: 'Cobrado',   icono: 'ti-circle-check', color: '#1d9e75', bg: '#e8f5e9' },
 ]
 
+// Cliente seleccionado en el filtro del kanban
+let _filtroClienteId   = null
+let _filtroClienteNombre = null
+let _filtroClientesCache = []
+
 async function cargarPedidos() {
-  const busqueda   = document.getElementById('filtro-cliente-pedido')?.value?.trim() || ''
   const fechaDesde = document.getElementById('filtro-fecha-desde')?.value || ''
   const fechaHasta = document.getElementById('filtro-fecha-hasta')?.value || ''
 
@@ -996,13 +1000,12 @@ async function cargarPedidos() {
     .order('created_at', { ascending: false })
     .limit(200)
 
+  if (_filtroClienteId) query = query.eq('cliente_id', _filtroClienteId)
   if (fechaDesde) query = query.gte('fecha_pedido', fechaDesde)
   if (fechaHasta) query = query.lte('fecha_pedido', fechaHasta + 'T23:59:59')
 
   const { data: todos } = await query
-  const pedidos = busqueda
-    ? todos?.filter(p => p.clientes?.razon_social?.toLowerCase().includes(busqueda.toLowerCase()))
-    : todos
+  const pedidos = todos
 
   renderKanban(pedidos || [])
 }
@@ -1141,11 +1144,85 @@ async function buscarClientePedido() {
 }
 
 
+
+// ── FILTRO CLIENTE KANBAN ────────────────────────
+async function toggleFiltroClientes() {
+  const dropdown = document.getElementById('filtro-cliente-dropdown')
+  if (!dropdown) return
+  const visible = dropdown.style.display !== 'none'
+  if (visible) {
+    dropdown.style.display = 'none'
+    return
+  }
+  dropdown.style.display = 'block'
+  if (_filtroClientesCache.length === 0) {
+    document.getElementById('filtro-cliente-lista').innerHTML =
+      '<p style="padding:12px;color:#888;font-size:13px">Cargando...</p>'
+    const { data } = await db.from('clientes').select('id, razon_social').eq('activo', true).order('razon_social')
+    _filtroClientesCache = data || []
+  }
+  renderFiltroClientes(_filtroClientesCache)
+  // Foco en el buscador
+  setTimeout(() => document.getElementById('filtro-cliente-buscar')?.focus(), 100)
+  // Cerrar al clickear afuera
+  setTimeout(() => {
+    document.addEventListener('click', cerrarFiltroClientesAfuera, { once: true })
+  }, 100)
+}
+
+function cerrarFiltroClientesAfuera(e) {
+  const dropdown = document.getElementById('filtro-cliente-dropdown')
+  const display  = document.getElementById('filtro-cliente-display')
+  if (dropdown && !dropdown.contains(e.target) && !display?.contains(e.target)) {
+    dropdown.style.display = 'none'
+  }
+}
+
+function filtrarDropdownClientes() {
+  const q = document.getElementById('filtro-cliente-buscar')?.value?.toLowerCase() || ''
+  const filtrados = q ? _filtroClientesCache.filter(c => c.razon_social.toLowerCase().includes(q)) : _filtroClientesCache
+  renderFiltroClientes(filtrados)
+}
+
+function renderFiltroClientes(clientes) {
+  const el = document.getElementById('filtro-cliente-lista')
+  if (!el) return
+  const html = [
+    `<div onclick="seleccionarFiltroCliente(null, 'Todos los clientes')"
+      style="padding:10px 16px;cursor:pointer;font-size:13px;color:#888;border-bottom:1px solid #f0f0f0;"
+      onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='white'">
+      🔍 Todos los clientes
+    </div>`,
+    ...clientes.map(c => `
+      <div onclick="seleccionarFiltroCliente('${c.id}', '${c.razon_social.replace(/'/g, "\'")}')"
+        style="padding:10px 16px;cursor:pointer;font-size:14px;font-weight:500;border-bottom:1px solid #f0f0f0;"
+        onmouseover="this.style.background='#f0f7f4'" onmouseout="this.style.background='white'">
+        ${c.razon_social}
+      </div>`)
+  ].join('')
+  el.innerHTML = html
+}
+
+function seleccionarFiltroCliente(id, nombre) {
+  _filtroClienteId    = id
+  _filtroClienteNombre = nombre
+  const label = document.getElementById('filtro-cliente-label')
+  if (label) {
+    label.textContent = id ? nombre : '🔍 Todos los clientes'
+    label.style.color = id ? '#1a1a1a' : '#888'
+  }
+  document.getElementById('filtro-cliente-dropdown').style.display = 'none'
+  cargarPedidos()
+}
+
+
 function limpiarFiltrosPedidos() {
-  const c = document.getElementById('filtro-cliente-pedido')
+  _filtroClienteId    = null
+  _filtroClienteNombre = null
+  const label = document.getElementById('filtro-cliente-label')
+  if (label) { label.textContent = '🔍 Todos los clientes'; label.style.color = '#888' }
   const d = document.getElementById('filtro-fecha-desde')
   const h = document.getElementById('filtro-fecha-hasta')
-  if (c) c.value = ''
   if (d) d.value = ''
   if (h) h.value = ''
   cargarPedidos()
