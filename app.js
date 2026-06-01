@@ -783,9 +783,17 @@ async function abrirPedido(id) {
           <i class="ti ti-truck" aria-hidden="true"></i> Marcar como enviado
         </button>` : ''}
       ${etapaActual3 === 'enviado' ? `
-        <button onclick="marcarRecibido('${id}')" class="btn-recibido">
-          <i class="ti ti-check" aria-hidden="true"></i> Confirmar recepción
-        </button>` : ''}
+        <div style="width:100%;background:#e3f2fd;border:2px solid #378add;border-radius:10px;padding:16px;margin-top:8px">
+          <div style="font-size:13px;color:#0c447c;margin-bottom:10px;font-weight:500">
+            <i class="ti ti-truck" style="font-size:15px;vertical-align:-2px;margin-right:6px" aria-hidden="true"></i>
+            Tu pedido está en camino — ¿Ya lo recibiste?
+          </div>
+          <button onclick="marcarRecibido('${id}')" 
+            style="background:#185fa5;color:white;border:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;gap:8px">
+            <i class="ti ti-circle-check" style="font-size:18px" aria-hidden="true"></i>
+            Confirmar recepción del pedido
+          </button>
+        </div>` : ''}
       ${etapaActual3 === 'cobrado' ? `
         <button onclick="descargarPDF('${id}')" class="btn-secundario">
           <i class="ti ti-file-download" aria-hidden="true"></i> Descargar PDF
