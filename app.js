@@ -56,7 +56,7 @@ function mostrarSeccion(nombre) {
   if (nombre === 'dashboard') cargarDashboard()
   if (nombre === 'pedidos')   { mostrarVistaPedidos('lista'); cargarPedidos() }
   if (nombre === 'cobranza')  cargarCobranza()
-  if (nombre === 'logistica') cargarEnvios()
+  if (nombre === 'logistica') cargarLogistica()
   if (nombre === 'clientes')  cargarClientes()
   if (nombre === 'productos') cargarProductos()
 }
