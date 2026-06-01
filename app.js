@@ -1951,10 +1951,9 @@ async function cargarCobranza() {
   // Query pedidos con cobros pendientes o cobrados
   let query = db.from('pedidos')
     .select(`id, numero, total, monto_cobrado, estado_cobro, etapa,
-             fecha_vencimiento_cobro, fecha_pedido,
-             clientes(id, razon_social, telefono),
-             perfiles(id, nombre_completo)`)
-    .not('estado', 'eq', 'cancelado')
+             fecha_vencimiento_cobro, fecha_pedido, vendedor_id,
+             clientes(id, razon_social, telefono)`)
+    .not('etapa', 'eq', 'cancelado')
     .order('fecha_vencimiento_cobro', { ascending: true, nullsFirst: false })
 
   if (!esAdmin) query = query.eq('vendedor_id', usuarioActual.id)
@@ -1964,11 +1963,12 @@ async function cargarCobranza() {
   if (hasta) query = query.lte('fecha_pedido', hasta + 'T23:59:59')
 
   // Filtro por estado
-  if (_cobEstado === 'vencido')   query = query.in('estado_cobro', ['pendiente']).lt('fecha_vencimiento_cobro', hoy)
+  if (_cobEstado === 'vencido')   query = query.or('estado_cobro.eq.pendiente,estado_cobro.is.null').lt('fecha_vencimiento_cobro', hoy)
   if (_cobEstado === 'pendiente') query = query.or('estado_cobro.eq.pendiente,estado_cobro.is.null')
-  if (_cobEstado === 'cobrado')   query = query.not('estado_cobro', 'in', '("pendiente")')
+  if (_cobEstado === 'cobrado')   query = query.not('estado_cobro', 'is', null).not('estado_cobro', 'eq', 'pendiente')
 
-  const { data: pedidos } = await query
+  const { data: pedidos, error: pedErr } = await query
+  if (pedErr) { console.error('Cobranza error:', pedErr); return }
 
   // Calcular stats
   await renderCobStats(pedidos, hoy, esAdmin)
@@ -2088,7 +2088,7 @@ function renderCobCard(p, hoy, esAdmin, esCobrado = false) {
         <div class="cob-card-meta">
           <span>Pedido #${p.numero}</span>
           ${venc ? `<span><i class="ti ti-calendar" style="font-size:12px" aria-hidden="true"></i> Vence: ${formatFecha(venc)}</span>` : ''}
-          ${esAdmin ? `<span><i class="ti ti-user" style="font-size:12px" aria-hidden="true"></i> ${p.perfiles?.nombre_completo || '-'}</span>` : ''}
+          ${esAdmin && p.vendedor_nombre ? `<span><i class="ti ti-user" style="font-size:12px" aria-hidden="true"></i> ${p.vendedor_nombre}</span>` : ''}
         </div>
         ${Number(p.monto_cobrado) > 0 ? `
           <div class="cob-barra-mini">
@@ -2296,14 +2296,14 @@ function limpiarCobFiltros() {
 async function exportarCobranza() {
   const hoy    = new Date().toISOString().split('T')[0]
   const { data: pedidos } = await db.from('pedidos')
-    .select('numero, total, monto_cobrado, estado_cobro, fecha_vencimiento_cobro, clientes(razon_social), perfiles(nombre_completo)')
-    .not('estado', 'eq', 'cancelado')
+    .select('numero, total, monto_cobrado, estado_cobro, fecha_vencimiento_cobro, clientes(razon_social)')
+    .not('etapa', 'eq', 'cancelado')
     .order('fecha_vencimiento_cobro', { ascending: true })
 
   const rows = pedidos?.map(p => [
     `#${p.numero}`,
     p.clientes?.razon_social || '-',
-    p.perfiles?.nombre_completo || '-',
+    '-',
     `$${Number(p.total).toLocaleString('es-AR')}`,
     `$${Number(p.monto_cobrado).toLocaleString('es-AR')}`,
     `$${(Number(p.total) - Number(p.monto_cobrado)).toLocaleString('es-AR')}`,
