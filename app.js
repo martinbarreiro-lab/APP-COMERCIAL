@@ -346,7 +346,7 @@ function iconMedio(m) {
   return i[m] || '💰'
 }
 function iconAccion(a) {
-  const i = { pedido_creado:'📦', documento_subido:'📄', cobro_registrado:'💰', estado_cambiado:'🔄', pedido_cerrado:'✅' }
+  const i = { pedido_creado:'📦', documento_subido:'📄', cobro_registrado:'💰', estado_cambiado:'🔄', pedido_cerrado:'✅', recepcion_ok:'✅', recepcion_problema:'⚠️' }
   return i[a] || '•'
 }
 function renderDiferencias(d) {
@@ -1303,8 +1303,8 @@ async function confirmarRecepcion() {
     return
   }
 
-  const descripcion = document.getElementById('mr-descripcion').value.trim()
-  const foto        = document.getElementById('mr-foto').files[0]
+  const descripcion  = document.getElementById('mr-descripcion').value.trim()
+  const foto         = document.getElementById('mr-foto').files[0]
 
   if (_recibidoEstado === 'problema' && !descripcion) {
     document.getElementById('mr-error').textContent = 'Describí qué pasó con el pedido'
@@ -1312,12 +1312,13 @@ async function confirmarRecepcion() {
     return
   }
 
-  const todoOk      = _recibidoEstado === 'ok'
+  const todoOk       = _recibidoEstado === 'ok'
   const pedidoIdCopy = _recibidoPedidoId
 
-  // Cerrar modal inmediatamente para que el usuario vea que respondió
+  // Cerrar modal de inmediato
   cerrarModalRecibido()
 
+  // Subir foto si hay
   let fotoUrl = null
   if (foto) {
     const ext  = foto.name.split('.').pop()
@@ -1329,40 +1330,52 @@ async function confirmarRecepcion() {
     }
   }
 
-  const detalle = todoOk
-    ? `Recepción confirmada ✅ — Todo en orden${fotoUrl ? ' (con foto)' : ''}`
-    : `Recepción con problema ⚠️: ${descripcion}${fotoUrl ? ' (con foto)' : ''}`
+  // Actualizar etapa del pedido
+  const { error: updErr } = await db.from('pedidos')
+    .update({ etapa: 'recibido', updated_at: new Date().toISOString() })
+    .eq('id', pedidoIdCopy)
 
-  // Update solo con columnas que siempre existen
-  const updateData = { etapa: 'recibido', updated_at: new Date().toISOString() }
-
-  // Intentar agregar columnas opcionales (no fallan si no existen en el schema)
-  try {
-    const { error: updErr } = await db.from('pedidos').update({
-      ...updateData,
-      fecha_recibido: new Date().toISOString(),
-      recibido_por:   todoOk ? 'ok' : 'problema: ' + descripcion,
-    }).eq('id', pedidoIdCopy)
-
-    if (updErr) {
-      // Si falla por columnas inexistentes, intentar solo con las básicas
-      console.warn('Update completo falló, intentando update básico:', updErr.message)
-      const { error: updErr2 } = await db.from('pedidos')
-        .update(updateData)
-        .eq('id', pedidoIdCopy)
-      if (updErr2) {
-        console.error('Error update pedido:', updErr2)
-        alert('Error al guardar: ' + (updErr2.message || JSON.stringify(updErr2)))
-        return
-      }
-    }
-  } catch(e) {
-    console.error('Error inesperado:', e)
+  if (updErr) {
+    console.error('Error update pedido:', updErr)
+    alert('Error al guardar: ' + (updErr.message || JSON.stringify(updErr)))
+    return
   }
 
-  await registrarHistorial(pedidoIdCopy, 'estado_cambiado', detalle).catch(() => {})
+  // Registrar en historial con todos los datos
+  const detalleHistorial = todoOk
+    ? `✅ Recepción confirmada — Todo en orden${fotoUrl ? ` | foto: ${fotoUrl}` : ''}`
+    : `⚠️ Problema en recepción: ${descripcion}${fotoUrl ? ` | foto: ${fotoUrl}` : ''}`
 
-  // ── Verificar si el envío quedó completo ──
+  await db.from('historial_pedido').insert({
+    pedido_id:  pedidoIdCopy,
+    usuario_id: usuarioActual?.id,
+    accion:     todoOk ? 'recepcion_ok' : 'recepcion_problema',
+    detalle:    detalleHistorial
+  }).catch(() => {})
+
+  // Si hubo problema → notificar admin y vendedor
+  if (!todoOk) {
+    await db.from('notificaciones_admin').insert({
+      tipo:      'problema_recepcion',
+      mensaje:   `⚠️ Problema en recepción: ${descripcion}`,
+      pedido_id: pedidoIdCopy,
+      leida:     false
+    }).catch(() => {})
+
+    const { data: ped } = await db.from('pedidos')
+      .select('vendedor_id, numero').eq('id', pedidoIdCopy).single()
+    if (ped?.vendedor_id) {
+      await db.from('notificaciones').insert({
+        usuario_id: ped.vendedor_id,
+        tipo:       'problema_recepcion',
+        titulo:     `⚠️ Problema en Pedido #${ped.numero}`,
+        mensaje:    `El cliente reportó un problema al recibir: ${descripcion}`,
+        leida:      false
+      }).catch(() => {})
+    }
+  }
+
+  // Verificar si el envío quedó completamente entregado
   try {
     const { data: vinculos } = await db.from('envio_pedidos')
       .select('envio_id').eq('pedido_id', pedidoIdCopy)
@@ -1377,38 +1390,20 @@ async function confirmarRecepcion() {
       if (todosRecibidos) {
         await db.from('envios').update({ estado: 'completado' }).eq('id', v.envio_id)
       }
+
+      // Recargar el detalle del envío que estaba abierto
+      const detalleEl = document.getElementById(`detalle-envio-${v.envio_id}`)
+      if (detalleEl && detalleEl.style.display !== 'none') {
+        await cargarPedidosDeEnvio(v.envio_id)
+      }
     }
   } catch (e) {
     console.error('Error actualizando envío:', e)
   }
 
-  // Si hubo problema → notificar
-  if (!todoOk) {
-    await db.from('notificaciones_admin').insert({
-      tipo: 'problema_recepcion',
-      mensaje: `⚠️ Problema en recepción: ${descripcion}`,
-      pedido_id: pedidoIdCopy,
-      leida: false
-    }).catch(() => {})
-
-    const { data: ped } = await db.from('pedidos')
-      .select('vendedor_id, numero').eq('id', pedidoIdCopy).single()
-    if (ped?.vendedor_id) {
-      await db.from('notificaciones').insert({
-        usuario_id: ped.vendedor_id,
-        tipo: 'problema_recepcion',
-        titulo: `⚠️ Problema en Pedido #${ped.numero}`,
-        mensaje: `El cliente reportó un problema al recibir: ${descripcion}`,
-        leida: false
-      }).catch(() => {})
-    }
-  }
-
-  await cargarLogistica()
-
-  alert(todoOk
-    ? '✅ Recepción confirmada. El pedido quedó registrado como entregado.'
-    : '⚠️ Recepción registrada con problema. Se notificó al equipo.')
+  // Recargar stats y lista completa
+  await renderStatsLogistica()
+  await renderEnviosActivos()
 }
 
 // ── GENERAR PDF ──────────────────────────────────
@@ -2985,7 +2980,6 @@ async function cargarPedidosDeEnvio(envioId) {
 
   el.innerHTML = items.map(item => {
     const p         = item.pedidos
-    // Supabase a veces no devuelve pedido_id como campo raíz en joins — usamos p.id como fuente segura
     const pedidoId  = p?.id || item.pedido_id || ''
     const entregado = p?.etapa === 'recibido'
     const tel       = p?.clientes?.telefono?.replace(/\D/g, '') || ''
@@ -3013,19 +3007,8 @@ async function cargarPedidosDeEnvio(envioId) {
             <i class="ti ti-circle-check" style="font-size:15px" aria-hidden="true"></i>
             Confirmar entrega del Pedido #${p?.numero}
           </button>` : ''}
-        ${!entregado && !pedidoId ? `<p style="color:#e24b4a;font-size:12px;margin-top:6px">⚠️ Error: no se pudo obtener el ID del pedido</p>` : ''}
       </div>`
   }).join('')
-
-  // Verificar si todos están entregados → cerrar envío
-  const todosEntregados = items.every(i => i.pedidos?.etapa === 'recibido')
-  if (todosEntregados) {
-    el.innerHTML += `
-      <button onclick="event.stopPropagation(); cerrarEnvio('${envioId}')"
-        class="btn-enviado" style="width:100%;justify-content:center;margin-top:8px;background:#1565c0">
-        <i class="ti ti-lock" aria-hidden="true"></i> Cerrar envío (todos entregados)
-      </button>`
-  }
 }
 
 async function cerrarEnvio(envioId) {
