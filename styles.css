@@ -379,11 +379,10 @@ body { background:#f0f2f5; color:#1a1a1a; }
 .cob-dropdown-item:hover { background:var(--color-background-secondary); }
 .cob-dropdown-item:last-child { border-bottom:none; }
 
-#modal-cobro { display:none !important; }
-#modal-cobro[style*="flex"] { display:flex !important; }
+#modal-cobro { transition: opacity 0.2s; }
 
 /* ── MODAL DETALLE COBRANZA ── */
-#modal-detalle-cob[style*="flex"] { display:flex !important; }
+#modal-detalle-cob { transition: opacity 0.2s; }
 .mdc-doc-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:0.5px solid var(--color-border-tertiary); }
 .mdc-doc-item:last-child { border-bottom:none; }
 .btn-ver-doc { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border:0.5px solid var(--color-border-tertiary); border-radius:8px; font-size:13px; color:var(--color-text-primary); text-decoration:none; background:var(--color-background-secondary); cursor:pointer; }
