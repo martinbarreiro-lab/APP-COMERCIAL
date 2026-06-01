@@ -1244,18 +1244,121 @@ async function marcarEnviado(pedidoId) {
 }
 
 // ── MARCAR RECIBIDO ──────────────────────────────
-async function marcarRecibido(pedidoId) {
-  const ok = confirm('¿Confirmás que recibiste la mercadería?')
-  if (!ok) return
-  const { error } = await db.from('pedidos').update({
+let _recibidoPedidoId = null
+let _recibidoEstado   = null
+
+function marcarRecibido(pedidoId) {
+  _recibidoPedidoId = pedidoId
+  _recibidoEstado   = null
+  // Reset modal
+  document.getElementById('mr-btn-ok').style.border        = '2px solid #e0e0e0'
+  document.getElementById('mr-btn-problema').style.border  = '2px solid #e0e0e0'
+  document.getElementById('mr-campo-problema').style.display = 'none'
+  document.getElementById('mr-descripcion').value = ''
+  document.getElementById('mr-foto').value = ''
+  document.getElementById('mr-error').style.display = 'none'
+  document.getElementById('mr-btn-confirmar').disabled = true
+  const modal = document.getElementById('modal-recibido')
+  modal.style.display = 'flex'
+  modal.style.alignItems = 'center'
+  modal.style.justifyContent = 'center'
+}
+
+function seleccionarEstadoRecepcion(estado) {
+  _recibidoEstado = estado
+  const btnOk     = document.getElementById('mr-btn-ok')
+  const btnProb   = document.getElementById('mr-btn-problema')
+  const campoProb = document.getElementById('mr-campo-problema')
+  const btnConf   = document.getElementById('mr-btn-confirmar')
+
+  if (estado === 'ok') {
+    btnOk.style.border    = '2px solid #1d9e75'
+    btnOk.style.background = '#e8f5e9'
+    btnProb.style.border  = '2px solid #e0e0e0'
+    btnProb.style.background = 'white'
+    campoProb.style.display  = 'none'
+    btnConf.disabled = false
+    btnConf.textContent = '✅ Confirmar — Todo en orden'
+  } else {
+    btnProb.style.border  = '2px solid #ba7517'
+    btnProb.style.background = '#faeeda'
+    btnOk.style.border    = '2px solid #e0e0e0'
+    btnOk.style.background = 'white'
+    campoProb.style.display = 'block'
+    btnConf.disabled = false
+    btnConf.textContent = '⚠️ Confirmar con problema'
+  }
+}
+
+function cerrarModalRecibido() {
+  document.getElementById('modal-recibido').style.display = 'none'
+  _recibidoPedidoId = null
+  _recibidoEstado   = null
+}
+
+async function confirmarRecepcion() {
+  if (!_recibidoPedidoId || !_recibidoEstado) return
+
+  const descripcion = document.getElementById('mr-descripcion').value.trim()
+  const foto        = document.getElementById('mr-foto').files[0]
+
+  if (_recibidoEstado === 'problema' && !descripcion) {
+    document.getElementById('mr-error').textContent = 'Describí qué pasó con el pedido'
+    document.getElementById('mr-error').style.display = 'block'
+    return
+  }
+
+  let fotoUrl = null
+  if (foto) {
+    const ext  = foto.name.split('.').pop()
+    const path = `recepcion/${_recibidoPedidoId}_${Date.now()}.${ext}`
+    const { error: upErr } = await db.storage.from('comprobantes').upload(path, foto, { upsert: true })
+    if (!upErr) {
+      const { data: ud } = db.storage.from('comprobantes').getPublicUrl(path)
+      fotoUrl = ud.publicUrl
+    }
+  }
+
+  const todoOk  = _recibidoEstado === 'ok'
+  const detalle = todoOk
+    ? `Recepción confirmada ✅ — Todo en orden${fotoUrl ? ' (con foto)' : ''}`
+    : `Recepción con problema ⚠️: ${descripcion}${fotoUrl ? ' (con foto)' : ''}`
+
+  await db.from('pedidos').update({
     etapa:          'recibido',
     fecha_recibido: new Date().toISOString(),
-    recibido_por:   'Cliente',
+    recibido_por:   todoOk ? 'ok' : 'problema: ' + descripcion,
     updated_at:     new Date().toISOString()
-  }).eq('id', pedidoId)
-  if (error) { alert('Error: ' + error.message); return }
-  await registrarHistorial(pedidoId, 'estado_cambiado', 'Recepción confirmada por el cliente')
-  await abrirPedido(pedidoId)
+  }).eq('id', _recibidoPedidoId)
+
+  await registrarHistorial(_recibidoPedidoId, 'estado_cambiado', detalle)
+
+  // Si hubo problema → notificar admin, empresa y vendedor
+  if (!todoOk) {
+    // Notificar admin/empresa
+    await db.from('notificaciones_admin').insert({
+      tipo:      'problema_recepcion',
+      mensaje:   `⚠️ Problema en recepción del Pedido #${_recibidoPedidoId.slice(-4)}: ${descripcion}`,
+      pedido_id: _recibidoPedidoId,
+      leida:     false
+    }).catch(() => {})
+
+    // Notificar al vendedor del pedido
+    const { data: ped } = await db.from('pedidos')
+      .select('vendedor_id, numero').eq('id', _recibidoPedidoId).single()
+    if (ped?.vendedor_id) {
+      await db.from('notificaciones').insert({
+        usuario_id: ped.vendedor_id,
+        tipo:       'problema_recepcion',
+        titulo:     `⚠️ Problema en Pedido #${ped.numero}`,
+        mensaje:    `El cliente reportó un problema al recibir: ${descripcion}`,
+        leida:      false
+      }).catch(() => {})
+    }
+  }
+
+  cerrarModalRecibido()
+  await abrirPedido(_recibidoPedidoId)
 }
 
 // ── GENERAR PDF ──────────────────────────────────
