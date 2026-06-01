@@ -2486,3 +2486,327 @@ function abrirPDFDesdeCobranza() {
 function formatMonto(n) {
   return '$' + Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }
+
+
+// ================================================
+// LA CABAÑA — Módulo de Logística
+// ================================================
+
+let _envioActual = { pedidos: [] }
+
+// ── CARGAR LOGÍSTICA ─────────────────────────────
+async function cargarLogistica() {
+  const rol     = await cargarRolUsuario()
+  const esAdmin = rol === 'admin' || rol === 'vendedor'
+  if (!esAdmin) {
+    document.getElementById('contenido-logistica').innerHTML =
+      '<p class="vacio">No tenés permisos para ver esta sección.</p>'
+    return
+  }
+
+  await Promise.all([
+    renderStatsLogistica(),
+    renderPedidosParaEnviar(),
+    renderEnviosActivos()
+  ])
+}
+
+// ── STATS ────────────────────────────────────────
+async function renderStatsLogistica() {
+  const hoy = new Date().toISOString().split('T')[0]
+
+  const [{ data: enCamino }, { data: entregadosHoy }, { data: sinAsignar }] = await Promise.all([
+    db.from('envios').select('id').eq('estado', 'en_camino'),
+    db.from('pedidos').select('id').eq('etapa', 'recibido').gte('fecha_recibido', hoy),
+    db.from('pedidos').select('id').eq('etapa', 'facturado')
+  ])
+
+  document.getElementById('log-stats').innerHTML = `
+    <div class="cob-stats-grid">
+      <div class="cob-stat-card">
+        <div class="cob-stat-label">En camino</div>
+        <div class="cob-stat-num">${enCamino?.length || 0}</div>
+        <div class="cob-stat-sub">envíos activos</div>
+      </div>
+      <div class="cob-stat-card">
+        <div class="cob-stat-label">Entregados hoy</div>
+        <div class="cob-stat-num">${entregadosHoy?.length || 0}</div>
+        <div class="cob-stat-sub">pedidos</div>
+      </div>
+      <div class="cob-stat-card ${sinAsignar?.length > 0 ? 'rojo' : ''}">
+        <div class="cob-stat-label">Sin asignar</div>
+        <div class="cob-stat-num ${sinAsignar?.length > 0 ? 'rojo' : ''}">${sinAsignar?.length || 0}</div>
+        <div class="cob-stat-sub ${sinAsignar?.length > 0 ? 'rojo' : ''}">pedidos facturados</div>
+      </div>
+    </div>`
+}
+
+// ── PEDIDOS LISTOS PARA ENVIAR ───────────────────
+async function renderPedidosParaEnviar() {
+  const { data: pedidos } = await db.from('pedidos')
+    .select('id, numero, total, etapa, clientes(razon_social)')
+    .eq('etapa', 'facturado')
+    .order('created_at', { ascending: true })
+
+  const el = document.getElementById('log-pedidos-para-enviar')
+  if (!pedidos || pedidos.length === 0) {
+    el.innerHTML = '<p class="vacio">No hay pedidos facturados pendientes de envío</p>'
+    return
+  }
+
+  el.innerHTML = pedidos.map(p => {
+    const enEnvio = _envioActual.pedidos.includes(p.id)
+    return `
+      <div class="log-pedido-card ${enEnvio ? 'seleccionado' : ''}" id="log-card-${p.id}">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span style="font-size:14px;font-weight:500">#${p.numero} · ${p.clientes?.razon_social || '-'}</span>
+            <span class="badge badge-azul">Facturado</span>
+          </div>
+          <div style="font-size:13px;color:var(--color-text-secondary)">
+            $${Number(p.total).toLocaleString('es-AR')}
+          </div>
+        </div>
+        ${enEnvio
+          ? `<button onclick="quitarDeEnvio('${p.id}')" class="log-btn-quitar">
+              <i class="ti ti-minus" aria-hidden="true"></i> Quitar
+             </button>`
+          : `<button onclick="agregarAEnvio('${p.id}')" class="log-btn-agregar">
+              <i class="ti ti-plus" aria-hidden="true"></i> Agregar
+             </button>`
+        }
+      </div>`
+  }).join('')
+
+  actualizarBotonesEnvio()
+}
+
+// ── GESTIÓN DEL NUEVO ENVÍO ──────────────────────
+function agregarAEnvio(pedidoId) {
+  if (!_envioActual.pedidos.includes(pedidoId)) {
+    _envioActual.pedidos.push(pedidoId)
+  }
+  renderPedidosParaEnviar()
+}
+
+function quitarDeEnvio(pedidoId) {
+  _envioActual.pedidos = _envioActual.pedidos.filter(id => id !== pedidoId)
+  renderPedidosParaEnviar()
+}
+
+function actualizarBotonesEnvio() {
+  const barra = document.getElementById('log-barra-envio')
+  const cant  = _envioActual.pedidos.length
+  if (!barra) return
+
+  barra.style.display = cant > 0 ? 'flex' : 'none'
+  barra.innerHTML = `
+    <span style="font-size:14px;font-weight:500">
+      <i class="ti ti-truck" style="margin-right:6px" aria-hidden="true"></i>
+      ${cant} pedido${cant !== 1 ? 's' : ''} seleccionado${cant !== 1 ? 's' : ''}
+    </span>
+    <div style="display:flex;gap:8px">
+      <button onclick="limpiarEnvioActual()" class="btn-cancelar">Cancelar</button>
+      <button onclick="confirmarNuevoEnvio()" class="btn-enviado">
+        <i class="ti ti-send" aria-hidden="true"></i> Confirmar salida
+      </button>
+    </div>`
+}
+
+function limpiarEnvioActual() {
+  _envioActual = { pedidos: [] }
+  renderPedidosParaEnviar()
+}
+
+async function confirmarNuevoEnvio() {
+  if (_envioActual.pedidos.length === 0) {
+    alert('Agregá al menos un pedido al envío')
+    return
+  }
+
+  const obs = prompt('Observaciones del envío (opcional):') || null
+
+  // Crear envío
+  const { data: envio, error } = await db.from('envios').insert({
+    estado:        'en_camino',
+    fecha_salida:  new Date().toISOString(),
+    observaciones: obs,
+    creado_por:    usuarioActual.id
+  }).select().single()
+
+  if (error) { alert('Error al crear envío: ' + error.message); return }
+
+  // Asociar pedidos al envío
+  const items = _envioActual.pedidos.map(pid => ({
+    envio_id:   envio.id,
+    pedido_id:  pid,
+    estado:     'pendiente'
+  }))
+  await db.from('envio_pedidos').insert(items)
+
+  // Actualizar etapa de cada pedido a "enviado" y notificar
+  for (const pid of _envioActual.pedidos) {
+    await db.from('pedidos').update({
+      etapa:         'enviado',
+      fecha_enviado: new Date().toISOString(),
+      enviado_por:   usuarioActual.id
+    }).eq('id', pid)
+
+    await registrarHistorial(pid, 'estado_cambiado',
+      `Pedido incluido en Envío #${envio.id.slice(-4).toUpperCase()} — Salida ${new Date().toLocaleString('es-AR')}`)
+
+    // Notificación al cliente
+    await notificarClienteEnvio(pid)
+  }
+
+  _envioActual = { pedidos: [] }
+  alert(`✅ Envío confirmado. Se notificó a ${items.length} cliente${items.length !== 1 ? 's' : ''}.`)
+  await cargarLogistica()
+}
+
+async function notificarClienteEnvio(pedidoId) {
+  const { data: p } = await db.from('pedidos')
+    .select('cliente_id, numero').eq('id', pedidoId).single()
+  if (!p?.cliente_id) return
+
+  await db.from('notificaciones').insert({
+    usuario_id: p.cliente_id,
+    tipo:       'envio',
+    titulo:     '🚚 Tu pedido está en camino',
+    mensaje:    `Tu pedido #${p.numero} salió para entrega. ¡Pronto lo tenés!`,
+    leida:      false
+  }).catch(() => {}) // Silenciar si la tabla no existe
+}
+
+// ── ENVÍOS ACTIVOS ───────────────────────────────
+async function renderEnviosActivos() {
+  const { data: envios } = await db.from('envios')
+    .select('*')
+    .order('fecha_salida', { ascending: false })
+    .limit(20)
+
+  const el = document.getElementById('log-envios-activos')
+  if (!envios || envios.length === 0) {
+    el.innerHTML = '<p class="vacio">No hay envíos registrados</p>'
+    return
+  }
+
+  // Separar activos e histórico
+  const activos   = envios.filter(e => e.estado === 'en_camino')
+  const cerrados  = envios.filter(e => e.estado !== 'en_camino')
+
+  let html = ''
+
+  if (activos.length > 0) {
+    html += activos.map(e => renderEnvioCard(e, true)).join('')
+  }
+
+  if (cerrados.length > 0) {
+    html += `<div class="cob-seccion-titulo" style="margin-top:20px">
+      <i class="ti ti-history" aria-hidden="true"></i> Historial
+      <span class="cob-seccion-count">${cerrados.length}</span>
+    </div>`
+    html += cerrados.map(e => renderEnvioCard(e, false)).join('')
+  }
+
+  el.innerHTML = html
+}
+
+function renderEnvioCard(envio, activo) {
+  const codigo = envio.id.slice(-6).toUpperCase()
+  return `
+    <div class="log-envio-card" id="log-envio-${envio.id}"
+      onclick="toggleEnvioDetalle('${envio.id}')"
+      style="border-left:3px solid ${activo ? '#1d9e75' : '#888780'}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <i class="ti ti-truck" style="font-size:15px;color:${activo ? '#1d9e75' : '#888780'}" aria-hidden="true"></i>
+            <span style="font-size:15px;font-weight:500">Envío ${codigo}</span>
+            <span class="badge ${activo ? 'badge-verde' : 'badge-gris'}">${activo ? 'En camino' : 'Completado'}</span>
+          </div>
+          <div style="font-size:12px;color:var(--color-text-secondary)">
+            <i class="ti ti-calendar" style="font-size:12px" aria-hidden="true"></i>
+            Salida: ${formatFechaHora(envio.fecha_salida)}
+          </div>
+          ${envio.observaciones ? `<div style="font-size:12px;color:var(--color-text-tertiary);margin-top:2px">📝 ${envio.observaciones}</div>` : ''}
+        </div>
+        <i class="ti ti-chevron-down" id="chevron-${envio.id}" style="font-size:16px;color:var(--color-text-tertiary)" aria-hidden="true"></i>
+      </div>
+      <div id="detalle-envio-${envio.id}" style="display:none;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--color-border-tertiary)">
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Pedidos en este envío:</div>
+        <div id="pedidos-envio-${envio.id}">
+          <span style="color:var(--color-text-tertiary);font-size:13px">Cargando...</span>
+        </div>
+      </div>
+    </div>`
+}
+
+async function toggleEnvioDetalle(envioId) {
+  const el      = document.getElementById(`detalle-envio-${envioId}`)
+  const chevron = document.getElementById(`chevron-${envioId}`)
+  if (!el) return
+
+  const visible = el.style.display !== 'none'
+  el.style.display = visible ? 'none' : 'block'
+  if (chevron) chevron.style.transform = visible ? '' : 'rotate(180deg)'
+
+  if (!visible) {
+    await cargarPedidosDeEnvio(envioId)
+  }
+}
+
+async function cargarPedidosDeEnvio(envioId) {
+  const { data: items } = await db.from('envio_pedidos')
+    .select('*, pedidos(numero, etapa, clientes(razon_social, telefono))')
+    .eq('envio_id', envioId)
+
+  const el = document.getElementById(`pedidos-envio-${envioId}`)
+  if (!el) return
+
+  if (!items || items.length === 0) {
+    el.innerHTML = '<p class="vacio">Sin pedidos</p>'
+    return
+  }
+
+  el.innerHTML = items.map(item => {
+    const p       = item.pedidos
+    const entregado = p?.etapa === 'recibido'
+    const tel     = p?.clientes?.telefono?.replace(/\D/g, '') || ''
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:center;background:var(--color-background-secondary);padding:10px 12px;border-radius:8px;margin-bottom:6px">
+        <div>
+          <div style="font-size:13px;font-weight:500">#${p?.numero} · ${p?.clientes?.razon_social || '-'}</div>
+          <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:2px">${formatFechaHora(item.created_at)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${tel ? `<a href="https://wa.me/54${tel}" target="_blank"
+            onclick="event.stopPropagation()"
+            style="width:32px;height:32px;border-radius:8px;border:0.5px solid #9fe1cb;background:#e1f5ee;color:#085041;display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:16px">
+            <i class="ti ti-brand-whatsapp" aria-hidden="true"></i>
+          </a>` : ''}
+          ${entregado
+            ? `<span class="badge badge-verde">✅ Entregado</span>`
+            : `<span class="badge badge-amarillo">En camino</span>`
+          }
+        </div>
+      </div>`
+  }).join('')
+
+  // Verificar si todos están entregados → cerrar envío
+  const todosEntregados = items.every(i => i.pedidos?.etapa === 'recibido')
+  if (todosEntregados) {
+    el.innerHTML += `
+      <button onclick="event.stopPropagation(); cerrarEnvio('${envioId}')"
+        class="btn-enviado" style="width:100%;justify-content:center;margin-top:8px;background:#1565c0">
+        <i class="ti ti-lock" aria-hidden="true"></i> Cerrar envío (todos entregados)
+      </button>`
+  }
+}
+
+async function cerrarEnvio(envioId) {
+  const ok = confirm('¿Cerrar este envío? Se marcará como completado.')
+  if (!ok) return
+  await db.from('envios').update({ estado: 'completado' }).eq('id', envioId)
+  await cargarLogistica()
+}
