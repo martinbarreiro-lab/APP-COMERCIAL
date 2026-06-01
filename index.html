@@ -172,10 +172,106 @@
           </div>
         </section>
 
-        <!-- COBRANZA -->
+<!-- COBRANZA -->
         <section id="seccion-cobranza" class="seccion" style="display:none">
-          <h2>Cobranza</h2>
+
+          <!-- Stats -->
+          <div class="cob-stats" id="cob-stats"></div>
+
+          <!-- Filtros -->
+          <div class="filtros-pedidos" style="margin-bottom:16px">
+            <div style="position:relative">
+              <div id="cob-filtro-cliente-display" onclick="toggleCobFiltroClientes()"
+                style="padding:8px 14px;border:0.5px solid var(--color-border-tertiary);border-radius:8px;font-size:13px;color:var(--color-text-secondary);cursor:pointer;background:var(--color-background-primary);display:flex;justify-content:space-between;align-items:center;min-width:180px">
+                <span id="cob-filtro-cliente-label">Todos los clientes</span>
+                <span style="color:var(--color-text-tertiary);margin-left:8px">▼</span>
+              </div>
+              <div id="cob-filtro-cliente-dropdown"
+                style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:999;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-height:260px;overflow-y:auto;">
+                <div style="padding:8px">
+                  <input type="search" id="cob-filtro-cliente-buscar" placeholder="Buscar..." oninput="filtrarCobClientes()" autocomplete="new-password"
+                    style="width:100%;padding:7px 10px;border:0.5px solid var(--color-border-tertiary);border-radius:8px;font-size:13px;outline:none">
+                </div>
+                <div id="cob-filtro-cliente-lista"></div>
+              </div>
+            </div>
+
+            <div style="position:relative" id="cob-vendedor-wrap">
+              <div id="cob-filtro-vendedor-display" onclick="toggleCobFiltroVendedores()"
+                style="padding:8px 14px;border:0.5px solid var(--color-border-tertiary);border-radius:8px;font-size:13px;color:var(--color-text-secondary);cursor:pointer;background:var(--color-background-primary);display:flex;justify-content:space-between;align-items:center;min-width:180px">
+                <span id="cob-filtro-vendedor-label">Todos los vendedores</span>
+                <span style="color:var(--color-text-tertiary);margin-left:8px">▼</span>
+              </div>
+              <div id="cob-filtro-vendedor-dropdown"
+                style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:999;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.15);max-height:260px;overflow-y:auto;">
+                <div id="cob-filtro-vendedor-lista"></div>
+              </div>
+            </div>
+
+            <div class="filtro-fechas">
+              <label>Desde</label>
+              <input type="date" id="cob-fecha-desde" onchange="cargarCobranza()" class="filtro-input-fecha">
+              <label>Hasta</label>
+              <input type="date" id="cob-fecha-hasta" onchange="cargarCobranza()" class="filtro-input-fecha">
+            </div>
+
+            <div style="display:flex;gap:6px">
+              <button id="cob-btn-vencido"   onclick="setCobEstado('vencido')"   class="cob-filtro-btn rojo">Vencidos</button>
+              <button id="cob-btn-pendiente" onclick="setCobEstado('pendiente')" class="cob-filtro-btn naranja">Pendientes</button>
+              <button id="cob-btn-cobrado"   onclick="setCobEstado('cobrado')"   class="cob-filtro-btn verde">Cobrados</button>
+              <button id="cob-btn-todos"     onclick="setCobEstado('todos')"     class="cob-filtro-btn activo">Todos</button>
+            </div>
+
+            <button onclick="exportarCobranza()" class="btn-secundario" style="margin-left:auto">
+              <i class="ti ti-download" aria-hidden="true"></i> Exportar
+            </button>
+            <button onclick="limpiarCobFiltros()" class="btn-limpiar">✕ Limpiar</button>
+          </div>
+
+          <!-- Lista -->
           <div id="lista-cobranza"></div>
+
+          <!-- Modal cobro rápido -->
+          <div id="modal-cobro" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+            <div style="background:var(--color-background-primary);border-radius:var(--border-radius-lg);padding:24px;max-width:440px;width:90%;max-height:90vh;overflow-y:auto">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <h3 style="font-size:16px;font-weight:500;margin:0" id="modal-cobro-titulo">Registrar cobro</h3>
+                <button onclick="cerrarModalCobro()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--color-text-secondary)">✕</button>
+              </div>
+              <div id="modal-cobro-info" style="background:var(--color-background-secondary);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px"></div>
+              <div class="campo">
+                <label>Forma de pago</label>
+                <select id="mc-medio">
+                  <option value="efectivo">💵 Efectivo</option>
+                  <option value="transferencia">🏦 Transferencia</option>
+                  <option value="cheque">📋 Cheque</option>
+                  <option value="echeq">📱 Echeq</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label>Monto</label>
+                <div class="input-con-sufijo"><span>$</span><input type="number" id="mc-monto" placeholder="0.00"></div>
+              </div>
+              <div id="mc-campo-cheque" style="display:none" class="campo">
+                <label>Vencimiento del cheque</label>
+                <input type="date" id="mc-fecha-cheque">
+              </div>
+              <div class="campo">
+                <label>Comprobante (foto)</label>
+                <input type="file" id="mc-foto" accept="image/*">
+              </div>
+              <div class="campo">
+                <label>Nota (opcional)</label>
+                <input type="text" id="mc-nota" placeholder="Referencia, banco...">
+              </div>
+              <div id="mc-error" class="error-msg" style="display:none"></div>
+              <div style="display:flex;gap:10px;margin-top:16px">
+                <button onclick="cerrarModalCobro()" class="btn-cancelar" style="flex:1">Cancelar</button>
+                <button onclick="guardarCobroRapido()" class="btn-guardar-inline" style="flex:2">✅ Registrar cobro</button>
+              </div>
+            </div>
+          </div>
+
         </section>
 
         <!-- LOGISTICA -->
