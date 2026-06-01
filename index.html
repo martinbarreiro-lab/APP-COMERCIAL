@@ -323,8 +323,26 @@
 
         <!-- LOGISTICA -->
         <section id="seccion-logistica" class="seccion" style="display:none">
-          <div class="seccion-header"><h2>Logística</h2><button class="btn-nuevo" onclick="nuevoEnvio()">+ Nuevo envío</button></div>
-          <div id="lista-envios"></div>
+          <div class="seccion-header">
+            <h2>Logística</h2>
+          </div>
+
+          <div id="log-stats"></div>
+
+          <div id="log-barra-envio"
+            style="display:none;background:#1a3a2a;color:white;padding:14px 20px;border-radius:12px;margin-bottom:16px;justify-content:space-between;align-items:center">
+          </div>
+
+          <div class="cob-seccion-titulo" style="margin-bottom:10px">
+            <i class="ti ti-package" aria-hidden="true"></i> Pedidos facturados — listos para enviar
+          </div>
+          <div id="log-pedidos-para-enviar" style="margin-bottom:24px"></div>
+
+          <div class="cob-seccion-titulo" style="margin-bottom:10px">
+            <i class="ti ti-truck" aria-hidden="true"></i> Envíos
+          </div>
+          <div id="log-envios-activos"></div>
+
         </section>
 
         <!-- CLIENTES -->
