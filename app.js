@@ -2339,7 +2339,18 @@ let _detalleCobPedidoId = null
 async function abrirDetalleCob(pedidoId) {
   _detalleCobPedidoId = pedidoId
   const modal = document.getElementById('modal-detalle-cob')
-  if (modal) modal.style.display = 'flex'
+  if (!modal) return
+  modal.style.display = 'flex'
+  modal.style.alignItems = 'flex-start'
+  modal.style.justifyContent = 'flex-end'
+
+  // Mostrar skeleton mientras carga
+  document.getElementById('mdc-titulo').textContent = 'Cargando...'
+  document.getElementById('mdc-cliente').innerHTML = '<p class="vacio">Cargando...</p>'
+  document.getElementById('mdc-productos').innerHTML = ''
+  document.getElementById('mdc-documentos').innerHTML = ''
+  document.getElementById('mdc-cobros').innerHTML = ''
+  document.getElementById('mdc-historial').innerHTML = ''
 
   // Cargar datos en paralelo
   const [
