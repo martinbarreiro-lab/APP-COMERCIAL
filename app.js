@@ -2882,7 +2882,8 @@ function renderEnvioCard(envio, activo) {
   const num = envio.numero || envio.id.slice(-4).toUpperCase()
   return `
     <div class="log-envio-card" id="log-envio-${envio.id}"
-      style="border-left:3px solid ${activo ? '#1d9e75' : '#888780'}">
+      onclick="toggleEnvioDetalle('${envio.id}')"
+      style="border-left:3px solid ${activo ? '#1d9e75' : '#888780'};cursor:pointer">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
         <div>
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
@@ -2897,15 +2898,16 @@ function renderEnvioCard(envio, activo) {
           </div>
           ${envio.observaciones ? `<div style="font-size:12px;color:var(--color-text-tertiary);margin-top:4px">📝 ${envio.observaciones}</div>` : ''}
         </div>
-        <button onclick="toggleEnvioDetalle('${envio.id}')" id="btn-detalle-${envio.id}"
-          style="background:none;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:12px;color:var(--color-text-secondary);display:flex;align-items:center;gap:4px">
-          <i class="ti ti-list" aria-hidden="true"></i> Ver pedidos
-        </button>
+        <div id="btn-detalle-${envio.id}"
+          style="background:none;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:6px 12px;font-size:12px;color:var(--color-text-secondary);display:flex;align-items:center;gap:4px;pointer-events:none">
+          <span id="txt-detalle-${envio.id}">Ver pedidos</span>
+          <i class="ti ti-chevron-down" id="chevron-${envio.id}" style="transition:transform 0.2s" aria-hidden="true"></i>
+        </div>
       </div>
 
       <div id="pedidos-preview-${envio.id}" class="log-pedidos-preview"></div>
 
-      <div id="detalle-envio-${envio.id}" style="display:none;margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary)">
+      <div id="detalle-envio-${envio.id}" onclick="event.stopPropagation()" style="display:none;margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary)">
         <div id="pedidos-envio-${envio.id}">
           <span style="color:var(--color-text-tertiary);font-size:13px">Cargando...</span>
         </div>
@@ -2916,11 +2918,13 @@ function renderEnvioCard(envio, activo) {
 async function toggleEnvioDetalle(envioId) {
   const el      = document.getElementById(`detalle-envio-${envioId}`)
   const chevron = document.getElementById(`chevron-${envioId}`)
+  const txt     = document.getElementById(`txt-detalle-${envioId}`)
   if (!el) return
 
   const visible = el.style.display !== 'none'
   el.style.display = visible ? 'none' : 'block'
   if (chevron) chevron.style.transform = visible ? '' : 'rotate(180deg)'
+  if (txt) txt.textContent = visible ? 'Ver pedidos' : 'Ocultar'
 
   if (!visible) {
     await cargarPedidosDeEnvio(envioId)
