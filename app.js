@@ -1370,7 +1370,13 @@ async function confirmarRecepcion() {
   }
 
   cerrarModalRecibido()
-  await abrirPedido(_recibidoPedidoId)
+
+  // Actualizar logística
+  await cargarLogistica()
+
+  alert(todoOk
+    ? '✅ Recepción confirmada. El pedido quedó registrado como entregado.'
+    : '⚠️ Recepción registrada con problema. Se notificó al equipo.')
 }
 
 // ── GENERAR PDF ──────────────────────────────────
