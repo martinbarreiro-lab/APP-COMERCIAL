@@ -2109,12 +2109,7 @@ async function renderCobStats(pedidos, hoy, esAdmin) {
 
   // Cobrado este mes
   const inicioMes = new Date(); inicioMes.setDate(1); inicioMes.setHours(0,0,0,0)
-  const { data: cobrosDelMes } = await db.from('cobros')
-    .select('monto')
-    .gte('created_at', inicioMes.toISOString())
-    .eq(esAdmin ? 'vendedor_id' : 'vendedor_id', esAdmin ? undefined : usuarioActual.id)
 
-  // Quitar filtro si admin
   let cobMesQuery = db.from('cobros').select('monto').gte('created_at', inicioMes.toISOString())
   if (!esAdmin) cobMesQuery = cobMesQuery.eq('vendedor_id', usuarioActual.id)
   const { data: cobMes } = await cobMesQuery
