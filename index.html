@@ -68,10 +68,27 @@
 
             <!-- Filtros -->
             <div class="filtros-pedidos">
-              <input type="text" id="filtro-cliente-pedido"
-                placeholder="🔍 Buscar cliente..."
-                oninput="cargarPedidos()"
-                class="filtro-input">
+              <div style="position:relative;flex:1;min-width:200px">
+                <div id="filtro-cliente-display"
+                  onclick="toggleFiltroClientes()"
+                  style="padding:9px 14px;border:1px solid #ddd;border-radius:8px;cursor:pointer;background:white;font-size:14px;display:flex;justify-content:space-between;align-items:center;">
+                  <span id="filtro-cliente-label" style="color:#888">🔍 Todos los clientes</span>
+                  <span style="color:#ccc">▼</span>
+                </div>
+                <div id="filtro-cliente-dropdown"
+                  style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;
+                    z-index:999;background:white;border:1px solid #ddd;border-radius:10px;
+                    box-shadow:0 8px 24px rgba(0,0,0,0.15);max-height:280px;overflow-y:auto;">
+                  <div style="padding:10px">
+                    <input type="search" id="filtro-cliente-buscar"
+                      placeholder="Escribir para buscar..."
+                      oninput="filtrarDropdownClientes()"
+                      autocomplete="new-password"
+                      style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;">
+                  </div>
+                  <div id="filtro-cliente-lista"></div>
+                </div>
+              </div>
               <div class="filtro-fechas">
                 <label>Desde</label>
                 <input type="date" id="filtro-fecha-desde" onchange="cargarPedidos()" class="filtro-input-fecha">
