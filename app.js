@@ -85,7 +85,7 @@ async function cargarDashboard() {
   let qPorVencer     = db.from('pedidos').select('id, numero, total, monto_cobrado, fecha_vencimiento_cobro, clientes(razon_social)').eq('estado_cobro', 'pendiente').gte('fecha_vencimiento_cobro', hoyStr).lte('fecha_vencimiento_cobro', en7dias)
   let qAtascados     = db.from('pedidos').select('id, numero, clientes(razon_social), created_at').eq('etapa', 'facturado').lte('created_at', new Date(Date.now() - 3 * 86400000).toISOString())
   let qAlertas       = db.from('notificaciones_admin').select('id').eq('leida', false)
-  let qVendedores    = esAdmin ? db.from('perfiles').select('id, nombre_completo').eq('rol', 'vendedor') : null
+  let qVendedores    = esAdmin ? db.from('perfiles').select('id, nombre_completo').neq('rol', 'cliente') : null
 
   if (!esAdmin) {
     qPedidosMes    = qPedidosMes.eq('vendedor_id', usuarioActual.id)
@@ -161,8 +161,8 @@ async function cargarDashboard() {
 
     if (ranking.length > 0) {
       rankingHTML = `
-        <div class="dash-card" style="margin-bottom:20px">
-          <div class="dash-card-titulo"><i class="ti ti-users" aria-hidden="true"></i> Rendimiento por vendedor — este mes</div>
+        <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px" style="margin-bottom:20px">
+          <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px;display:flex;align-items:center;gap:6px"><i class="ti ti-users" aria-hidden="true"></i> Rendimiento por vendedor — este mes</div>
           <table style="width:100%;border-collapse:collapse;font-size:13px">
             <thead>
               <tr style="color:var(--color-text-tertiary);text-align:left;border-bottom:0.5px solid var(--color-border-tertiary)">
@@ -252,7 +252,7 @@ async function cargarDashboard() {
     <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px">
       ${dashMetrica('ti-chart-bar', 'Facturado este mes', fmtM(facturadoMes), pedidosMesCount + ' pedidos', '#378add')}
       ${dashMetrica('ti-circle-check', 'Cobrado este mes', fmtM(cobradoMes), cobrosMesCount + ' cobros', '#1d9e75')}
-      <div class="dash-card" style="border-top:3px solid #e24b4a">
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px" style="border-top:3px solid #e24b4a">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
           <i class="ti ti-hourglass" style="font-size:14px;color:#e24b4a" aria-hidden="true"></i>
           <span style="font-size:12px;color:var(--color-text-secondary)">Deuda total acumulada</span>
@@ -260,7 +260,7 @@ async function cargarDashboard() {
         <div style="font-size:24px;font-weight:500;color:#e24b4a;line-height:1">${fmtM(deudaAcum)}</div>
         <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:5px">${clientesDeudores} cliente${clientesDeudores !== 1 ? 's' : ''}</div>
       </div>
-      <div class="dash-card" style="border-top:3px solid #ba7517">
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px" style="border-top:3px solid #ba7517">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
           <i class="ti ti-receipt" style="font-size:14px;color:#ba7517" aria-hidden="true"></i>
           <span style="font-size:12px;color:var(--color-text-secondary)">Ticket promedio</span>
@@ -270,16 +270,16 @@ async function cargarDashboard() {
       </div>
     </div>
 
-    <div class="dash-card" style="margin-bottom:16px">
-      <div class="dash-card-titulo"><i class="ti ti-git-branch" aria-hidden="true"></i> Pipeline — todos los pedidos activos</div>
+    <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px" style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px;display:flex;align-items:center;gap:6px"><i class="ti ti-git-branch" aria-hidden="true"></i> Pipeline — todos los pedidos activos</div>
       <div style="display:flex;margin:0 -16px -14px">
         ${pipelineHTML}
       </div>
     </div>
 
     <div style="display:grid;grid-template-columns:${esAdmin ? '1fr 2fr' : '1fr'};gap:12px;margin-bottom:16px">
-      <div class="dash-card">
-        <div class="dash-card-titulo"><i class="ti ti-cash" aria-hidden="true"></i> Cobros por medio — este mes</div>
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px">
+        <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px;display:flex;align-items:center;gap:6px"><i class="ti ti-cash" aria-hidden="true"></i> Cobros por medio — este mes</div>
         ${mediosHTML}
       </div>
       ${esAdmin ? rankingHTML.replace('style="margin-bottom:20px"', 'style="margin-bottom:0"') : ''}
@@ -291,7 +291,7 @@ async function cargarDashboard() {
 
 function dashMetrica(icono, label, valor, sub, color) {
   return `
-    <div class="dash-card" style="border-top:3px solid ${color}">
+    <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px" style="border-top:3px solid ${color}">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
         <i class="ti ${icono}" style="font-size:14px;color:${color}" aria-hidden="true"></i>
         <span style="font-size:12px;color:var(--color-text-secondary)">${label}</span>
