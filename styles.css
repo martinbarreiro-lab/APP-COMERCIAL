@@ -589,6 +589,46 @@ body { background:#f0f2f5; color:#1a1a1a; }
   /* Evitar desbordes generales en móvil */
   #vista-lista-pedidos, .seccion { max-width:100%; overflow-x:hidden; }
 
+  /* ── FICHA DE PEDIDO (detalle) en móvil ── */
+  /* Header: apilar botón volver, título y acciones */
+  #vista-detalle-pedido .seccion-header {
+    flex-direction:column;
+    align-items:stretch;
+    gap:10px;
+  }
+  #vista-detalle-pedido .seccion-header h2 { font-size:18px; }
+  #acciones-pedido { display:flex; flex-wrap:wrap; gap:8px; }
+  #acciones-pedido button { flex:1; min-width:0; }
+  .btn-volver { align-self:flex-start; }
+
+  /* Barra de progreso: scroll horizontal propio, compacta */
+  .progreso-bar {
+    padding:14px 12px;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    gap:0;
+  }
+  .progreso-label { font-size:10px; }
+  .progreso-linea { min-width:16px; margin:0 4px 18px; }
+  .progreso-paso { min-width:54px; }
+
+  /* Cards de detalle con menos padding */
+  .detalle-card, .detalle-seccion { padding:14px; }
+  .detalle-card *, .detalle-seccion * { max-width:100%; }
+
+  /* info-grid del pedido: 1 columna sin ancho mínimo */
+  .info-grid { grid-template-columns:1fr !important; gap:14px; }
+
+  /* Tablas de productos/cobros con scroll propio dentro de su card */
+  .detalle-seccion table { display:block; overflow-x:auto; white-space:nowrap; width:100%; }
+
+  /* Filas de info que no desborden */
+  .ficha-fila, .fiscal-fila { flex-wrap:wrap; }
+
+  /* Inputs de formularios al 100% */
+  .form-inline .campo input, .form-inline .campo select { width:100%; }
+  .input-con-sufijo { width:100%; }
+
   /* Modales ocupan casi toda la pantalla */
   #modal-recibido > div,
   #modal-cobro > div,
