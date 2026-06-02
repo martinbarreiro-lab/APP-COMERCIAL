@@ -345,8 +345,8 @@ function renderDashAlertas(vencidos, porVencer, atascados, alertasPend) {
     </div>`
 
   return items.map(a => `
-    <div ${a.onclick} style="background:${a.bg};border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:flex-start;gap:8px;font-size:13px;color:${a.color};border-left:3px solid ${a.color};cursor:pointer">
-      <i class="ti ${a.icono}" style="font-size:14px;margin-top:1px;flex-shrink:0" aria-hidden="true"></i>
+    <div ${a.onclick} style="background:${a.bg};border:1px solid ${a.color}40;border-left:4px solid ${a.color};border-radius:10px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:flex-start;gap:10px;font-size:13px;color:${a.color};cursor:pointer">
+      <i class="ti ${a.icono}" style="font-size:15px;margin-top:1px;flex-shrink:0" aria-hidden="true"></i>
       <div>${a.texto}</div>
     </div>`).join('')
 }
