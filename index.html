@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>La Cabaña — Sistema de Gestión</title>
-  <link rel="stylesheet" href="styles.css?v=5">
+  <link rel="stylesheet" href="styles.css?v=6">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
 </head>
@@ -207,12 +207,12 @@
                 <span style="color:var(--color-text-tertiary);margin-left:8px">▼</span>
               </div>
               <div id="cob-filtro-cliente-dropdown"
-                style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:5000;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.18);max-height:260px;overflow-y:auto;min-width:240px">
-                <div style="padding:8px">
+                style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:5000;background:#ffffff;border:1px solid var(--color-border-secondary);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.22);max-height:280px;overflow-y:auto;min-width:240px">
+                <div style="padding:8px;background:#ffffff;position:sticky;top:0;border-bottom:0.5px solid var(--color-border-tertiary)">
                   <input type="search" id="cob-filtro-cliente-buscar" placeholder="Buscar..." oninput="filtrarCobClientes()" autocomplete="new-password"
                     style="width:100%;padding:7px 10px;border:0.5px solid var(--color-border-tertiary);border-radius:8px;font-size:13px;outline:none">
                 </div>
-                <div id="cob-filtro-cliente-lista"></div>
+                <div id="cob-filtro-cliente-lista" style="background:#ffffff"></div>
               </div>
             </div>
 
@@ -223,8 +223,8 @@
                 <span style="color:var(--color-text-tertiary);margin-left:8px">▼</span>
               </div>
               <div id="cob-filtro-vendedor-dropdown"
-                style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:5000;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.18);max-height:260px;overflow-y:auto;min-width:200px">
-                <div id="cob-filtro-vendedor-lista"></div>
+                style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:5000;background:#ffffff;border:1px solid var(--color-border-secondary);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.22);max-height:280px;overflow-y:auto;min-width:200px">
+                <div id="cob-filtro-vendedor-lista" style="background:#ffffff"></div>
               </div>
             </div>
 
@@ -541,6 +541,6 @@
           </div>
 
 
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
