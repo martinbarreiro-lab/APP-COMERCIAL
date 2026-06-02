@@ -2863,14 +2863,6 @@ let _envioActual = { pedidos: [] }
 
 // ── CARGAR LOGÍSTICA ─────────────────────────────
 async function cargarLogistica() {
-  const rol     = await cargarRolUsuario()
-  const esAdmin = rol === 'admin' || rol === 'vendedor'
-  if (!esAdmin) {
-    document.getElementById('contenido-logistica').innerHTML =
-      '<p class="vacio">No tenés permisos para ver esta sección.</p>'
-    return
-  }
-
   await Promise.all([
     renderStatsLogistica(),
     renderPedidosParaEnviar(),
@@ -3553,16 +3545,44 @@ async function cargarPendientes() {
   const el = document.getElementById('problemas-pendientes-lista')
   el.innerHTML = '<p style="color:var(--color-text-tertiary);font-size:13px">Cargando...</p>'
 
-  const rol     = await cargarRolUsuario()
-  const esAdmin = rol === 'admin'
-
-  let query = db.from('notificaciones_admin')
+  // Buscar en notificaciones_admin (con o sin campo tipo)
+  const { data: notifAdmin } = await db.from('notificaciones_admin')
     .select('*, pedidos(id, numero, clientes(razon_social, telefono))')
     .eq('leida', false)
-    .eq('tipo', 'problema_recepcion')
     .order('created_at', { ascending: false })
 
-  const { data: notifs } = await query
+  // Filtrar solo las de problema_recepcion — compatibles con registros viejos sin tipo
+  const notifsFiltradas = (notifAdmin || []).filter(n =>
+    !n.tipo || n.tipo === 'problema_recepcion' ||
+    (n.mensaje && n.mensaje.toLowerCase().includes('problema'))
+  )
+
+  // Si no hay nada en notificaciones_admin, buscar directamente en historial_pedido
+  let notifs = notifsFiltradas
+  if (notifs.length === 0) {
+    const { data: histProblemas } = await db.from('historial_pedido')
+      .select('*, pedidos(id, numero, clientes(razon_social, telefono))')
+      .eq('accion', 'recepcion_problema')
+      .order('created_at', { ascending: false })
+
+    // Convertir historial a formato de notif para reutilizar el render
+    // Solo mostrar los que NO tienen resolución
+    const pedidosConResolucion = new Set()
+    const { data: resoluciones } = await db.from('historial_pedido')
+      .select('pedido_id').eq('accion', 'resolucion_problema')
+    for (const r of (resoluciones || [])) pedidosConResolucion.add(r.pedido_id)
+
+    notifs = (histProblemas || [])
+      .filter(h => !pedidosConResolucion.has(h.pedido_id))
+      .map(h => ({
+        id:        h.id,
+        pedido_id: h.pedido_id,
+        mensaje:   h.detalle,
+        created_at: h.created_at,
+        pedidos:   h.pedidos,
+        _fromHistorial: true
+      }))
+  }
 
   if (!notifs || notifs.length === 0) {
     el.innerHTML = `
@@ -3707,12 +3727,16 @@ async function cargarResueltos() {
   const el = document.getElementById('problemas-resueltos-lista')
   el.innerHTML = '<p style="color:var(--color-text-tertiary);font-size:13px">Cargando...</p>'
 
-  const { data: notifs } = await db.from('notificaciones_admin')
+  const { data: notifAdmin } = await db.from('notificaciones_admin')
     .select('*, pedidos(id, numero, clientes(razon_social))')
     .eq('leida', true)
-    .eq('tipo', 'problema_recepcion')
     .order('created_at', { ascending: false })
     .limit(50)
+
+  const notifs = (notifAdmin || []).filter(n =>
+    !n.tipo || n.tipo === 'problema_recepcion' ||
+    (n.mensaje && n.mensaje.toLowerCase().includes('problema'))
+  )
 
   if (!notifs || notifs.length === 0) {
     el.innerHTML = '<p style="color:var(--color-text-tertiary);font-size:13px;padding:20px 0">Sin problemas resueltos aún</p>'
@@ -3816,23 +3840,30 @@ async function resolverProblemaConComentario(notifId, pedidoId) {
 }
 
 async function _guardarResolucion(notifId, pedidoId, label) {
-  // Animación de salida
   const card = document.getElementById(`prob-${notifId}`)
   if (card) { card.style.opacity = '0.4'; card.style.pointerEvents = 'none' }
 
-  await Promise.all([
-    // Marcar notif como resuelta
-    db.from('notificaciones_admin').update({ leida: true, respuesta: label }).eq('id', notifId).catch(() => {}),
-    // Registrar en historial del pedido
+  const tareas = [
+    // Registrar en historial del pedido siempre
     pedidoId ? db.from('historial_pedido').insert({
       pedido_id:  pedidoId,
       usuario_id: usuarioActual?.id,
       accion:     'resolucion_problema',
       detalle:    label
     }).catch(() => {}) : Promise.resolve()
-  ])
+  ]
 
-  // Recargar ambas listas y campana
+  // Solo marcar notif_admin si el id existe y no viene del historial
+  if (notifId && !String(notifId).startsWith('hist_')) {
+    tareas.push(
+      db.from('notificaciones_admin')
+        .update({ leida: true, respuesta: label })
+        .eq('id', notifId)
+        .catch(() => {})
+    )
+  }
+
+  await Promise.all(tareas)
   await Promise.all([cargarPendientes(), cargarResueltos(), cargarAlertas()])
 }
 
