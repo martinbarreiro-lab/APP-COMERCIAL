@@ -2643,7 +2643,7 @@ function filtrarCobClientes() {
 function renderCobFiltroClientes(clientes) {
   document.getElementById('cob-filtro-cliente-lista').innerHTML = [
     `<div onclick="seleccionarCobCliente(null,'Todos los clientes')" class="cob-dropdown-item">Todos los clientes</div>`,
-    ...clientes.map(c => `<div onclick="seleccionarCobCliente('${c.id}','${c.razon_social.replace(/'/g,"\\'")}'')" class="cob-dropdown-item">${c.razon_social}</div>`)
+    ...clientes.map(c => `<div onclick="seleccionarCobCliente('${c.id}','${c.razon_social.replace(/'/g,"\\'")}')" class="cob-dropdown-item">${c.razon_social}</div>`)
   ].join('')
 }
 
@@ -2666,7 +2666,7 @@ async function toggleCobFiltroVendedores() {
   }
   document.getElementById('cob-filtro-vendedor-lista').innerHTML = [
     `<div onclick="seleccionarCobVendedor(null,'Todos los vendedores')" class="cob-dropdown-item">Todos los vendedores</div>`,
-    ..._cobVendedoresCache.map(v => `<div onclick="seleccionarCobVendedor('${v.id}','${v.nombre_completo.replace(/'/g,"\\'")}'')" class="cob-dropdown-item">${v.nombre_completo}</div>`)
+    ..._cobVendedoresCache.map(v => `<div onclick="seleccionarCobVendedor('${v.id}','${v.nombre_completo.replace(/'/g,"\\'")}')" class="cob-dropdown-item">${v.nombre_completo}</div>`)
   ].join('')
   setTimeout(() => { document.addEventListener('click', cerrarCobDropdownAfuera, { once: true }) }, 100)
 }
