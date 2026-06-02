@@ -58,6 +58,7 @@ function mostrarSeccion(nombre) {
   if (nombre === 'pedidos')   { mostrarVistaPedidos('lista'); cargarPedidos() }
   if (nombre === 'cobranza')  cargarCobranza()
   if (nombre === 'logistica') cargarLogistica()
+  if (nombre === 'problemas') cargarProblemas()
   if (nombre === 'clientes')  cargarClientes()
   if (nombre === 'productos') cargarProductos()
 }
@@ -3349,6 +3350,7 @@ async function cargarAlertas() {
   }
 
   actualizarCampana(alertas.length)
+  actualizarBadgeProblemas(alertas.length)
   return alertas
 }
 
@@ -3367,11 +3369,7 @@ function actualizarCampana(count) {
 }
 
 async function togglePanelAlertas() {
-  const panel = document.getElementById('panel-alertas')
-  if (!panel) return
-  const visible = panel.style.display !== 'none'
-  panel.style.display = visible ? 'none' : 'block'
-  if (!visible) await renderPanelAlertas()
+  mostrarSeccion('problemas')
 }
 
 async function renderPanelAlertas() {
@@ -3518,3 +3516,366 @@ document.addEventListener('click', (e) => {
     panel.style.display = 'none'
   }
 })
+
+
+// ================================================
+// SECCIÓN PROBLEMAS DE RECEPCIÓN
+// ================================================
+
+let _tabProblemasActual = 'pendientes'
+
+async function cargarProblemas() {
+  _tabProblemasActual = 'pendientes'
+  resetTabsProblemas()
+  await Promise.all([
+    cargarPendientes(),
+    cargarResueltos()
+  ])
+}
+
+function switchTabProblemas(tab) {
+  _tabProblemasActual = tab
+  resetTabsProblemas()
+  document.getElementById('problemas-pendientes-lista').style.display = tab === 'pendientes' ? 'block' : 'none'
+  document.getElementById('problemas-resueltos-lista').style.display  = tab === 'resueltos'  ? 'block' : 'none'
+}
+
+function resetTabsProblemas() {
+  const activo   = 'padding:10px 20px;border:none;background:none;font-size:13px;font-weight:600;cursor:pointer;color:#185fa5;border-bottom:2px solid #185fa5;margin-bottom:-2px'
+  const inactivo = 'padding:10px 20px;border:none;background:none;font-size:13px;font-weight:500;cursor:pointer;color:var(--color-text-secondary)'
+  document.getElementById('tab-pendientes').style.cssText = _tabProblemasActual === 'pendientes' ? activo : inactivo
+  document.getElementById('tab-resueltos').style.cssText  = _tabProblemasActual === 'resueltos'  ? activo : inactivo
+  document.getElementById('problemas-pendientes-lista').style.display = _tabProblemasActual === 'pendientes' ? 'block' : 'none'
+  document.getElementById('problemas-resueltos-lista').style.display  = _tabProblemasActual === 'resueltos'  ? 'block' : 'none'
+}
+
+async function cargarPendientes() {
+  const el = document.getElementById('problemas-pendientes-lista')
+  el.innerHTML = '<p style="color:var(--color-text-tertiary);font-size:13px">Cargando...</p>'
+
+  const rol     = await cargarRolUsuario()
+  const esAdmin = rol === 'admin'
+
+  let query = db.from('notificaciones_admin')
+    .select('*, pedidos(id, numero, clientes(razon_social, telefono))')
+    .eq('leida', false)
+    .eq('tipo', 'problema_recepcion')
+    .order('created_at', { ascending: false })
+
+  const { data: notifs } = await query
+
+  if (!notifs || notifs.length === 0) {
+    el.innerHTML = `
+      <div style="text-align:center;padding:60px 20px;color:var(--color-text-tertiary)">
+        <i class="ti ti-circle-check" style="font-size:48px;display:block;margin-bottom:12px;color:#1d9e75" aria-hidden="true"></i>
+        <div style="font-size:15px;font-weight:500;color:#085041">Sin problemas pendientes</div>
+        <div style="font-size:13px;margin-top:4px">Todas las recepciones están resueltas</div>
+      </div>`
+    actualizarBadgeProblemas(0)
+    return
+  }
+
+  // Traer historial de recepción de cada pedido para obtener descripción y foto
+  const pedidoIds = notifs.map(n => n.pedido_id).filter(Boolean)
+  const historialesMap = {}
+  if (pedidoIds.length > 0) {
+    const { data: historiales } = await db.from('historial_pedido')
+      .select('pedido_id, detalle, created_at, perfiles(nombre_completo)')
+      .in('pedido_id', pedidoIds)
+      .eq('accion', 'recepcion_problema')
+      .order('created_at', { ascending: false })
+    for (const h of (historiales || [])) {
+      if (!historialesMap[h.pedido_id]) historialesMap[h.pedido_id] = h
+    }
+  }
+
+  actualizarBadgeProblemas(notifs.length)
+
+  el.innerHTML = notifs.map(n => {
+    const pedido    = n.pedidos
+    const pedidoId  = n.pedido_id || ''
+    const notifId   = n.id
+    const historial = historialesMap[pedidoId]
+    const detalle   = historial?.detalle || n.mensaje || ''
+    const quien     = historial?.perfiles?.nombre_completo || 'Cliente'
+    const fecha     = formatFechaHora(n.created_at)
+
+    // Extraer descripción del problema
+    let descripcion = ''
+    const mDesc = detalle.match(/Problema en recepción:\s*(.+?)(?:\s*\|\s*foto:|$)/)
+    if (mDesc) descripcion = mDesc[1].trim()
+    else descripcion = n.mensaje?.replace('⚠️ Problema en recepción: ', '') || ''
+
+    // Extraer URL de foto
+    let fotoUrl = null
+    const mFoto = detalle.match(/foto:\s*(https?:\/\/\S+)/)
+    if (mFoto) fotoUrl = mFoto[1].trim()
+
+    const tel = pedido?.clientes?.telefono?.replace(/\D/g, '') || ''
+
+    return `
+      <div class="problema-card" id="prob-${notifId}">
+
+        <!-- Cabecera -->
+        <div class="problema-header">
+          <div>
+            <div class="problema-titulo">
+              <span class="badge badge-rojo" style="font-size:11px">⚠️ Pendiente</span>
+              <span style="font-weight:600">Pedido #${pedido?.numero || '?'}</span>
+              <span style="color:var(--color-text-secondary)">·</span>
+              <span>${pedido?.clientes?.razon_social || '-'}</span>
+            </div>
+            <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:4px">
+              Reportado por <b>${quien}</b> · ${fecha}
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            ${tel ? `<a href="https://wa.me/54${tel}" target="_blank"
+              style="width:32px;height:32px;border-radius:8px;border:0.5px solid #9fe1cb;background:#e1f5ee;color:#085041;display:flex;align-items:center;justify-content:center;text-decoration:none">
+              <i class="ti ti-brand-whatsapp" aria-hidden="true"></i>
+            </a>` : ''}
+            <button onclick="verPedidoDesdeAlerta('${pedidoId}')"
+              style="background:none;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;color:var(--color-text-secondary);display:flex;align-items:center;gap:4px">
+              <i class="ti ti-external-link" aria-hidden="true"></i> Ver pedido
+            </button>
+          </div>
+        </div>
+
+        <!-- Descripción del problema -->
+        <div class="problema-descripcion">
+          <div style="font-size:12px;font-weight:600;color:#a32d2d;margin-bottom:6px;display:flex;align-items:center;gap:6px">
+            <i class="ti ti-message-report" aria-hidden="true"></i> Descripción del problema
+          </div>
+          <p style="font-size:13px;margin:0;color:var(--color-text-primary);line-height:1.5">${descripcion || 'Sin descripción adicional'}</p>
+        </div>
+
+        <!-- Foto/archivo adjunto -->
+        ${fotoUrl ? `
+          <div style="margin-bottom:16px">
+            <div style="font-size:12px;font-weight:600;color:var(--color-text-secondary);margin-bottom:8px;display:flex;align-items:center;gap:6px">
+              <i class="ti ti-photo" aria-hidden="true"></i> Foto adjunta
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button onclick="abrirFotoProblema('${fotoUrl}')"
+                style="background:#185fa5;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px">
+                <i class="ti ti-photo-search" aria-hidden="true"></i> Ver foto
+              </button>
+              <a href="${fotoUrl}" target="_blank" download
+                style="background:var(--color-background-secondary);color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;text-decoration:none">
+                <i class="ti ti-download" aria-hidden="true"></i> Descargar
+              </a>
+            </div>
+          </div>` : `
+          <div style="margin-bottom:16px;padding:10px 14px;background:var(--color-background-secondary);border-radius:8px;font-size:12px;color:var(--color-text-tertiary);display:flex;align-items:center;gap:6px">
+            <i class="ti ti-photo-off" aria-hidden="true"></i> Sin foto adjunta
+          </div>`}
+
+        <!-- Acciones de resolución -->
+        <div style="border-top:0.5px solid var(--color-border-tertiary);padding-top:14px">
+          <div style="font-size:12px;font-weight:600;color:var(--color-text-secondary);margin-bottom:10px">
+            <i class="ti ti-tool" aria-hidden="true"></i> Acción a tomar
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+            <button onclick="resolverProblema('${notifId}','${pedidoId}','credito')"
+              style="background:#e1f5ee;color:#085041;border:0.5px solid #9fe1cb;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px">
+              <i class="ti ti-coins" aria-hidden="true"></i> Generar crédito
+            </button>
+            <button onclick="resolverProblema('${notifId}','${pedidoId}','reenvio')"
+              style="background:#e8f0fe;color:#1a56db;border:0.5px solid #a4cafe;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px">
+              <i class="ti ti-truck" aria-hidden="true"></i> Reenviar producto
+            </button>
+            <button onclick="resolverProblema('${notifId}','${pedidoId}','sin_accion')"
+              style="background:#f3f4f6;color:#6b7280;border:0.5px solid #d1d5db;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px">
+              <i class="ti ti-check" aria-hidden="true"></i> Sin acción necesaria
+            </button>
+          </div>
+          <div style="display:flex;gap:8px">
+            <input id="comentario-${notifId}" type="text" placeholder="Agregar comentario de resolución (opcional)..."
+              style="flex:1;padding:9px 12px;border:0.5px solid var(--color-border-tertiary);border-radius:8px;font-size:13px"
+              onkeydown="if(event.key==='Enter') resolverProblemaConComentario('${notifId}','${pedidoId}')">
+            <button onclick="resolverProblemaConComentario('${notifId}','${pedidoId}')"
+              style="background:#185fa5;color:white;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:500;cursor:pointer">
+              Resolver
+            </button>
+          </div>
+        </div>
+      </div>`
+  }).join('')
+}
+
+async function cargarResueltos() {
+  const el = document.getElementById('problemas-resueltos-lista')
+  el.innerHTML = '<p style="color:var(--color-text-tertiary);font-size:13px">Cargando...</p>'
+
+  const { data: notifs } = await db.from('notificaciones_admin')
+    .select('*, pedidos(id, numero, clientes(razon_social))')
+    .eq('leida', true)
+    .eq('tipo', 'problema_recepcion')
+    .order('created_at', { ascending: false })
+    .limit(50)
+
+  if (!notifs || notifs.length === 0) {
+    el.innerHTML = '<p style="color:var(--color-text-tertiary);font-size:13px;padding:20px 0">Sin problemas resueltos aún</p>'
+    return
+  }
+
+  // Traer historial de recepción Y resolución
+  const pedidoIds = notifs.map(n => n.pedido_id).filter(Boolean)
+  const historialesMap = {}
+  const resolucionesMap = {}
+
+  if (pedidoIds.length > 0) {
+    const { data: hist } = await db.from('historial_pedido')
+      .select('pedido_id, accion, detalle, created_at, perfiles(nombre_completo)')
+      .in('pedido_id', pedidoIds)
+      .in('accion', ['recepcion_problema', 'resolucion_problema'])
+      .order('created_at', { ascending: false })
+
+    for (const h of (hist || [])) {
+      if (h.accion === 'recepcion_problema' && !historialesMap[h.pedido_id]) historialesMap[h.pedido_id] = h
+      if (h.accion === 'resolucion_problema' && !resolucionesMap[h.pedido_id]) resolucionesMap[h.pedido_id] = h
+    }
+  }
+
+  el.innerHTML = notifs.map(n => {
+    const pedido    = n.pedidos
+    const pedidoId  = n.pedido_id || ''
+    const historial = historialesMap[pedidoId]
+    const resolucion = resolucionesMap[pedidoId]
+    const detalle   = historial?.detalle || ''
+
+    let descripcion = ''
+    const mDesc = detalle.match(/Problema en recepción:\s*(.+?)(?:\s*\|\s*foto:|$)/)
+    if (mDesc) descripcion = mDesc[1].trim()
+    else descripcion = n.mensaje?.replace('⚠️ Problema en recepción: ', '') || ''
+
+    let fotoUrl = null
+    const mFoto = detalle.match(/foto:\s*(https?:\/\/\S+)/)
+    if (mFoto) fotoUrl = mFoto[1].trim()
+
+    // Acción tomada
+    const accionLabel = resolucion?.detalle || n.respuesta || 'Resuelto'
+    const quien       = resolucion?.perfiles?.nombre_completo || 'Admin'
+
+    return `
+      <div class="problema-card" style="opacity:0.85">
+        <div class="problema-header">
+          <div>
+            <div class="problema-titulo">
+              <span class="badge badge-verde" style="font-size:11px">✅ Resuelto</span>
+              <span style="font-weight:600">Pedido #${pedido?.numero || '?'}</span>
+              <span style="color:var(--color-text-secondary)">·</span>
+              <span>${pedido?.clientes?.razon_social || '-'}</span>
+            </div>
+            <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:4px">
+              Reportado: ${formatFechaHora(n.created_at)}
+            </div>
+          </div>
+          <button onclick="verPedidoDesdeAlerta('${pedidoId}')"
+            style="background:none;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;color:var(--color-text-secondary);display:flex;align-items:center;gap:4px">
+            <i class="ti ti-external-link" aria-hidden="true"></i> Ver pedido
+          </button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="problema-descripcion" style="margin-bottom:0">
+            <div style="font-size:11px;font-weight:600;color:var(--color-text-tertiary);margin-bottom:4px">PROBLEMA REPORTADO</div>
+            <p style="font-size:13px;margin:0;line-height:1.5">${descripcion || '-'}</p>
+          </div>
+          <div style="background:#e1f5ee;border-radius:8px;padding:12px">
+            <div style="font-size:11px;font-weight:600;color:#085041;margin-bottom:4px">ACCIÓN TOMADA</div>
+            <p style="font-size:13px;margin:0;color:#085041;line-height:1.5">${accionLabel}</p>
+            ${quien ? `<div style="font-size:11px;color:#1d9e75;margin-top:6px">por ${quien}</div>` : ''}
+          </div>
+        </div>
+
+        ${fotoUrl ? `
+          <button onclick="abrirFotoProblema('${fotoUrl}')"
+            style="background:none;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;color:var(--color-text-secondary);display:flex;align-items:center;gap:4px">
+            <i class="ti ti-photo" aria-hidden="true"></i> Ver foto adjunta
+          </button>` : ''}
+      </div>`
+  }).join('')
+}
+
+async function resolverProblema(notifId, pedidoId, accion) {
+  const comentario = document.getElementById(`comentario-${notifId}`)?.value.trim() || ''
+  const labels = {
+    credito:    '💰 Crédito generado para el cliente',
+    reenvio:    '🚚 Se programó reenvío del producto',
+    sin_accion: '✅ Revisado — sin acción necesaria'
+  }
+  const label = labels[accion] + (comentario ? ` — ${comentario}` : '')
+  await _guardarResolucion(notifId, pedidoId, label)
+}
+
+async function resolverProblemaConComentario(notifId, pedidoId) {
+  const comentario = document.getElementById(`comentario-${notifId}`)?.value.trim()
+  if (!comentario) { alert('Escribí un comentario o elegí una acción rápida'); return }
+  await _guardarResolucion(notifId, pedidoId, `💬 ${comentario}`)
+}
+
+async function _guardarResolucion(notifId, pedidoId, label) {
+  // Animación de salida
+  const card = document.getElementById(`prob-${notifId}`)
+  if (card) { card.style.opacity = '0.4'; card.style.pointerEvents = 'none' }
+
+  await Promise.all([
+    // Marcar notif como resuelta
+    db.from('notificaciones_admin').update({ leida: true, respuesta: label }).eq('id', notifId).catch(() => {}),
+    // Registrar en historial del pedido
+    pedidoId ? db.from('historial_pedido').insert({
+      pedido_id:  pedidoId,
+      usuario_id: usuarioActual?.id,
+      accion:     'resolucion_problema',
+      detalle:    label
+    }).catch(() => {}) : Promise.resolve()
+  ])
+
+  // Recargar ambas listas y campana
+  await Promise.all([cargarPendientes(), cargarResueltos(), cargarAlertas()])
+}
+
+function abrirFotoProblema(url) {
+  // Crear lightbox simple
+  const overlay = document.createElement('div')
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out'
+  overlay.onclick = () => overlay.remove()
+
+  const isImage = url.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)
+
+  overlay.innerHTML = isImage
+    ? `<div style="position:relative;max-width:90vw;max-height:90vh">
+        <img src="${url}" style="max-width:90vw;max-height:85vh;border-radius:8px;object-fit:contain;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+        <a href="${url}" target="_blank" download onclick="event.stopPropagation()"
+          style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.6);color:white;border-radius:8px;padding:6px 12px;font-size:12px;text-decoration:none;display:flex;align-items:center;gap:4px">
+          <i class="ti ti-download"></i> Descargar
+        </a>
+        <div style="text-align:center;color:rgba(255,255,255,0.5);font-size:12px;margin-top:8px">Click para cerrar</div>
+      </div>`
+    : `<div style="background:white;border-radius:12px;padding:24px;text-align:center">
+        <i class="ti ti-file" style="font-size:48px;color:#185fa5;display:block;margin-bottom:12px"></i>
+        <p style="margin:0 0 16px;font-size:14px">Archivo adjunto</p>
+        <a href="${url}" target="_blank"
+          style="background:#185fa5;color:white;border-radius:8px;padding:10px 20px;font-size:13px;text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+          <i class="ti ti-external-link"></i> Abrir archivo
+        </a>
+      </div>`
+
+  document.body.appendChild(overlay)
+}
+
+function actualizarBadgeProblemas(count) {
+  const badge    = document.getElementById('nav-problemas-badge')
+  const tabBadge = document.getElementById('badge-tab-pendientes')
+  if (badge) {
+    badge.textContent = count
+    badge.style.display = count > 0 ? 'inline' : 'none'
+  }
+  if (tabBadge) {
+    tabBadge.textContent = count
+    tabBadge.style.display = count > 0 ? 'inline' : 'none'
+  }
+  // Actualizar campana también
+  actualizarCampana(count)
+}
