@@ -524,6 +524,27 @@ body { background:#f0f2f5; color:#1a1a1a; }
   /* Sin scroll horizontal en toda la app */
   html, body { overflow-x:hidden; max-width:100vw; }
 
+  /* ── PREVENCIÓN GLOBAL DE DESBORDE EN MÓVIL ── */
+  .seccion, .seccion * { max-width:100%; }
+  /* Inputs de archivo: que no desborden con su ancho natural */
+  input[type="file"] { max-width:100%; width:100%; box-sizing:border-box; font-size:12px; }
+  input, select, textarea { max-width:100%; box-sizing:border-box; }
+  /* Imágenes y previsualizaciones */
+  .seccion img { max-width:100%; height:auto; }
+  /* Cualquier tabla dentro de una sección scrollea sola, no empuja la página */
+  .seccion table, .tabla { display:block; overflow-x:auto; white-space:nowrap; max-width:100%; -webkit-overflow-scrolling:touch; }
+  /* Contenedores que suelen tener anchos fijos */
+  .detalle-card, .detalle-seccion, .form-inline, .form-card,
+  #rep-contenido, #rep-contenido *, .cob-card, .cliente-card {
+    max-width:100%; box-sizing:border-box;
+  }
+  /* Texto largo (códigos, URLs) que parta en vez de empujar */
+  .seccion td, .seccion span, .rep-fila-nombre, .cliente-nombre { overflow-wrap:anywhere; word-break:break-word; }
+  /* Filas flex que envuelvan en vez de desbordar */
+  .rep-fila, .rep-det-fila, .ficha-fila, .fiscal-fila { flex-wrap:wrap; }
+  /* La barra de monto del reporte: que no fuerce ancho */
+  .rep-fila-monto { white-space:normal; }
+
   /* Topbar más compacta */
   .topbar { height:60px; padding:0 16px; }
   .topbar-titulo { font-size:17px; }
