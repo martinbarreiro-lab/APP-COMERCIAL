@@ -68,121 +68,152 @@ async function cargarDashboard() {
   const rol     = await cargarRolUsuario()
   const esAdmin = rol === 'admin'
 
-  const hoy        = new Date()
-  const hoyStr     = hoy.toISOString().split('T')[0]
-  const inicioMes  = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString()
-  const en7dias    = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]
+  const hoy       = new Date()
+  const hoyStr    = hoy.toISOString().split('T')[0]
+  const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString()
+  const inicioMesAnt = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1).toISOString()
+  const finMesAnt    = new Date(hoy.getFullYear(), hoy.getMonth(), 0, 23, 59, 59).toISOString()
+  const en7dias   = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]
 
-  // ── Todas las queries en paralelo ───────────────
-  let qPedidosMes   = db.from('pedidos').select('id, total, etapa, estado_cobro, monto_cobrado, vendedor_id, created_at').gte('created_at', inicioMes).neq('estado', 'cancelado')
-  let qCobrosMes    = db.from('cobros').select('monto, medio_pago, vendedor_id').gte('created_at', inicioMes)
-  let qVencidos     = db.from('pedidos').select('id, numero, total, monto_cobrado, fecha_vencimiento_cobro, clientes(razon_social)').eq('estado_cobro', 'pendiente').lt('fecha_vencimiento_cobro', hoyStr)
-  let qPorVencer    = db.from('pedidos').select('id, numero, total, monto_cobrado, fecha_vencimiento_cobro, clientes(razon_social)').eq('estado_cobro', 'pendiente').gte('fecha_vencimiento_cobro', hoyStr).lte('fecha_vencimiento_cobro', en7dias)
-  let qAtascados    = db.from('pedidos').select('id, numero, clientes(razon_social), created_at').eq('etapa', 'facturado').lte('created_at', new Date(Date.now() - 3 * 86400000).toISOString())
-  let qEnvios       = db.from('envios').select('id').eq('estado', 'en_camino')
-  let qAlertas      = db.from('notificaciones_admin').select('id').eq('leida', false)
-  let qVendedores   = esAdmin ? db.from('perfiles').select('id, nombre_completo').eq('rol', 'vendedor') : null
+  // ── Queries en paralelo ─────────────────────────
+  let qPedidosMes    = db.from('pedidos').select('id, total, etapa, estado_cobro, monto_cobrado, vendedor_id, created_at').gte('created_at', inicioMes).neq('estado', 'cancelado')
+  let qPedidosMesAnt = db.from('pedidos').select('id, total, vendedor_id').gte('created_at', inicioMesAnt).lte('created_at', finMesAnt).neq('estado', 'cancelado')
+  let qCobrosMes     = db.from('cobros').select('monto, medio_pago, vendedor_id').gte('created_at', inicioMes)
+  let qTodosActivos  = db.from('pedidos').select('id, total, etapa').neq('estado', 'cancelado').not('etapa', 'eq', 'cobrado')
+  let qDeudaTotal    = db.from('pedidos').select('id, total, monto_cobrado, clientes(razon_social)').eq('estado_cobro', 'pendiente')
+  let qVencidos      = db.from('pedidos').select('id, numero, total, monto_cobrado, fecha_vencimiento_cobro, clientes(razon_social)').eq('estado_cobro', 'pendiente').lt('fecha_vencimiento_cobro', hoyStr)
+  let qPorVencer     = db.from('pedidos').select('id, numero, total, monto_cobrado, fecha_vencimiento_cobro, clientes(razon_social)').eq('estado_cobro', 'pendiente').gte('fecha_vencimiento_cobro', hoyStr).lte('fecha_vencimiento_cobro', en7dias)
+  let qAtascados     = db.from('pedidos').select('id, numero, clientes(razon_social), created_at').eq('etapa', 'facturado').lte('created_at', new Date(Date.now() - 3 * 86400000).toISOString())
+  let qAlertas       = db.from('notificaciones_admin').select('id').eq('leida', false)
+  let qVendedores    = esAdmin ? db.from('perfiles').select('id, nombre_completo').eq('rol', 'vendedor') : null
 
   if (!esAdmin) {
-    qPedidosMes = qPedidosMes.eq('vendedor_id', usuarioActual.id)
-    qCobrosMes  = qCobrosMes.eq('vendedor_id', usuarioActual.id)
-    qVencidos   = qVencidos.eq('vendedor_id', usuarioActual.id)
-    qPorVencer  = qPorVencer.eq('vendedor_id', usuarioActual.id)
-    qAtascados  = qAtascados.eq('vendedor_id', usuarioActual.id)
+    qPedidosMes    = qPedidosMes.eq('vendedor_id', usuarioActual.id)
+    qPedidosMesAnt = qPedidosMesAnt.eq('vendedor_id', usuarioActual.id)
+    qCobrosMes     = qCobrosMes.eq('vendedor_id', usuarioActual.id)
+    qTodosActivos  = qTodosActivos.eq('vendedor_id', usuarioActual.id)
+    qDeudaTotal    = qDeudaTotal.eq('vendedor_id', usuarioActual.id)
+    qVencidos      = qVencidos.eq('vendedor_id', usuarioActual.id)
+    qPorVencer     = qPorVencer.eq('vendedor_id', usuarioActual.id)
+    qAtascados     = qAtascados.eq('vendedor_id', usuarioActual.id)
   }
 
   const [
     { data: pedidosMes },
+    { data: pedidosMesAnt },
     { data: cobrosMes },
+    { data: todosActivos },
+    { data: deudaTotal },
     { data: vencidos },
     { data: porVencer },
     { data: atascados },
-    { data: enviosActivos },
     { data: alertasPend },
     vendedoresRes
   ] = await Promise.all([
-    qPedidosMes, qCobrosMes, qVencidos, qPorVencer,
-    qAtascados, qEnvios, qAlertas,
+    qPedidosMes, qPedidosMesAnt, qCobrosMes, qTodosActivos,
+    qDeudaTotal, qVencidos, qPorVencer, qAtascados, qAlertas,
     qVendedores ? qVendedores : Promise.resolve({ data: [] })
   ])
 
-  // ── Calcular métricas ───────────────────────────
-  const facturadoMes  = pedidosMes?.reduce((s, p) => s + Number(p.total), 0) || 0
-  const cobradoMes    = cobrosMes?.reduce((s, c) => s + Number(c.monto), 0) || 0
-  const pendienteCobro = pedidosMes?.filter(p => p.estado_cobro === 'pendiente')
-                          .reduce((s, p) => s + (Number(p.total) - Number(p.monto_cobrado || 0)), 0) || 0
+  // ── Métricas ────────────────────────────────────
+  const facturadoMes    = pedidosMes?.reduce((s, p) => s + Number(p.total), 0) || 0
+  const facturadoMesAnt = pedidosMesAnt?.reduce((s, p) => s + Number(p.total), 0) || 0
+  const cobradoMes      = cobrosMes?.reduce((s, c) => s + Number(c.monto), 0) || 0
   const pedidosMesCount = pedidosMes?.length || 0
+  const cobrosMesCount  = cobrosMes?.length || 0
 
-  // Pipeline: cantidad y monto por etapa
-  const pipeline = {}
+  const deudaAcum = (deudaTotal || []).reduce((s, p) => s + (Number(p.total) - Number(p.monto_cobrado || 0)), 0)
+  const clientesDeudores = new Set((deudaTotal || []).map(p => p.clientes?.razon_social).filter(Boolean)).size
+
+  const ticketProm    = pedidosMesCount > 0 ? Math.round(facturadoMes / pedidosMesCount) : 0
+  const ticketPromAnt = pedidosMesAnt?.length > 0 ? Math.round(facturadoMesAnt / pedidosMesAnt.length) : 0
+  const ticketDelta   = ticketPromAnt > 0 ? Math.round(((ticketProm - ticketPromAnt) / ticketPromAnt) * 100) : null
+
+  // ── Pipeline — todos los activos ────────────────
+  const pipelineAll = {}
   for (const e of ['pedido','facturado','enviado','recibido','cobrado']) {
-    const grupo = pedidosMes?.filter(p => p.etapa === e) || []
-    pipeline[e] = { count: grupo.length, monto: grupo.reduce((s,p) => s + Number(p.total), 0) }
+    const grupo = (todosActivos || []).filter(p => p.etapa === e)
+    pipelineAll[e] = { count: grupo.length, monto: grupo.reduce((s, p) => s + Number(p.total), 0) }
   }
+  // cobrado del mes (para mostrar en pipeline, no de activos)
+  const cobradosPipeline = (pedidosMes || []).filter(p => p.etapa === 'cobrado')
+  pipelineAll['cobrado'] = { count: cobradosPipeline.length, monto: cobradosPipeline.reduce((s,p) => s+Number(p.total),0) }
 
-  // Medios de pago del mes
+  // ── Medios de pago ──────────────────────────────
   const medios = {}
   for (const c of (cobrosMes || [])) {
     medios[c.medio_pago] = (medios[c.medio_pago] || 0) + Number(c.monto)
   }
+  const maxMedio = Math.max(...Object.values(medios), 1)
+  const mediosIconos = { efectivo:'💵', transferencia:'🏦', cheque:'📋', echeq:'📱' }
 
-  // Ranking vendedores (solo admin)
+  // ── Ranking vendedores ──────────────────────────
   let rankingHTML = ''
   if (esAdmin && vendedoresRes.data?.length > 0) {
-    const vendedores = vendedoresRes.data
-    const ranking = vendedores.map(v => {
-      const peds   = pedidosMes?.filter(p => p.vendedor_id === v.id) || []
-      const cobs   = cobrosMes?.filter(c => c.vendedor_id === v.id) || []
-      return {
-        nombre:    v.nombre_completo,
-        pedidos:   peds.length,
-        facturado: peds.reduce((s,p) => s+Number(p.total),0),
-        cobrado:   cobs.reduce((s,c) => s+Number(c.monto),0)
-      }
+    const ranking = vendedoresRes.data.map(v => {
+      const peds = (pedidosMes || []).filter(p => p.vendedor_id === v.id)
+      const cobs = (cobrosMes || []).filter(c => c.vendedor_id === v.id)
+      const fac  = peds.reduce((s,p) => s+Number(p.total), 0)
+      const cob  = cobs.reduce((s,c) => s+Number(c.monto), 0)
+      const pct  = fac > 0 ? Math.round((cob/fac)*100) : 0
+      return { nombre: v.nombre_completo, pedidos: peds.length, facturado: fac, cobrado: cob, pct }
     }).filter(v => v.pedidos > 0).sort((a,b) => b.facturado - a.facturado)
 
     if (ranking.length > 0) {
       rankingHTML = `
-        <div class="dash-card" style="margin-top:20px">
+        <div class="dash-card" style="margin-bottom:20px">
           <div class="dash-card-titulo"><i class="ti ti-users" aria-hidden="true"></i> Rendimiento por vendedor — este mes</div>
           <table style="width:100%;border-collapse:collapse;font-size:13px">
-            <thead><tr style="color:var(--color-text-tertiary);text-align:left">
-              <th style="padding:8px 0;font-weight:500">Vendedor</th>
-              <th style="padding:8px 0;font-weight:500;text-align:right">Pedidos</th>
-              <th style="padding:8px 0;font-weight:500;text-align:right">Facturado</th>
-              <th style="padding:8px 0;font-weight:500;text-align:right">Cobrado</th>
-            </tr></thead>
+            <thead>
+              <tr style="color:var(--color-text-tertiary);text-align:left;border-bottom:0.5px solid var(--color-border-tertiary)">
+                <th style="padding:6px 0;font-weight:500">Vendedor</th>
+                <th style="padding:6px 0;font-weight:500;text-align:right">Pedidos</th>
+                <th style="padding:6px 0;font-weight:500;text-align:right">Facturado</th>
+                <th style="padding:6px 0;font-weight:500;text-align:right">Cobrado</th>
+              </tr>
+            </thead>
             <tbody>
-              ${ranking.map((v,i) => `
-                <tr style="border-top:0.5px solid var(--color-border-tertiary)">
-                  <td style="padding:10px 0;display:flex;align-items:center;gap:8px">
-                    <span style="background:#1d9e7520;color:#085041;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">${i+1}</span>
-                    ${v.nombre}
-                  </td>
-                  <td style="text-align:right;padding:10px 0">${v.pedidos}</td>
-                  <td style="text-align:right;padding:10px 0;font-weight:500">${fmtM(v.facturado)}</td>
-                  <td style="text-align:right;padding:10px 0;color:#1d9e75;font-weight:500">${fmtM(v.cobrado)}</td>
-                </tr>`).join('')}
+              ${ranking.map((v, i) => {
+                const badge = v.pct >= 50
+                  ? `<span style="background:#e1f5ee;color:#085041;border-radius:6px;font-size:11px;padding:2px 8px;white-space:nowrap">${fmtM(v.cobrado)}</span>`
+                  : `<span style="background:#faeeda;color:#633806;border-radius:6px;font-size:11px;padding:2px 8px;white-space:nowrap">${fmtM(v.cobrado)}</span>`
+                return `
+                  <tr style="border-top:0.5px solid var(--color-border-tertiary)">
+                    <td style="padding:10px 0">
+                      <div style="display:flex;align-items:center;gap:8px">
+                        <span style="background:#e1f5ee;color:#085041;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;flex-shrink:0">${i+1}</span>
+                        ${v.nombre}
+                      </div>
+                    </td>
+                    <td style="text-align:right;padding:10px 0">${v.pedidos}</td>
+                    <td style="text-align:right;padding:10px 0;font-weight:500">${fmtM(v.facturado)}</td>
+                    <td style="text-align:right;padding:10px 0">${badge}</td>
+                  </tr>`
+              }).join('')}
             </tbody>
           </table>
         </div>`
     }
   }
 
-  // ── Alertas urgentes ────────────────────────────
+  // ── Alertas ─────────────────────────────────────
   const alertasHTML = renderDashAlertas(vencidos, porVencer, atascados, alertasPend)
 
-  // ── Medios de pago ──────────────────────────────
-  const mediosIconos = { efectivo:'💵', transferencia:'🏦', cheque:'📋', echeq:'📱' }
+  // ── Medios HTML ─────────────────────────────────
   const mediosHTML = Object.keys(medios).length > 0
-    ? Object.entries(medios).sort((a,b) => b[1]-a[1]).map(([m, v]) =>
-        `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
-          <span style="font-size:13px">${mediosIconos[m]||'•'} ${labelMedio(m)}</span>
-          <span style="font-size:13px;font-weight:500">${fmtM(v)}</span>
+    ? Object.entries(medios).sort((a,b) => b[1]-a[1]).map(([m, v]) => `
+        <div style="padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+            <span style="font-size:13px">${mediosIconos[m]||'•'} ${labelMedio(m)}</span>
+            <span style="font-size:13px;font-weight:500">${fmtM(v)}</span>
+          </div>
+          <div style="height:4px;background:var(--color-border-tertiary);border-radius:2px">
+            <div style="height:4px;background:#378add;border-radius:2px;width:${Math.round((v/maxMedio)*100)}%"></div>
+          </div>
         </div>`).join('')
     : '<p style="font-size:13px;color:var(--color-text-tertiary)">Sin cobros este mes</p>'
 
-  // ── Pipeline HTML ───────────────────────────────
+  // ── Pipeline HTML ────────────────────────────────
   const etapasDef = [
     { id:'pedido',    label:'Pedido',    color:'#888780', icono:'ti-package' },
     { id:'facturado', label:'Facturado', color:'#378add', icono:'ti-file-invoice' },
@@ -190,67 +221,83 @@ async function cargarDashboard() {
     { id:'recibido',  label:'Recibido',  color:'#ba7517', icono:'ti-hand-stop' },
     { id:'cobrado',   label:'Cobrado',   color:'#1d9e75', icono:'ti-circle-check' },
   ]
-  const pipelineHTML = etapasDef.map(e => {
-    const d = pipeline[e.id]
-    return `
-      <div style="flex:1;text-align:center;padding:14px 8px;border-right:0.5px solid var(--color-border-tertiary)">
-        <i class="ti ${e.icono}" style="font-size:18px;color:${e.color};display:block;margin-bottom:6px" aria-hidden="true"></i>
-        <div style="font-size:22px;font-weight:600;color:${d.count > 0 ? e.color : 'var(--color-text-tertiary)'}">${d.count}</div>
-        <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px">${e.label}</div>
-        ${d.monto > 0 ? `<div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">${fmtM(d.monto)}</div>` : ''}
-      </div>`
-  }).join('')
+  const pipelineHTML = etapasDef.map((e, idx) => `
+    <div style="flex:1;text-align:center;padding:16px 8px${idx < 4 ? ';border-right:0.5px solid var(--color-border-tertiary)' : ''}">
+      <i class="ti ${e.icono}" style="font-size:20px;color:${pipelineAll[e.id].count > 0 ? e.color : 'var(--color-border-tertiary)'};display:block;margin-bottom:6px" aria-hidden="true"></i>
+      <div style="font-size:24px;font-weight:500;color:${pipelineAll[e.id].count > 0 ? e.color : 'var(--color-text-tertiary)'}">
+        ${pipelineAll[e.id].count}
+      </div>
+      <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:3px">${e.label}</div>
+      ${pipelineAll[e.id].monto > 0 ? `<div style="font-size:11px;color:var(--color-text-secondary);margin-top:5px">${fmtM(pipelineAll[e.id].monto)}</div>` : ''}
+    </div>`).join('')
 
-  // ── Mes actual ──────────────────────────────────
+  // ── Ticket delta HTML ────────────────────────────
+  const ticketSubHTML = ticketDelta !== null
+    ? `<span style="color:${ticketDelta >= 0 ? '#1d9e75' : '#e24b4a'};font-size:12px">
+        ${ticketDelta >= 0 ? '↑' : '↓'} ${Math.abs(ticketDelta)}% vs mes ant.
+      </span>`
+    : 'sin datos anteriores'
+
   const nombreMes = hoy.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
 
-  // ── Render final ────────────────────────────────
+  // ── Render ───────────────────────────────────────
   document.getElementById('dash-root').innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-      <h2 style="margin:0;font-size:20px;font-weight:600">Dashboard</h2>
-      <span style="font-size:13px;color:var(--color-text-tertiary);text-transform:capitalize">${nombreMes}</span>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h2 style="margin:0;font-size:18px;font-weight:500">Dashboard</h2>
+      <span style="font-size:12px;color:var(--color-text-tertiary);text-transform:capitalize">${nombreMes}</span>
     </div>
 
     ${alertasHTML}
 
-    <!-- Métricas principales -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
-      ${dashMetrica('ti-chart-bar','Facturado este mes', fmtM(facturadoMes), pedidosMesCount + ' pedidos', '#378add')}
-      ${dashMetrica('ti-circle-check','Cobrado este mes', fmtM(cobradoMes), cobrosMes?.length + ' cobros', '#1d9e75')}
-      ${dashMetrica('ti-clock','Pendiente de cobro', fmtM(pendienteCobro), vencidos?.length > 0 ? vencidos.length + ' vencidos' : 'Al día', vencidos?.length > 0 ? '#e24b4a' : '#888780')}
-      ${dashMetrica('ti-truck','Envíos en camino', enviosActivos?.length || 0, 'activos ahora', '#ba7517')}
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px">
+      ${dashMetrica('ti-chart-bar', 'Facturado este mes', fmtM(facturadoMes), pedidosMesCount + ' pedidos', '#378add')}
+      ${dashMetrica('ti-circle-check', 'Cobrado este mes', fmtM(cobradoMes), cobrosMesCount + ' cobros', '#1d9e75')}
+      <div class="dash-card" style="border-top:3px solid #e24b4a">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+          <i class="ti ti-hourglass" style="font-size:14px;color:#e24b4a" aria-hidden="true"></i>
+          <span style="font-size:12px;color:var(--color-text-secondary)">Deuda total acumulada</span>
+        </div>
+        <div style="font-size:24px;font-weight:500;color:#e24b4a;line-height:1">${fmtM(deudaAcum)}</div>
+        <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:5px">${clientesDeudores} cliente${clientesDeudores !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="dash-card" style="border-top:3px solid #ba7517">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+          <i class="ti ti-receipt" style="font-size:14px;color:#ba7517" aria-hidden="true"></i>
+          <span style="font-size:12px;color:var(--color-text-secondary)">Ticket promedio</span>
+        </div>
+        <div style="font-size:24px;font-weight:500;line-height:1">${fmtM(ticketProm)}</div>
+        <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:5px">${ticketSubHTML}</div>
+      </div>
     </div>
 
-    <!-- Pipeline del mes -->
-    <div class="dash-card" style="margin-bottom:20px">
-      <div class="dash-card-titulo"><i class="ti ti-git-branch" aria-hidden="true"></i> Pipeline de pedidos — este mes</div>
-      <div style="display:flex;margin:-12px -16px 0">
+    <div class="dash-card" style="margin-bottom:16px">
+      <div class="dash-card-titulo"><i class="ti ti-git-branch" aria-hidden="true"></i> Pipeline — todos los pedidos activos</div>
+      <div style="display:flex;margin:0 -16px -14px">
         ${pipelineHTML}
       </div>
     </div>
 
-    <!-- Medios de pago + ranking -->
-    <div style="display:grid;grid-template-columns:${esAdmin ? '1fr 2fr' : '1fr'};gap:12px;margin-bottom:20px">
+    <div style="display:grid;grid-template-columns:${esAdmin ? '1fr 2fr' : '1fr'};gap:12px;margin-bottom:16px">
       <div class="dash-card">
         <div class="dash-card-titulo"><i class="ti ti-cash" aria-hidden="true"></i> Cobros por medio — este mes</div>
         ${mediosHTML}
       </div>
-      ${rankingHTML && !esAdmin ? '' : ''}
+      ${esAdmin ? rankingHTML.replace('style="margin-bottom:20px"', 'style="margin-bottom:0"') : ''}
     </div>
 
-    ${rankingHTML}
+    ${!esAdmin ? rankingHTML : ''}
   `
 }
 
 function dashMetrica(icono, label, valor, sub, color) {
   return `
     <div class="dash-card" style="border-top:3px solid ${color}">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-        <i class="ti ${icono}" style="font-size:16px;color:${color}" aria-hidden="true"></i>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <i class="ti ${icono}" style="font-size:14px;color:${color}" aria-hidden="true"></i>
         <span style="font-size:12px;color:var(--color-text-secondary)">${label}</span>
       </div>
-      <div style="font-size:26px;font-weight:700;color:var(--color-text-primary);line-height:1">${valor}</div>
-      <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:6px">${sub}</div>
+      <div style="font-size:24px;font-weight:500;color:var(--color-text-primary);line-height:1">${valor}</div>
+      <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:5px">${sub}</div>
     </div>`
 }
 
@@ -259,60 +306,53 @@ function renderDashAlertas(vencidos, porVencer, atascados, alertasPend) {
 
   if (alertasPend?.length > 0) {
     items.push({
-      color: '#e24b4a', bg: '#fcebeb',
-      icono: 'ti-bell',
-      texto: `<b>${alertasPend.length} problema${alertasPend.length !== 1 ? 's' : ''} de recepción sin responder</b>`,
-      accion: `onclick="togglePanelAlertas()" style="cursor:pointer"`
+      color:'#e24b4a', bg:'#fcebeb', icono:'ti-alert-triangle',
+      texto:`<b>${alertasPend.length} problema${alertasPend.length!==1?'s':''} de recepción sin responder</b>`,
+      accion:`onclick="mostrarSeccion('problemas')" style="cursor:pointer"`
     })
   }
-
   if (vencidos?.length > 0) {
-    const totalVenc = vencidos.reduce((s,p) => s + (Number(p.total) - Number(p.monto_cobrado||0)), 0)
+    const total = vencidos.reduce((s,p) => s+(Number(p.total)-Number(p.monto_cobrado||0)), 0)
     items.push({
-      color: '#e24b4a', bg: '#fcebeb',
-      icono: 'ti-calendar-x',
-      texto: `<b>${vencidos.length} cobro${vencidos.length!==1?'s':''} vencido${vencidos.length!==1?'s':''} — ${fmtM(totalVenc)}</b><br>
-        <span style="font-size:12px">${vencidos.slice(0,3).map(p => `#${p.numero} · ${p.clientes?.razon_social}`).join(' · ')}${vencidos.length>3?' y más...':''}</span>`,
-      accion: `onclick="mostrarSeccion('cobranza');setCobEstado('vencidos')" style="cursor:pointer"`
+      color:'#e24b4a', bg:'#fcebeb', icono:'ti-calendar-x',
+      texto:`<b>${vencidos.length} cobro${vencidos.length!==1?'s':''} vencido${vencidos.length!==1?'s':''} — ${fmtM(total)}</b><br>
+        <span style="font-size:12px">${vencidos.slice(0,3).map(p=>`#${p.numero} · ${p.clientes?.razon_social}`).join(' · ')}${vencidos.length>3?' y más...':''}</span>`,
+      accion:`onclick="mostrarSeccion('cobranza')" style="cursor:pointer"`
     })
   }
-
   if (porVencer?.length > 0) {
-    const totalPV = porVencer.reduce((s,p) => s + (Number(p.total) - Number(p.monto_cobrado||0)), 0)
+    const total = porVencer.reduce((s,p) => s+(Number(p.total)-Number(p.monto_cobrado||0)), 0)
     items.push({
-      color: '#ba7517', bg: '#faeeda',
-      icono: 'ti-clock',
-      texto: `<b>${porVencer.length} cobro${porVencer.length!==1?'s':''} vencen en 7 días — ${fmtM(totalPV)}</b><br>
-        <span style="font-size:12px">${porVencer.slice(0,3).map(p => `#${p.numero} · ${p.clientes?.razon_social} · vence ${formatFecha(p.fecha_vencimiento_cobro)}`).join('<br>')}</span>`,
-      accion: `onclick="mostrarSeccion('cobranza')" style="cursor:pointer"`
+      color:'#ba7517', bg:'#faeeda', icono:'ti-clock',
+      texto:`<b>${porVencer.length} cobro${porVencer.length!==1?'s':''} vencen en 7 días — ${fmtM(total)}</b><br>
+        <span style="font-size:12px">${porVencer.slice(0,3).map(p=>`#${p.numero} · ${p.clientes?.razon_social} · ${formatFecha(p.fecha_vencimiento_cobro)}`).join('<br>')}</span>`,
+      accion:`onclick="mostrarSeccion('cobranza')" style="cursor:pointer"`
     })
   }
-
   if (atascados?.length > 0) {
     items.push({
-      color: '#378add', bg: '#e3f2fd',
-      icono: 'ti-alert-triangle',
-      texto: `<b>${atascados.length} pedido${atascados.length!==1?'s':''} facturado${atascados.length!==1?'s':''} sin enviar hace más de 3 días</b><br>
-        <span style="font-size:12px">${atascados.slice(0,3).map(p => `#${p.numero} · ${p.clientes?.razon_social}`).join(' · ')}</span>`,
-      accion: `onclick="mostrarSeccion('logistica')" style="cursor:pointer"`
+      color:'#378add', bg:'#e3f2fd', icono:'ti-alert-triangle',
+      texto:`<b>${atascados.length} pedido${atascados.length!==1?'s':''} facturado${atascados.length!==1?'s':''} sin enviar hace +3 días</b><br>
+        <span style="font-size:12px">${atascados.slice(0,3).map(p=>`#${p.numero} · ${p.clientes?.razon_social}`).join(' · ')}</span>`,
+      accion:`onclick="mostrarSeccion('logistica')" style="cursor:pointer"`
     })
   }
 
   if (items.length === 0) return `
-    <div style="background:#e1f5ee;border-radius:10px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px;font-size:13px;color:#085041">
-      <i class="ti ti-circle-check" style="font-size:16px" aria-hidden="true"></i>
+    <div style="background:#e1f5ee;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:8px;font-size:13px;color:#085041">
+      <i class="ti ti-circle-check" style="font-size:15px" aria-hidden="true"></i>
       Todo al día — sin alertas urgentes
     </div>`
 
   return items.map(a => `
-    <div ${a.accion} style="background:${a.bg};border-radius:10px;padding:12px 16px;margin-bottom:10px;display:flex;align-items:flex-start;gap:10px;font-size:13px;color:${a.color};border-left:3px solid ${a.color}">
-      <i class="ti ${a.icono}" style="font-size:16px;margin-top:1px;flex-shrink:0" aria-hidden="true"></i>
+    <div ${a.accion} style="background:${a.bg};border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:flex-start;gap:8px;font-size:13px;color:${a.color};border-left:3px solid ${a.color}">
+      <i class="ti ${a.icono}" style="font-size:14px;margin-top:1px;flex-shrink:0" aria-hidden="true"></i>
       <div>${a.texto}</div>
     </div>`).join('')
 }
 
 function fmtM(n) {
-  return '$' + Number(n||0).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+  return '$' + Number(n||0).toLocaleString('es-AR', { minimumFractionDigits:0, maximumFractionDigits:0 })
 }
 
 // ── PEDIDOS ──────────────────────────────────────
