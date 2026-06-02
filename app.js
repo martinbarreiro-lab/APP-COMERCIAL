@@ -308,7 +308,7 @@ function renderDashAlertas(vencidos, porVencer, atascados, alertasPend) {
     items.push({
       color:'#e24b4a', bg:'#fcebeb', icono:'ti-alert-triangle',
       texto:`<b>${alertasPend.length} problema${alertasPend.length!==1?'s':''} de recepción sin responder</b>`,
-      accion:`onclick="mostrarSeccion('problemas')" style="cursor:pointer"`
+      onclick:`onclick="mostrarSeccion('problemas')"`
     })
   }
   if (vencidos?.length > 0) {
@@ -317,7 +317,7 @@ function renderDashAlertas(vencidos, porVencer, atascados, alertasPend) {
       color:'#e24b4a', bg:'#fcebeb', icono:'ti-calendar-x',
       texto:`<b>${vencidos.length} cobro${vencidos.length!==1?'s':''} vencido${vencidos.length!==1?'s':''} — ${fmtM(total)}</b><br>
         <span style="font-size:12px">${vencidos.slice(0,3).map(p=>`#${p.numero} · ${p.clientes?.razon_social}`).join(' · ')}${vencidos.length>3?' y más...':''}</span>`,
-      accion:`onclick="mostrarSeccion('cobranza')" style="cursor:pointer"`
+      onclick:`onclick="mostrarSeccion('cobranza')"`
     })
   }
   if (porVencer?.length > 0) {
@@ -326,7 +326,7 @@ function renderDashAlertas(vencidos, porVencer, atascados, alertasPend) {
       color:'#ba7517', bg:'#faeeda', icono:'ti-clock',
       texto:`<b>${porVencer.length} cobro${porVencer.length!==1?'s':''} vencen en 7 días — ${fmtM(total)}</b><br>
         <span style="font-size:12px">${porVencer.slice(0,3).map(p=>`#${p.numero} · ${p.clientes?.razon_social} · ${formatFecha(p.fecha_vencimiento_cobro)}`).join('<br>')}</span>`,
-      accion:`onclick="mostrarSeccion('cobranza')" style="cursor:pointer"`
+      onclick:`onclick="mostrarSeccion('cobranza')"`
     })
   }
   if (atascados?.length > 0) {
@@ -334,7 +334,7 @@ function renderDashAlertas(vencidos, porVencer, atascados, alertasPend) {
       color:'#378add', bg:'#e3f2fd', icono:'ti-alert-triangle',
       texto:`<b>${atascados.length} pedido${atascados.length!==1?'s':''} facturado${atascados.length!==1?'s':''} sin enviar hace +3 días</b><br>
         <span style="font-size:12px">${atascados.slice(0,3).map(p=>`#${p.numero} · ${p.clientes?.razon_social}`).join(' · ')}</span>`,
-      accion:`onclick="mostrarSeccion('logistica')" style="cursor:pointer"`
+      onclick:`onclick="mostrarSeccion('logistica')"`
     })
   }
 
@@ -345,7 +345,7 @@ function renderDashAlertas(vencidos, porVencer, atascados, alertasPend) {
     </div>`
 
   return items.map(a => `
-    <div ${a.accion} style="background:${a.bg};border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:flex-start;gap:8px;font-size:13px;color:${a.color};border-left:3px solid ${a.color}">
+    <div ${a.onclick} style="background:${a.bg};border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:flex-start;gap:8px;font-size:13px;color:${a.color};border-left:3px solid ${a.color};cursor:pointer">
       <i class="ti ${a.icono}" style="font-size:14px;margin-top:1px;flex-shrink:0" aria-hidden="true"></i>
       <div>${a.texto}</div>
     </div>`).join('')
