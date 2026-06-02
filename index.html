@@ -62,7 +62,8 @@
         <button onclick="mostrarSeccion('dashboard')" class="nav-btn" id="nav-dashboard">📊 Dashboard</button>
         <button onclick="mostrarSeccion('pedidos')"   class="nav-btn" id="nav-pedidos">📦 Pedidos</button>
         <button onclick="mostrarSeccion('cobranza')"  class="nav-btn" id="nav-cobranza">💰 Cobranza</button>
-        <button onclick="mostrarSeccion('logistica')" class="nav-btn" id="nav-logistica">🚚 Logística</button>
+        <button onclick="mostrarSeccion('logistica')\" class="nav-btn" id="nav-logistica">🚚 Logística</button>
+        <button onclick="mostrarSeccion('problemas')" class="nav-btn" id="nav-problemas">⚠️ Problemas <span id="nav-problemas-badge" style="display:none;background:#e24b4a;color:white;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px"></span></button>
         <button onclick="mostrarSeccion('clientes')"  class="nav-btn" id="nav-clientes">👥 Clientes</button>
         <button onclick="mostrarSeccion('productos')" class="nav-btn" id="nav-productos">🧀 Productos</button>
       </nav>
@@ -274,6 +275,28 @@
           </div>
           <div id="log-envios-activos"></div>
 
+        </section>
+
+        <!-- PROBLEMAS DE RECEPCIÓN -->
+        <section id="seccion-problemas" class="seccion" style="display:none">
+          <div class="seccion-header">
+            <h2>Problemas de recepción</h2>
+          </div>
+
+          <!-- Tabs -->
+          <div style="display:flex;gap:0;border-bottom:2px solid var(--color-border-tertiary);margin-bottom:20px">
+            <button id="tab-pendientes" onclick="switchTabProblemas('pendientes')"
+              style="padding:10px 20px;border:none;background:none;font-size:13px;font-weight:600;cursor:pointer;color:#185fa5;border-bottom:2px solid #185fa5;margin-bottom:-2px">
+              Pendientes <span id="badge-tab-pendientes" style="background:#e24b4a;color:white;border-radius:10px;font-size:10px;padding:1px 6px;margin-left:4px"></span>
+            </button>
+            <button id="tab-resueltos" onclick="switchTabProblemas('resueltos')"
+              style="padding:10px 20px;border:none;background:none;font-size:13px;font-weight:500;cursor:pointer;color:var(--color-text-secondary)">
+              Resueltos
+            </button>
+          </div>
+
+          <div id="problemas-pendientes-lista"></div>
+          <div id="problemas-resueltos-lista" style="display:none"></div>
         </section>
 
         <!-- CLIENTES -->
