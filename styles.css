@@ -567,6 +567,11 @@ body { background:#f0f2f5; color:#1a1a1a; }
   /* Tablas con scroll horizontal */
   .seccion table { display:block; overflow-x:auto; white-space:nowrap; }
 
+  /* Kanban de pedidos: apilar etapas en una sola columna */
+  .kanban-board { grid-template-columns:1fr !important; gap:0 !important; overflow-x:visible !important; }
+  .kanban-col { min-width:0 !important; margin-bottom:16px; }
+  .kanban-col-header { position:sticky; top:0; z-index:5; }
+
   /* Modales ocupan casi toda la pantalla */
   #modal-recibido > div,
   #modal-cobro > div,
