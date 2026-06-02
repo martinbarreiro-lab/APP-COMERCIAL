@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%230d8fd1'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E%F0%9F%A5%9B%3C/text%3E%3C/svg%3E">
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="styles.css?v=12">
+  <link rel="stylesheet" href="styles.css?v=13">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script>
@@ -85,6 +85,7 @@
         <button onclick="mostrarSeccion('problemas')" class="nav-btn" id="nav-problemas">⚠️ Problemas <span id="nav-problemas-badge" style="display:none;background:#e24b4a;color:white;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px"></span></button>
         <button onclick="mostrarSeccion('clientes')"  class="nav-btn" id="nav-clientes">👥 Clientes</button>
         <button onclick="mostrarSeccion('productos')" class="nav-btn" id="nav-productos">🧀 Productos</button>
+        <button onclick="mostrarSeccion('reportes')" class="nav-btn" id="nav-reportes">📊 Reportes</button>
       </nav>
 
       <main id="contenido-principal">
@@ -422,6 +423,56 @@
 
         </section>
 
+        <!-- REPORTES -->
+        <section id="seccion-reportes" class="seccion" style="display:none">
+          <div class="seccion-header"><h2>Reportes</h2></div>
+
+          <!-- Período -->
+          <div id="rep-periodo" style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;flex-wrap:wrap">
+            <button class="rep-per-chip activo" data-per="mes" onclick="setRepPeriodo('mes')">Este mes</button>
+            <button class="rep-per-chip" data-per="mes_ant" onclick="setRepPeriodo('mes_ant')">Mes pasado</button>
+            <button class="rep-per-chip" data-per="3meses" onclick="setRepPeriodo('3meses')">3 meses</button>
+            <button class="rep-per-chip" data-per="custom" onclick="setRepPeriodo('custom')">📅 Fechas</button>
+          </div>
+          <div id="rep-fechas-custom" style="display:none;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <input type="date" id="rep-fecha-desde" class="filtro-input-fecha" onchange="cargarReporte()">
+            <input type="date" id="rep-fecha-hasta" class="filtro-input-fecha" onchange="cargarReporte()">
+          </div>
+
+          <!-- Tabs de reporte -->
+          <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto">
+            <button class="rep-tab-btn activo" data-rep="cliente" onclick="setRepTipo('cliente')"><i class="ti ti-users" aria-hidden="true"></i> Cliente</button>
+            <button class="rep-tab-btn" data-rep="vendedor" onclick="setRepTipo('vendedor')"><i class="ti ti-user-star" aria-hidden="true"></i> Vendedor</button>
+            <button class="rep-tab-btn" data-rep="productos" onclick="setRepTipo('productos')"><i class="ti ti-package" aria-hidden="true"></i> Productos</button>
+            <button class="rep-tab-btn" data-rep="cobranzas" onclick="setRepTipo('cobranzas')"><i class="ti ti-cash" aria-hidden="true"></i> Cobranzas</button>
+          </div>
+
+          <!-- Selector individual (solo cliente/vendedor) -->
+          <div id="rep-selector-wrap" style="position:relative;margin-bottom:12px">
+            <div id="rep-selector-display" onclick="toggleRepSelector()"
+              style="background:#fff;border:1px solid var(--color-border-secondary);border-radius:8px;padding:10px 12px;font-size:13px;display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+              <span id="rep-selector-label" style="color:var(--color-marca);font-weight:600">Todos</span>
+              <i class="ti ti-chevron-down" style="color:var(--color-text-tertiary)" aria-hidden="true"></i>
+            </div>
+            <div id="rep-selector-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:500;background:#fff;border:1px solid var(--color-border-secondary);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.18);max-height:280px;overflow-y:auto">
+              <div style="padding:8px;position:sticky;top:0;background:#fff;border-bottom:0.5px solid var(--color-border-tertiary)">
+                <input type="search" id="rep-selector-buscar" placeholder="Buscar..." oninput="filtrarRepSelector()" autocomplete="new-password"
+                  style="width:100%;padding:7px 10px;border:0.5px solid var(--color-border-tertiary);border-radius:8px;font-size:13px;outline:none">
+              </div>
+              <div id="rep-selector-lista"></div>
+            </div>
+          </div>
+
+          <!-- Exportar -->
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <button onclick="exportarReporteExcel()" class="btn-exportar-rep"><i class="ti ti-file-spreadsheet" aria-hidden="true"></i> Excel</button>
+            <button onclick="exportarReportePDF()" class="btn-exportar-rep"><i class="ti ti-printer" aria-hidden="true"></i> PDF</button>
+          </div>
+
+          <!-- Contenido del reporte -->
+          <div id="rep-contenido"></div>
+        </section>
+
       </main>
     </div>
 
@@ -451,6 +502,9 @@
       <div class="mobile-more-item" onclick="navMovil('problemas')">
         <i class="ti ti-alert-hexagon" aria-hidden="true"></i> Problemas de recepción
         <span id="more-problemas-badge" style="display:none;background:#e24b4a;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 7px;margin-left:auto"></span>
+      </div>
+      <div class="mobile-more-item" onclick="navMovil('reportes')">
+        <i class="ti ti-chart-bar" aria-hidden="true"></i> Reportes
       </div>
       <div class="mobile-more-item" onclick="navMovil('clientes')">
         <i class="ti ti-users" aria-hidden="true"></i> Clientes
@@ -595,6 +649,6 @@
           </div>
 
 
-  <script src="app.js?v=12"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>
