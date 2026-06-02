@@ -398,8 +398,8 @@ function renderizarListaClientes(clientes) {
     <div class="cliente-card" onclick="abrirFichaCliente('${c.id}')">
       <div class="cliente-card-info">
         <div class="cliente-nombre">${c.razon_social}</div>
-        <div class="cliente-tel">📞 ${c.telefono || 'Sin teléfono'}
-          ${waLink(c.telefono) ? `<a href="${waLink(c.telefono)}" onclick="event.stopPropagation()" target="_blank" class="btn-whatsapp">💬 WhatsApp</a>` : ''}
+        <div class="cliente-tel"><i class="ti ti-phone" aria-hidden="true"></i> ${c.telefono || 'Sin teléfono'}
+          ${waLink(c.telefono) ? `<a href="${waLink(c.telefono)}" onclick="event.stopPropagation()" target="_blank" class="btn-whatsapp-texto"><i class="ti ti-brand-whatsapp" aria-hidden="true"></i> WhatsApp</a>` : ''}
         </div>
         <div class="cliente-saldo ${Number(c.saldo_pendiente) > 0 ? 'saldo-deuda' : 'saldo-ok'}">
           ${Number(c.saldo_pendiente) > 0 ? '💰 Saldo: $' + Number(c.saldo_pendiente).toLocaleString('es-AR') + ' pendiente' : '✅ Sin deuda'}
@@ -425,7 +425,7 @@ async function abrirFichaCliente(id) {
       ${c.activo ? '<span class="badge badge-verde">Activo</span>' : '<span class="badge badge-rojo">Inactivo</span>'}
       <div class="form-seccion">DATOS BÁSICOS</div>
       <div class="ficha-fila"><span>CUIT</span><span>${c.cuit || '-'}</span></div>
-      <div class="ficha-fila"><span>Teléfono</span><span>${c.telefono || '-'} ${waLink(c.telefono) ? `<a href="${waLink(c.telefono)}" target="_blank" class="btn-whatsapp">💬</a>` : ''}</span></div>
+      <div class="ficha-fila"><span>Teléfono</span><span>${c.telefono || '-'} ${waLink(c.telefono) ? `<a href="${waLink(c.telefono)}" target="_blank" class="btn-whatsapp"><i class="ti ti-brand-whatsapp" aria-hidden="true"></i></a>` : ''}</span></div>
       <div class="ficha-fila"><span>Email</span><span>${c.email || '-'}</span></div>
       <div class="ficha-fila"><span>Dirección</span><span>${c.direccion || '-'}</span></div>
       <div class="ficha-fila"><span>Localidad</span><span>${c.localidad || '-'}, ${c.provincia || '-'}</span></div>
