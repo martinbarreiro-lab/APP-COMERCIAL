@@ -1652,7 +1652,7 @@ async function confirmarRecepcion() {
         pedidosEnvio.every(pe => pe.pedidos?.etapa === 'recibido')
 
       if (todosRecibidos) {
-        await db.from('envios').update({ estado: 'completado' }).eq('id', v.envio_id)
+        await marcarEnvioCompletado(v.envio_id)
       }
 
       // Recargar el detalle del envío que estaba abierto
@@ -2914,13 +2914,11 @@ async function cargarLogistica() {
 async function renderStatsLogistica() {
   const hoy = new Date().toISOString().split('T')[0]
 
-  const [{ data: enCamino }, entregadosRes, { data: sinAsignar }] = await Promise.all([
+  const [{ data: enCamino }, { data: entregadosHoy }, { data: sinAsignar }] = await Promise.all([
     db.from('envios').select('id').eq('estado', 'en_camino'),
-    db.from('pedidos').select('id').eq('etapa', 'recibido').gte('updated_at', hoy).catch(() => ({ data: [] })),
+    db.from('pedidos').select('id').eq('etapa', 'recibido').gte('updated_at', hoy),
     db.from('pedidos').select('id').eq('etapa', 'facturado')
   ])
-
-  const entregadosHoy = entregadosRes?.data || []
 
   document.getElementById('log-stats').innerHTML = `
     <div class="cob-stats-grid">
@@ -3135,6 +3133,11 @@ async function renderEnviosActivos() {
   }
 }
 
+async function marcarEnvioCompletado(envioId) {
+  const { error } = await db.from('envios').update({ estado: 'entregado' }).eq('id', envioId)
+  if (error) console.warn('No se pudo actualizar estado del envío:', error.message)
+}
+
 async function cargarPedidosPreview(envioId) {
   const { data: items } = await db.from('envio_pedidos')
     .select('pedidos(id, numero, etapa, clientes(razon_social))')
@@ -3154,8 +3157,8 @@ async function cargarPedidosPreview(envioId) {
       badgeEl.textContent = 'Entregado'
       badgeEl.className = 'badge badge-verde'
       if (cardEl) cardEl.style.borderLeftColor = '#1d9e75'
-      // Actualizar en DB si aún no está completado
-      db.from('envios').update({ estado: 'completado' }).eq('id', envioId).then(() => {})
+      // Actualizar en DB — probar 'entregado', si falla el estado se queda visual
+      marcarEnvioCompletado(envioId)
     } else if (entregados > 0) {
       badgeEl.textContent = `${entregados}/${total} entregados`
       badgeEl.className = 'badge badge-amarillo'
@@ -3341,7 +3344,7 @@ async function cargarPedidosDeEnvio(envioId) {
 async function cerrarEnvio(envioId) {
   const ok = confirm('¿Cerrar este envío? Se marcará como completado.')
   if (!ok) return
-  await db.from('envios').update({ estado: 'completado' }).eq('id', envioId)
+  await marcarEnvioCompletado(envioId)
   await cargarLogistica()
 }
 
