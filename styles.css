@@ -703,3 +703,31 @@ body { background:#f0f2f5; color:#1a1a1a; }
   .mobile-more-item:last-child { border-bottom:none; }
   .mobile-more-item i { font-size:20px; color:var(--color-marca); }
 }
+
+/* ── REPORTES ──────────────────────────────────── */
+.rep-per-chip { background:#fff; border:0.5px solid var(--color-border-tertiary); border-radius:20px; padding:6px 14px; font-size:12px; color:var(--color-text-secondary); cursor:pointer; white-space:nowrap; }
+.rep-per-chip.activo { background:var(--color-marca); color:#fff; border-color:var(--color-marca); }
+.rep-tab-btn { background:#fff; border:0.5px solid var(--color-border-tertiary); border-radius:8px; padding:8px 12px; font-size:12px; color:var(--color-text-secondary); cursor:pointer; white-space:nowrap; display:flex; align-items:center; gap:5px; }
+.rep-tab-btn.activo { background:var(--color-marca-oscuro); color:#fff; border-color:var(--color-marca-oscuro); }
+.btn-exportar-rep { flex:1; background:#fff; border:0.5px solid var(--color-border-tertiary); border-radius:8px; padding:9px; font-size:12px; color:var(--color-text-secondary); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px; }
+.btn-exportar-rep:hover { background:var(--color-marca-claro); color:var(--color-marca-oscuro); border-color:var(--color-marca); }
+.rep-resumen { background:var(--color-marca-claro); border-radius:10px; padding:14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; }
+.rep-resumen-l { font-size:11px; color:var(--color-marca-oscuro); }
+.rep-resumen-v { font-size:20px; font-weight:700; color:var(--color-marca-oscuro); }
+.rep-fila { background:#fff; border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:12px; margin-bottom:8px; display:flex; align-items:center; gap:12px; }
+.rep-rank { width:26px; height:26px; border-radius:50%; background:var(--color-marca-claro); color:var(--color-marca-oscuro); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; }
+.rep-fila-info { flex:1; min-width:0; }
+.rep-fila-nombre { font-size:13px; font-weight:600; }
+.rep-fila-detalle { font-size:11px; color:var(--color-text-tertiary); margin-top:2px; }
+.rep-fila-bar { height:4px; background:var(--color-border-tertiary); border-radius:2px; margin-top:5px; }
+.rep-fila-bar-fill { height:4px; background:var(--color-marca); border-radius:2px; }
+.rep-fila-monto { font-size:14px; font-weight:600; color:var(--color-marca-oscuro); white-space:nowrap; }
+.rep-kpi3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:14px; }
+.rep-kpi { background:#fff; border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:12px; text-align:center; }
+.rep-kpi-v { font-size:15px; font-weight:700; color:var(--color-marca-oscuro); }
+.rep-kpi-l { font-size:10px; color:var(--color-text-tertiary); margin-top:3px; }
+.rep-subtitulo { font-size:11px; font-weight:600; color:var(--color-text-secondary); margin:16px 0 8px; letter-spacing:0.03em; }
+.rep-det-fila { background:#fff; border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:11px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; font-size:13px; }
+.rep-det-sub { font-size:11px; color:var(--color-text-tertiary); margin-top:2px; }
+.rep-badge-v { background:#e8f5e9; color:#1d6a4f; border-radius:6px; font-size:10px; padding:2px 8px; }
+.rep-badge-p { background:#faeeda; color:#633806; border-radius:6px; font-size:10px; padding:2px 8px; }
