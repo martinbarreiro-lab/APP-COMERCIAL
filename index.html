@@ -2,11 +2,29 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>La Cabaña — Sistema de Gestión</title>
-  <link rel="stylesheet" href="styles.css?v=7">
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d8fd1">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="La Cabaña">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%230d8fd1'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E%F0%9F%A5%9B%3C/text%3E%3C/svg%3E">
+
+  <link rel="stylesheet" href="styles.css?v=8">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
+  <script>
+    // Registrar service worker para que la app sea instalable
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {})
+      })
+    }
+  </script>
 </head>
 <body>
 
@@ -27,7 +45,7 @@
   <!-- APP -->
   <div id="pantalla-app" style="display:none">
     <div class="topbar">
-      <div class="topbar-titulo">🥛 La Cabaña</div>
+      <div class="topbar-titulo">🥛 La Cabaña<small>Cooperativa de Trabajo</small></div>
       <div class="topbar-usuario">
         <span id="nombre-usuario"></span>
 
@@ -405,6 +423,39 @@
 
       </main>
     </div>
+
+    <!-- ── BARRA DE NAVEGACIÓN INFERIOR (solo móvil) ── -->
+    <nav class="bottom-nav">
+      <button class="bottom-nav-btn activo" id="bnav-dashboard" onclick="navMovil('dashboard')">
+        <i class="ti ti-layout-dashboard" aria-hidden="true"></i>Inicio
+      </button>
+      <button class="bottom-nav-btn" id="bnav-pedidos" onclick="navMovil('pedidos')">
+        <i class="ti ti-package" aria-hidden="true"></i>Pedidos
+      </button>
+      <button class="bottom-nav-btn" id="bnav-cobranza" onclick="navMovil('cobranza')">
+        <i class="ti ti-cash" aria-hidden="true"></i>Cobranza
+      </button>
+      <button class="bottom-nav-btn" id="bnav-problemas" onclick="navMovil('problemas')">
+        <i class="ti ti-alert-triangle" aria-hidden="true"></i>Problemas
+        <span class="bottom-nav-badge" id="bnav-problemas-badge" style="display:none"></span>
+      </button>
+      <button class="bottom-nav-btn" id="bnav-mas" onclick="toggleMobileMore()">
+        <i class="ti ti-dots" aria-hidden="true"></i>Más
+      </button>
+    </nav>
+
+    <!-- Hoja "Más" -->
+    <div class="mobile-more-sheet" id="mobile-more-sheet">
+      <div class="mobile-more-item" onclick="navMovil('logistica')">
+        <i class="ti ti-truck" aria-hidden="true"></i> Logística
+      </div>
+      <div class="mobile-more-item" onclick="navMovil('clientes')">
+        <i class="ti ti-users" aria-hidden="true"></i> Clientes
+      </div>
+      <div class="mobile-more-item" onclick="navMovil('productos')">
+        <i class="ti ti-cheese" aria-hidden="true"></i> Productos
+      </div>
+    </div>
   </div>
 
           <!-- Modal confirmar recepción -->
@@ -541,6 +592,6 @@
           </div>
 
 
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>
