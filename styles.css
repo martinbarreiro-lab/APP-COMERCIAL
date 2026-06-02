@@ -117,12 +117,14 @@ body { background:#f0f2f5; color:#1a1a1a; }
 .cliente-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.12); transform:translateY(-1px); }
 .cliente-card-info { flex:1; }
 .cliente-nombre { font-size:16px; font-weight:bold; color:#1a1a1a; margin-bottom:4px; }
-.cliente-tel { font-size:13px; color:#666; margin-bottom:4px; display:flex; align-items:center; gap:8px; }
+.cliente-tel { font-size:13px; color:#666; margin-bottom:4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .cliente-saldo { font-size:13px; font-weight:bold; }
 .saldo-deuda { color:#c00; }
 .saldo-ok { color:#2d6a4f; }
 .cliente-card-arrow { font-size:24px; color:#ccc; margin-left:12px; }
-.btn-whatsapp { background:#25d366; color:white; padding:3px 10px; border-radius:20px; text-decoration:none; font-size:12px; font-weight:bold; }
+.btn-whatsapp-texto { background:#25d366; color:white; padding:4px 12px; border-radius:20px; text-decoration:none; font-size:12px; font-weight:bold; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
+.btn-whatsapp-texto:hover { background:#1eb858; }
+.btn-whatsapp-texto i { font-size:14px; }
 
 /* ── TARJETAS PEDIDOS ── */
 .pedido-card { background:white; border-radius:12px; padding:16px 20px; margin-bottom:10px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.06); transition:all 0.2s; }
