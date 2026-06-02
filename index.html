@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="La Cabaña">
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%230d8fd1'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E%F0%9F%A5%9B%3C/text%3E%3C/svg%3E">
 
-  <link rel="stylesheet" href="styles.css?v=8">
+  <link rel="stylesheet" href="styles.css?v=9">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script>
@@ -427,27 +427,29 @@
     <!-- ── BARRA DE NAVEGACIÓN INFERIOR (solo móvil) ── -->
     <nav class="bottom-nav">
       <button class="bottom-nav-btn activo" id="bnav-dashboard" onclick="navMovil('dashboard')">
-        <i class="ti ti-layout-dashboard" aria-hidden="true"></i>Inicio
+        <i class="ti ti-home" aria-hidden="true"></i>Inicio
       </button>
       <button class="bottom-nav-btn" id="bnav-pedidos" onclick="navMovil('pedidos')">
-        <i class="ti ti-package" aria-hidden="true"></i>Pedidos
+        <i class="ti ti-clipboard-list" aria-hidden="true"></i>Pedidos
+      </button>
+      <button class="bottom-nav-btn" id="bnav-logistica" onclick="navMovil('logistica')">
+        <i class="ti ti-truck" aria-hidden="true"></i>Logística
       </button>
       <button class="bottom-nav-btn" id="bnav-cobranza" onclick="navMovil('cobranza')">
-        <i class="ti ti-cash" aria-hidden="true"></i>Cobranza
-      </button>
-      <button class="bottom-nav-btn" id="bnav-problemas" onclick="navMovil('problemas')">
-        <i class="ti ti-alert-triangle" aria-hidden="true"></i>Problemas
-        <span class="bottom-nav-badge" id="bnav-problemas-badge" style="display:none"></span>
+        <i class="ti ti-wallet" aria-hidden="true"></i>Cobranza
       </button>
       <button class="bottom-nav-btn" id="bnav-mas" onclick="toggleMobileMore()">
-        <i class="ti ti-dots" aria-hidden="true"></i>Más
+        <i class="ti ti-menu-2" aria-hidden="true"></i>Más
+        <span class="bottom-nav-badge" id="bnav-mas-badge" style="display:none"></span>
       </button>
     </nav>
 
     <!-- Hoja "Más" -->
     <div class="mobile-more-sheet" id="mobile-more-sheet">
-      <div class="mobile-more-item" onclick="navMovil('logistica')">
-        <i class="ti ti-truck" aria-hidden="true"></i> Logística
+      <div style="width:36px;height:4px;background:var(--color-border-tertiary);border-radius:2px;margin:4px auto 10px"></div>
+      <div class="mobile-more-item" onclick="navMovil('problemas')">
+        <i class="ti ti-alert-hexagon" aria-hidden="true"></i> Problemas de recepción
+        <span id="more-problemas-badge" style="display:none;background:#e24b4a;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 7px;margin-left:auto"></span>
       </div>
       <div class="mobile-more-item" onclick="navMovil('clientes')">
         <i class="ti ti-users" aria-hidden="true"></i> Clientes
@@ -592,6 +594,6 @@
           </div>
 
 
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>
