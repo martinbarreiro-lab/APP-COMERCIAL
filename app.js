@@ -61,6 +61,7 @@ function mostrarSeccion(nombre) {
   if (nombre === 'problemas') cargarProblemas()
   if (nombre === 'clientes')  cargarClientes()
   if (nombre === 'productos') cargarProductos()
+  if (nombre === 'reportes')  cargarReportes()
 }
 
 // ── DASHBOARD ────────────────────────────────────
@@ -4026,3 +4027,425 @@ actualizarBadgeProblemas = function(count) {
     moreBadge.style.display = count > 0 ? 'inline' : 'none'
   }
 }
+
+
+// ================================================
+// SECCIÓN REPORTES
+// ================================================
+let _repPeriodo = 'mes'
+let _repTipo    = 'cliente'
+let _repSelId   = null        // id de cliente/vendedor seleccionado (null = todos)
+let _repSelNombre = 'Todos'
+let _repData    = []          // datos actuales para exportar
+let _repTitulo  = ''
+let _repSelectorCache = []
+
+async function cargarReportes() {
+  _repPeriodo = 'mes'; _repTipo = 'cliente'; _repSelId = null; _repSelNombre = 'Todos'
+  // reset chips
+  document.querySelectorAll('.rep-per-chip').forEach(c => c.classList.toggle('activo', c.dataset.per === 'mes'))
+  document.querySelectorAll('.rep-tab-btn').forEach(c => c.classList.toggle('activo', c.dataset.rep === 'cliente'))
+  document.getElementById('rep-fechas-custom').style.display = 'none'
+  await cargarReporte()
+}
+
+function getRepRango() {
+  const hoy = new Date()
+  let desde, hasta
+  if (_repPeriodo === 'mes') {
+    desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1)
+    hasta = new Date()
+  } else if (_repPeriodo === 'mes_ant') {
+    desde = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1)
+    hasta = new Date(hoy.getFullYear(), hoy.getMonth(), 0, 23, 59, 59)
+  } else if (_repPeriodo === '3meses') {
+    desde = new Date(hoy.getFullYear(), hoy.getMonth() - 2, 1)
+    hasta = new Date()
+  } else { // custom
+    const d = document.getElementById('rep-fecha-desde').value
+    const h = document.getElementById('rep-fecha-hasta').value
+    desde = d ? new Date(d) : new Date(hoy.getFullYear(), hoy.getMonth(), 1)
+    hasta = h ? new Date(h + 'T23:59:59') : new Date()
+  }
+  return { desde: desde.toISOString(), hasta: hasta.toISOString() }
+}
+
+function setRepPeriodo(per) {
+  _repPeriodo = per
+  document.querySelectorAll('.rep-per-chip').forEach(c => c.classList.toggle('activo', c.dataset.per === per))
+  document.getElementById('rep-fechas-custom').style.display = per === 'custom' ? 'flex' : 'none'
+  if (per !== 'custom') cargarReporte()
+}
+
+function setRepTipo(tipo) {
+  _repTipo = tipo
+  _repSelId = null; _repSelNombre = 'Todos'
+  document.querySelectorAll('.rep-tab-btn').forEach(c => c.classList.toggle('activo', c.dataset.rep === tipo))
+  // El selector individual solo aplica a cliente y vendedor
+  const wrap = document.getElementById('rep-selector-wrap')
+  wrap.style.display = (tipo === 'cliente' || tipo === 'vendedor') ? 'block' : 'none'
+  document.getElementById('rep-selector-label').textContent = 'Todos'
+  cargarReporte()
+}
+
+async function toggleRepSelector() {
+  const dd = document.getElementById('rep-selector-dropdown')
+  const visible = dd.style.display !== 'none'
+  dd.style.display = visible ? 'none' : 'block'
+  if (!visible) {
+    // Cargar lista de clientes o vendedores
+    const lista = document.getElementById('rep-selector-lista')
+    if (_repTipo === 'cliente') {
+      const { data } = await db.from('clientes').select('id, razon_social').order('razon_social')
+      _repSelectorCache = (data || []).map(c => ({ id: c.id, nombre: c.razon_social }))
+    } else {
+      const { data } = await db.from('perfiles').select('id, nombre_completo').neq('rol', 'cliente').order('nombre_completo')
+      _repSelectorCache = (data || []).map(v => ({ id: v.id, nombre: v.nombre_completo }))
+    }
+    renderRepSelectorLista(_repSelectorCache)
+  }
+}
+
+function renderRepSelectorLista(items) {
+  const lista = document.getElementById('rep-selector-lista')
+  const tipoLabel = _repTipo === 'cliente' ? 'los clientes' : 'los vendedores'
+  lista.innerHTML = `<div onclick="seleccionarRep(null,'Todos')" class="cob-dropdown-item">Todos ${tipoLabel}</div>` +
+    items.map(i => `<div onclick="seleccionarRep('${i.id}','${i.nombre.replace(/'/g,"\\'")}')" class="cob-dropdown-item">${i.nombre}</div>`).join('')
+}
+
+function filtrarRepSelector() {
+  const q = document.getElementById('rep-selector-buscar').value.toLowerCase()
+  renderRepSelectorLista(_repSelectorCache.filter(i => i.nombre.toLowerCase().includes(q)))
+}
+
+function seleccionarRep(id, nombre) {
+  _repSelId = id
+  _repSelNombre = nombre
+  document.getElementById('rep-selector-label').textContent = nombre
+  document.getElementById('rep-selector-dropdown').style.display = 'none'
+  cargarReporte()
+}
+
+async function cargarReporte() {
+  const el = document.getElementById('rep-contenido')
+  el.innerHTML = '<p style="color:var(--color-text-tertiary);font-size:13px;padding:20px;text-align:center">Generando reporte...</p>'
+  const { desde, hasta } = getRepRango()
+
+  try {
+    if (_repTipo === 'cliente')   await reporteCliente(desde, hasta)
+    else if (_repTipo === 'vendedor')  await reporteVendedor(desde, hasta)
+    else if (_repTipo === 'productos') await reporteProductos(desde, hasta)
+    else if (_repTipo === 'cobranzas') await reporteCobranzas(desde, hasta)
+  } catch (e) {
+    console.error('Error en reporte:', e)
+    el.innerHTML = '<p style="color:#e24b4a;font-size:13px;padding:20px;text-align:center">Error al generar el reporte</p>'
+  }
+}
+
+// ── REPORTE CLIENTE ──
+async function reporteCliente(desde, hasta) {
+  if (_repSelId) return reporteClienteIndividual(desde, hasta)
+
+  // General: ranking de todos
+  const { data: pedidos } = await db.from('pedidos')
+    .select('total, monto_cobrado, estado_cobro, cliente_id, clientes(razon_social)')
+    .gte('created_at', desde).lte('created_at', hasta).neq('estado', 'cancelado')
+
+  const map = {}
+  for (const p of (pedidos || [])) {
+    const k = p.cliente_id
+    if (!k) continue
+    if (!map[k]) map[k] = { nombre: p.clientes?.razon_social || '-', facturado:0, cobrado:0, pedidos:0 }
+    map[k].facturado += Number(p.total)
+    map[k].cobrado   += Number(p.monto_cobrado || 0)
+    map[k].pedidos   += 1
+  }
+  const ranking = Object.values(map).sort((a,b) => b.facturado - a.facturado)
+  const totalFact = ranking.reduce((s,r) => s+r.facturado, 0)
+  const maxFact = ranking[0]?.facturado || 1
+
+  _repData = ranking.map((r,i) => ({ '#': i+1, Cliente: r.nombre, Pedidos: r.pedidos, Facturado: r.facturado, Cobrado: r.cobrado, 'Pendiente': r.facturado - r.cobrado }))
+  _repTitulo = 'Ventas por cliente'
+
+  document.getElementById('rep-contenido').innerHTML = `
+    <div class="rep-resumen">
+      <div><div class="rep-resumen-l">Total facturado</div><div class="rep-resumen-v">${fmtM(totalFact)}</div></div>
+      <div style="text-align:right"><div class="rep-resumen-l">Clientes</div><div class="rep-resumen-v" style="font-size:15px">${ranking.length}</div></div>
+    </div>
+    ${ranking.length === 0 ? '<p class="vacio">Sin ventas en el período</p>' : ranking.map((r,i) => {
+      const pct = r.facturado > 0 ? Math.round((r.cobrado/r.facturado)*100) : 0
+      return `
+      <div class="rep-fila">
+        <div class="rep-rank">${i+1}</div>
+        <div class="rep-fila-info">
+          <div class="rep-fila-nombre">${r.nombre}</div>
+          <div class="rep-fila-detalle">${r.pedidos} pedido${r.pedidos!==1?'s':''} · cobrado ${pct}%</div>
+          <div class="rep-fila-bar"><div class="rep-fila-bar-fill" style="width:${Math.round((r.facturado/maxFact)*100)}%"></div></div>
+        </div>
+        <div class="rep-fila-monto">${fmtM(r.facturado)}</div>
+      </div>`
+    }).join('')}`
+}
+
+async function reporteClienteIndividual(desde, hasta) {
+  const { data: pedidos } = await db.from('pedidos')
+    .select('id, numero, total, monto_cobrado, estado_cobro, fecha_pedido, created_at')
+    .eq('cliente_id', _repSelId).gte('created_at', desde).lte('created_at', hasta)
+    .neq('estado', 'cancelado').order('created_at', { ascending: false })
+
+  const facturado = (pedidos||[]).reduce((s,p) => s+Number(p.total), 0)
+  const cobrado   = (pedidos||[]).reduce((s,p) => s+Number(p.monto_cobrado||0), 0)
+  const debe      = facturado - cobrado
+
+  // Productos que más compra
+  const pedidoIds = (pedidos||[]).map(p => p.id)
+  let prodMap = {}
+  if (pedidoIds.length > 0) {
+    const { data: items } = await db.from('pedido_items')
+      .select('cantidad, subtotal, productos(descripcion, unidad)')
+      .in('pedido_id', pedidoIds)
+    for (const it of (items||[])) {
+      const k = it.productos?.descripcion || '-'
+      if (!prodMap[k]) prodMap[k] = { nombre:k, unidad: it.productos?.unidad||'', cant:0, monto:0 }
+      prodMap[k].cant  += Number(it.cantidad)
+      prodMap[k].monto += Number(it.subtotal)
+    }
+  }
+  const productos = Object.values(prodMap).sort((a,b) => b.monto - a.monto).slice(0,8)
+
+  _repData = (pedidos||[]).map(p => ({ Pedido:'#'+p.numero, Fecha:formatFecha(p.fecha_pedido||p.created_at), Total:Number(p.total), Cobrado:Number(p.monto_cobrado||0), Estado: p.estado_cobro }))
+  _repTitulo = 'Cliente: ' + _repSelNombre
+
+  document.getElementById('rep-contenido').innerHTML = `
+    <div class="rep-kpi3">
+      <div class="rep-kpi"><div class="rep-kpi-v">${fmtM(facturado)}</div><div class="rep-kpi-l">Facturado</div></div>
+      <div class="rep-kpi"><div class="rep-kpi-v" style="color:#1d9e75">${fmtM(cobrado)}</div><div class="rep-kpi-l">Cobrado</div></div>
+      <div class="rep-kpi"><div class="rep-kpi-v" style="color:#e24b4a">${fmtM(debe)}</div><div class="rep-kpi-l">Debe</div></div>
+    </div>
+    <div class="rep-subtitulo">PEDIDOS DEL PERÍODO (${pedidos?.length||0})</div>
+    ${(pedidos||[]).length === 0 ? '<p class="vacio">Sin pedidos en el período</p>' : pedidos.map(p => {
+      const cobrado = p.estado_cobro === 'cobrado'
+      return `<div class="rep-det-fila">
+        <div><b>#${p.numero}</b> · ${formatFecha(p.fecha_pedido||p.created_at)}</div>
+        <div style="text-align:right"><div style="font-weight:600;color:var(--color-marca-oscuro)">${fmtM(p.total)}</div>
+          <span class="${cobrado?'rep-badge-v':'rep-badge-p'}">${cobrado?'Cobrado':'Pendiente'}</span></div>
+      </div>`
+    }).join('')}
+    ${productos.length > 0 ? `
+      <div class="rep-subtitulo">PRODUCTOS QUE MÁS COMPRA</div>
+      ${productos.map(pr => `<div class="rep-det-fila">
+        <div><b>${pr.nombre}</b><div class="rep-det-sub">${pr.cant.toLocaleString('es-AR')} ${pr.unidad}</div></div>
+        <div style="font-weight:600;color:var(--color-marca-oscuro)">${fmtM(pr.monto)}</div>
+      </div>`).join('')}` : ''}`
+}
+
+// ── REPORTE VENDEDOR ──
+async function reporteVendedor(desde, hasta) {
+  if (_repSelId) return reporteVendedorIndividual(desde, hasta)
+
+  const [{ data: pedidos }, { data: cobros }, { data: vendedores }] = await Promise.all([
+    db.from('pedidos').select('total, vendedor_id').gte('created_at', desde).lte('created_at', hasta).neq('estado','cancelado'),
+    db.from('cobros').select('monto, vendedor_id').gte('created_at', desde).lte('created_at', hasta),
+    db.from('perfiles').select('id, nombre_completo').neq('rol','cliente')
+  ])
+
+  const ranking = (vendedores||[]).map(v => {
+    const peds = (pedidos||[]).filter(p => p.vendedor_id === v.id)
+    const cobs = (cobros||[]).filter(c => c.vendedor_id === v.id)
+    return {
+      nombre: v.nombre_completo,
+      pedidos: peds.length,
+      facturado: peds.reduce((s,p)=>s+Number(p.total),0),
+      cobrado: cobs.reduce((s,c)=>s+Number(c.monto),0)
+    }
+  }).filter(v => v.pedidos > 0 || v.cobrado > 0).sort((a,b) => b.facturado - a.facturado)
+
+  const totalFact = ranking.reduce((s,r)=>s+r.facturado,0)
+  const maxFact = ranking[0]?.facturado || 1
+  _repData = ranking.map((r,i) => ({ '#':i+1, Vendedor:r.nombre, Pedidos:r.pedidos, Facturado:r.facturado, Cobrado:r.cobrado }))
+  _repTitulo = 'Ventas por vendedor'
+
+  document.getElementById('rep-contenido').innerHTML = `
+    <div class="rep-resumen">
+      <div><div class="rep-resumen-l">Total facturado</div><div class="rep-resumen-v">${fmtM(totalFact)}</div></div>
+      <div style="text-align:right"><div class="rep-resumen-l">Vendedores</div><div class="rep-resumen-v" style="font-size:15px">${ranking.length}</div></div>
+    </div>
+    ${ranking.length === 0 ? '<p class="vacio">Sin datos en el período</p>' : ranking.map((r,i) => {
+      const pct = r.facturado > 0 ? Math.round((r.cobrado/r.facturado)*100) : 0
+      return `<div class="rep-fila">
+        <div class="rep-rank">${i+1}</div>
+        <div class="rep-fila-info">
+          <div class="rep-fila-nombre">${r.nombre}</div>
+          <div class="rep-fila-detalle">${r.pedidos} pedido${r.pedidos!==1?'s':''} · cobrado ${pct}%</div>
+          <div class="rep-fila-bar"><div class="rep-fila-bar-fill" style="width:${Math.round((r.facturado/maxFact)*100)}%"></div></div>
+        </div>
+        <div class="rep-fila-monto">${fmtM(r.facturado)}</div>
+      </div>`
+    }).join('')}`
+}
+
+async function reporteVendedorIndividual(desde, hasta) {
+  const [{ data: pedidos }, { data: cobros }] = await Promise.all([
+    db.from('pedidos').select('id, numero, total, monto_cobrado, estado_cobro, fecha_pedido, created_at, clientes(razon_social)')
+      .eq('vendedor_id', _repSelId).gte('created_at', desde).lte('created_at', hasta).neq('estado','cancelado').order('created_at',{ascending:false}),
+    db.from('cobros').select('monto').eq('vendedor_id', _repSelId).gte('created_at', desde).lte('created_at', hasta)
+  ])
+  const facturado = (pedidos||[]).reduce((s,p)=>s+Number(p.total),0)
+  const cobrado   = (cobros||[]).reduce((s,c)=>s+Number(c.monto),0)
+
+  // Clientes que atendió
+  const cliMap = {}
+  for (const p of (pedidos||[])) {
+    const k = p.clientes?.razon_social || '-'
+    if (!cliMap[k]) cliMap[k] = { nombre:k, monto:0, pedidos:0 }
+    cliMap[k].monto += Number(p.total); cliMap[k].pedidos += 1
+  }
+  const clientes = Object.values(cliMap).sort((a,b)=>b.monto-a.monto).slice(0,8)
+
+  _repData = (pedidos||[]).map(p => ({ Pedido:'#'+p.numero, Cliente:p.clientes?.razon_social||'-', Fecha:formatFecha(p.fecha_pedido||p.created_at), Total:Number(p.total) }))
+  _repTitulo = 'Vendedor: ' + _repSelNombre
+
+  document.getElementById('rep-contenido').innerHTML = `
+    <div class="rep-kpi3">
+      <div class="rep-kpi"><div class="rep-kpi-v">${fmtM(facturado)}</div><div class="rep-kpi-l">Facturado</div></div>
+      <div class="rep-kpi"><div class="rep-kpi-v" style="color:#1d9e75">${fmtM(cobrado)}</div><div class="rep-kpi-l">Cobrado</div></div>
+      <div class="rep-kpi"><div class="rep-kpi-v">${pedidos?.length||0}</div><div class="rep-kpi-l">Pedidos</div></div>
+    </div>
+    <div class="rep-subtitulo">CLIENTES ATENDIDOS</div>
+    ${clientes.length === 0 ? '<p class="vacio">Sin pedidos en el período</p>' : clientes.map(c => `
+      <div class="rep-det-fila">
+        <div><b>${c.nombre}</b><div class="rep-det-sub">${c.pedidos} pedido${c.pedidos!==1?'s':''}</div></div>
+        <div style="font-weight:600;color:var(--color-marca-oscuro)">${fmtM(c.monto)}</div>
+      </div>`).join('')}`
+}
+
+// ── REPORTE PRODUCTOS ──
+async function reporteProductos(desde, hasta) {
+  // Traer pedidos del período (no cancelados)
+  const { data: pedidos } = await db.from('pedidos').select('id').gte('created_at', desde).lte('created_at', hasta).neq('estado','cancelado')
+  const ids = (pedidos||[]).map(p => p.id)
+  if (ids.length === 0) {
+    document.getElementById('rep-contenido').innerHTML = '<p class="vacio">Sin ventas en el período</p>'
+    _repData = []; _repTitulo = 'Productos más vendidos'
+    return
+  }
+  const { data: items } = await db.from('pedido_items')
+    .select('cantidad, subtotal, productos(descripcion, unidad)').in('pedido_id', ids)
+
+  const map = {}
+  for (const it of (items||[])) {
+    const k = it.productos?.descripcion || '-'
+    if (!map[k]) map[k] = { nombre:k, unidad:it.productos?.unidad||'', cant:0, monto:0, veces:0 }
+    map[k].cant += Number(it.cantidad); map[k].monto += Number(it.subtotal); map[k].veces += 1
+  }
+  const ranking = Object.values(map).sort((a,b)=>b.monto-a.monto)
+  const totalMonto = ranking.reduce((s,r)=>s+r.monto,0)
+  const maxMonto = ranking[0]?.monto || 1
+  _repData = ranking.map((r,i) => ({ '#':i+1, Producto:r.nombre, Cantidad:r.cant, Unidad:r.unidad, 'Veces pedido':r.veces, Monto:r.monto }))
+  _repTitulo = 'Productos más vendidos'
+
+  document.getElementById('rep-contenido').innerHTML = `
+    <div class="rep-resumen">
+      <div><div class="rep-resumen-l">Más vendido</div><div class="rep-resumen-v" style="font-size:14px">${ranking[0]?.nombre||'-'}</div></div>
+      <div style="text-align:right"><div class="rep-resumen-l">Total</div><div class="rep-resumen-v" style="font-size:15px">${fmtM(totalMonto)}</div></div>
+    </div>
+    ${ranking.map((r,i) => `
+      <div class="rep-fila">
+        <div class="rep-rank">${i+1}</div>
+        <div class="rep-fila-info">
+          <div class="rep-fila-nombre">${r.nombre}</div>
+          <div class="rep-fila-detalle">${r.cant.toLocaleString('es-AR')} ${r.unidad} · ${r.veces} pedido${r.veces!==1?'s':''}</div>
+          <div class="rep-fila-bar"><div class="rep-fila-bar-fill" style="width:${Math.round((r.monto/maxMonto)*100)}%"></div></div>
+        </div>
+        <div class="rep-fila-monto">${fmtM(r.monto)}</div>
+      </div>`).join('')}`
+}
+
+// ── REPORTE COBRANZAS ──
+async function reporteCobranzas(desde, hasta) {
+  const { data: cobros } = await db.from('cobros').select('monto, medio_pago, created_at').gte('created_at', desde).lte('created_at', hasta)
+  const total = (cobros||[]).reduce((s,c)=>s+Number(c.monto),0)
+
+  // Por medio de pago
+  const medios = {}
+  for (const c of (cobros||[])) medios[c.medio_pago] = (medios[c.medio_pago]||0) + Number(c.monto)
+  const maxMedio = Math.max(...Object.values(medios), 1)
+  const iconos = { efectivo:'💵', transferencia:'🏦', cheque:'📋', echeq:'📱' }
+
+  _repData = Object.entries(medios).map(([m,v]) => ({ 'Medio de pago': labelMedio(m), Monto: v }))
+  _repData.push({ 'Medio de pago':'TOTAL', Monto: total })
+  _repTitulo = 'Cobranzas por período'
+
+  document.getElementById('rep-contenido').innerHTML = `
+    <div class="rep-resumen">
+      <div><div class="rep-resumen-l">Total cobrado</div><div class="rep-resumen-v">${fmtM(total)}</div></div>
+      <div style="text-align:right"><div class="rep-resumen-l">Cobros</div><div class="rep-resumen-v" style="font-size:15px">${cobros?.length||0}</div></div>
+    </div>
+    <div class="rep-subtitulo">POR MEDIO DE PAGO</div>
+    ${Object.keys(medios).length === 0 ? '<p class="vacio">Sin cobros en el período</p>' :
+      Object.entries(medios).sort((a,b)=>b[1]-a[1]).map(([m,v]) => `
+      <div class="rep-fila">
+        <div class="rep-fila-info">
+          <div class="rep-fila-nombre">${iconos[m]||'•'} ${labelMedio(m)}</div>
+          <div class="rep-fila-bar"><div class="rep-fila-bar-fill" style="width:${Math.round((v/maxMedio)*100)}%"></div></div>
+        </div>
+        <div class="rep-fila-monto">${fmtM(v)}</div>
+      </div>`).join('')}`
+}
+
+// ── EXPORTAR ──
+function exportarReporteExcel() {
+  if (!_repData || _repData.length === 0) { alert('No hay datos para exportar'); return }
+  const cols = Object.keys(_repData[0])
+  let csv = cols.join(',') + '\n'
+  for (const row of _repData) {
+    csv += cols.map(c => {
+      let v = row[c]
+      if (typeof v === 'string' && (v.includes(',') || v.includes('"'))) v = '"' + v.replace(/"/g,'""') + '"'
+      return v
+    }).join(',') + '\n'
+  }
+  const blob = new Blob(['\ufeff' + csv], { type:'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${_repTitulo.replace(/[:\s]/g,'_')}_${new Date().toISOString().split('T')[0]}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function exportarReportePDF() {
+  if (!_repData || _repData.length === 0) { alert('No hay datos para exportar'); return }
+  const cols = Object.keys(_repData[0])
+  const w = window.open('', '_blank')
+  const fmt = (v) => typeof v === 'number' ? '$' + v.toLocaleString('es-AR') : v
+  w.document.write(`
+    <html><head><title>${_repTitulo}</title>
+    <style>
+      body{font-family:Arial,sans-serif;padding:30px;color:#1a1a1a}
+      h1{color:#0d8fd1;font-size:20px;margin-bottom:4px}
+      .sub{color:#888;font-size:13px;margin-bottom:20px}
+      table{width:100%;border-collapse:collapse;font-size:13px}
+      th{background:#0d8fd1;color:white;text-align:left;padding:8px 10px}
+      td{padding:8px 10px;border-bottom:0.5px solid #e0e0e0}
+      tr:nth-child(even){background:#f4f6f8}
+    </style></head><body>
+    <h1>🥛 La Cabaña — ${_repTitulo}</h1>
+    <div class="sub">Cooperativa de Trabajo · Generado el ${new Date().toLocaleDateString('es-AR')}</div>
+    <table>
+      <thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+      <tbody>${_repData.map(r => `<tr>${cols.map(c => `<td>${fmt(r[c])}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table>
+    </body></html>`)
+  w.document.close()
+  setTimeout(() => w.print(), 400)
+}
+
+// Cerrar dropdown selector al tocar afuera
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('rep-selector-wrap')
+  const dd = document.getElementById('rep-selector-dropdown')
+  if (wrap && dd && dd.style.display !== 'none' && !wrap.contains(e.target)) {
+    dd.style.display = 'none'
+  }
+})
