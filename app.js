@@ -399,7 +399,7 @@ function renderizarListaClientes(clientes) {
       <div class="cliente-card-info">
         <div class="cliente-nombre">${c.razon_social}</div>
         <div class="cliente-tel">📞 ${c.telefono || 'Sin teléfono'}
-          ${c.telefono ? `<a href="https://wa.me/54${c.telefono.replace(/\D/g,'')}" onclick="event.stopPropagation()" target="_blank" class="btn-whatsapp">💬 WhatsApp</a>` : ''}
+          ${waLink(c.telefono) ? `<a href="${waLink(c.telefono)}" onclick="event.stopPropagation()" target="_blank" class="btn-whatsapp">💬 WhatsApp</a>` : ''}
         </div>
         <div class="cliente-saldo ${Number(c.saldo_pendiente) > 0 ? 'saldo-deuda' : 'saldo-ok'}">
           ${Number(c.saldo_pendiente) > 0 ? '💰 Saldo: $' + Number(c.saldo_pendiente).toLocaleString('es-AR') + ' pendiente' : '✅ Sin deuda'}
@@ -425,7 +425,7 @@ async function abrirFichaCliente(id) {
       ${c.activo ? '<span class="badge badge-verde">Activo</span>' : '<span class="badge badge-rojo">Inactivo</span>'}
       <div class="form-seccion">DATOS BÁSICOS</div>
       <div class="ficha-fila"><span>CUIT</span><span>${c.cuit || '-'}</span></div>
-      <div class="ficha-fila"><span>Teléfono</span><span>${c.telefono || '-'} ${c.telefono ? `<a href="https://wa.me/54${c.telefono.replace(/\D/g,'')}" target="_blank" class="btn-whatsapp">💬</a>` : ''}</span></div>
+      <div class="ficha-fila"><span>Teléfono</span><span>${c.telefono || '-'} ${waLink(c.telefono) ? `<a href="${waLink(c.telefono)}" target="_blank" class="btn-whatsapp">💬</a>` : ''}</span></div>
       <div class="ficha-fila"><span>Email</span><span>${c.email || '-'}</span></div>
       <div class="ficha-fila"><span>Dirección</span><span>${c.direccion || '-'}</span></div>
       <div class="ficha-fila"><span>Localidad</span><span>${c.localidad || '-'}, ${c.provincia || '-'}</span></div>
@@ -591,6 +591,21 @@ function nuevoProducto() { alert('🚧 Próximamente') }
 // ── HELPERS ──────────────────────────────────────
 function formatFecha(f) { if (!f) return '-'; return new Date(f).toLocaleDateString('es-AR') }
 function formatFechaHora(f) { if (!f) return '-'; return new Date(f).toLocaleString('es-AR', { dateStyle:'short', timeStyle:'short' }) }
+
+// Arma el número correcto de WhatsApp para Argentina (formato 549 + área + número)
+function waLink(telefono) {
+  if (!telefono) return null
+  let n = String(telefono).replace(/\D/g, '')   // solo dígitos
+  if (!n) return null
+  // Quitar 0 inicial (código de área largo) y 15 (celular local)
+  if (n.startsWith('54')) n = n.slice(2)          // quitar país si ya viene
+  if (n.startsWith('0'))  n = n.slice(1)          // quitar 0 inicial
+  // Si tiene un 15 después del código de área (ej: 341 15 1234567), quitarlo
+  n = n.replace(/^(\d{2,4})15(\d{6,8})$/, '$1$2')
+  // Si quedó muy corto, no es válido
+  if (n.length < 8) return null
+  return `https://wa.me/549${n}`
+}
 function labelFacturacion(tipo, pctR, pctF) {
   if (tipo === 'todo_remito')  return 'Todo Remito'
   if (tipo === 'todo_factura') return 'Todo Factura'
@@ -2512,7 +2527,7 @@ function renderCobCard(p, hoy, esAdmin, esCobrado = false) {
           ${formatMonto(esCobrado ? Number(p.total) : pendiente)}
         </div>
         <div class="cob-card-acciones">
-          ${tel ? `<a href="https://wa.me/54${tel}" target="_blank" class="btn-whatsapp" onclick="event.stopPropagation()">
+          ${tel ? `<a href="${waLink(tel)}" target="_blank" class="btn-whatsapp" onclick="event.stopPropagation()">
             <i class="ti ti-brand-whatsapp" aria-hidden="true"></i>
           </a>` : ''}
           ${!esCobrado ? `<button onclick="event.stopPropagation(); abrirModalCobro('${p.id}', '${p.clientes?.razon_social || ''}', ${pendiente})"
@@ -3300,7 +3315,7 @@ async function cargarPedidosDeEnvio(envioId) {
             <div style="font-size:13px;font-weight:500">#${p?.numero} · ${p?.clientes?.razon_social || '-'}</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
-            ${tel ? `<a href="https://wa.me/54${tel}" target="_blank" onclick="event.stopPropagation()"
+            ${tel ? `<a href="${waLink(tel)}" target="_blank" onclick="event.stopPropagation()"
               style="width:32px;height:32px;border-radius:8px;border:0.5px solid #9fe1cb;background:#e1f5ee;color:#085041;display:flex;align-items:center;justify-content:center;text-decoration:none;">
               <i class="ti ti-brand-whatsapp" aria-hidden="true"></i>
             </a>` : ''}
@@ -3695,7 +3710,7 @@ async function cargarPendientes() {
             </div>
           </div>
           <div style="display:flex;gap:8px;align-items:center">
-            ${tel ? `<a href="https://wa.me/54${tel}" target="_blank"
+            ${tel ? `<a href="${waLink(tel)}" target="_blank"
               style="width:32px;height:32px;border-radius:8px;border:0.5px solid #9fe1cb;background:#e1f5ee;color:#085041;display:flex;align-items:center;justify-content:center;text-decoration:none">
               <i class="ti ti-brand-whatsapp" aria-hidden="true"></i>
             </a>` : ''}
@@ -3974,7 +3989,7 @@ function navMovil(seccion) {
   if (btn) {
     btn.classList.add('activo')
   } else {
-    // Si la sección está en "Más", marcar el botón Más
+    // Secciones dentro de "Más" (problemas, clientes, productos) marcan el botón Más
     document.getElementById('bnav-mas')?.classList.add('activo')
   }
 }
@@ -3994,13 +4009,20 @@ document.addEventListener('click', (e) => {
   }
 })
 
-// Sincronizar badge de problemas en la barra inferior
+// Sincronizar badge de problemas — ahora sobre "Más" y en el item de la hoja
 const _origActualizarBadge = typeof actualizarBadgeProblemas === 'function' ? actualizarBadgeProblemas : null
 actualizarBadgeProblemas = function(count) {
   if (_origActualizarBadge) _origActualizarBadge(count)
-  const bnavBadge = document.getElementById('bnav-problemas-badge')
-  if (bnavBadge) {
-    bnavBadge.textContent = count > 9 ? '9+' : count
-    bnavBadge.style.display = count > 0 ? 'flex' : 'none'
+  // Badge sobre el botón "Más" de la barra inferior
+  const masBadge = document.getElementById('bnav-mas-badge')
+  if (masBadge) {
+    masBadge.textContent = count > 9 ? '9+' : count
+    masBadge.style.display = count > 0 ? 'flex' : 'none'
+  }
+  // Badge en el item "Problemas" dentro de la hoja Más
+  const moreBadge = document.getElementById('more-problemas-badge')
+  if (moreBadge) {
+    moreBadge.textContent = count
+    moreBadge.style.display = count > 0 ? 'inline' : 'none'
   }
 }
