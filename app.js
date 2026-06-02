@@ -3955,3 +3955,52 @@ function actualizarBadgeProblemas(count) {
   // Actualizar campana también
   actualizarCampana(count)
 }
+
+
+// ================================================
+// NAVEGACIÓN MÓVIL — Barra inferior
+// ================================================
+function navMovil(seccion) {
+  // Cerrar la hoja "Más" si está abierta
+  const sheet = document.getElementById('mobile-more-sheet')
+  if (sheet) sheet.classList.remove('abierta')
+
+  // Navegar normalmente
+  mostrarSeccion(seccion)
+
+  // Actualizar estado activo de la barra inferior
+  document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('activo'))
+  const btn = document.getElementById('bnav-' + seccion)
+  if (btn) {
+    btn.classList.add('activo')
+  } else {
+    // Si la sección está en "Más", marcar el botón Más
+    document.getElementById('bnav-mas')?.classList.add('activo')
+  }
+}
+
+function toggleMobileMore() {
+  const sheet = document.getElementById('mobile-more-sheet')
+  if (sheet) sheet.classList.toggle('abierta')
+}
+
+// Cerrar hoja "Más" al tocar afuera
+document.addEventListener('click', (e) => {
+  const sheet = document.getElementById('mobile-more-sheet')
+  const btnMas = document.getElementById('bnav-mas')
+  if (sheet && sheet.classList.contains('abierta') &&
+      !sheet.contains(e.target) && !btnMas?.contains(e.target)) {
+    sheet.classList.remove('abierta')
+  }
+})
+
+// Sincronizar badge de problemas en la barra inferior
+const _origActualizarBadge = typeof actualizarBadgeProblemas === 'function' ? actualizarBadgeProblemas : null
+actualizarBadgeProblemas = function(count) {
+  if (_origActualizarBadge) _origActualizarBadge(count)
+  const bnavBadge = document.getElementById('bnav-problemas-badge')
+  if (bnavBadge) {
+    bnavBadge.textContent = count > 9 ? '9+' : count
+    bnavBadge.style.display = count > 0 ? 'flex' : 'none'
+  }
+}
