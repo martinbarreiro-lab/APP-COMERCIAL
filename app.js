@@ -2176,10 +2176,15 @@ function mostrarResumenPedido() {
           </div>` : ''}
       </div>
 
-      <div class="form-seccion">ENTREGA</div>
+      <div class="form-seccion">FECHA Y ENTREGA</div>
+      <div class="campo">
+        <label>Fecha del pedido</label>
+        <input type="date" id="pedido-fecha" value="${new Date().toISOString().split('T')[0]}" max="${new Date().toISOString().split('T')[0]}">
+        <small style="color:var(--color-text-tertiary);font-size:11px;display:block;margin-top:4px">Cambiala si estás cargando un pedido de una fecha anterior</small>
+      </div>
       <div class="campo">
         <label>Fecha de entrega</label>
-        <input type="date" id="pedido-fecha-entrega" min="${new Date().toISOString().split('T')[0]}">
+        <input type="date" id="pedido-fecha-entrega">
       </div>
       <div class="campo">
         <label>Observaciones</label>
@@ -2203,6 +2208,15 @@ async function confirmarPedido() {
   const fecha   = document.getElementById('pedido-fecha-entrega').value
   const obs     = document.getElementById('pedido-observaciones').value
 
+  // Fecha del pedido (permite cargar pedidos anteriores). Por defecto hoy.
+  const fechaPedidoInput = document.getElementById('pedido-fecha')?.value
+  const hoyStr = new Date().toISOString().split('T')[0]
+  const fechaPedidoStr = fechaPedidoInput || hoyStr
+  // Si es una fecha pasada, usar mediodía de ese día; si es hoy, usar el momento actual
+  const fechaPedidoISO = fechaPedidoStr === hoyStr
+    ? new Date().toISOString()
+    : new Date(fechaPedidoStr + 'T12:00:00').toISOString()
+
   if (Object.keys(pedidoActual.items).length === 0) {
     alert('No hay productos en el pedido'); return
   }
@@ -2210,17 +2224,18 @@ async function confirmarPedido() {
   // Estado según quién crea
   const estado = rol === 'cliente' ? 'pendiente_aprobacion' : 'confirmado'
 
-  // Calcular vencimiento
+  // Calcular vencimiento desde la fecha del pedido
   const diasVenc = cliente.dias_vencimiento || 7
-  const fechaVenc = fecha
-    ? new Date(new Date(fecha).getTime() + diasVenc * 86400000).toISOString().split('T')[0]
-    : new Date(Date.now() + diasVenc * 86400000).toISOString().split('T')[0]
+  const baseVenc = fecha ? new Date(fecha) : new Date(fechaPedidoStr + 'T12:00:00')
+  const fechaVenc = new Date(baseVenc.getTime() + diasVenc * 86400000).toISOString().split('T')[0]
 
   // Crear pedido
   const { data: pedido, error } = await db.from('pedidos').insert({
     cliente_id:              cliente.id,
     vendedor_id:             rol === 'cliente' ? null : usuarioActual.id,
     estado,
+    fecha_pedido:            fechaPedidoStr,
+    created_at:              fechaPedidoISO,
     fecha_entrega:           fecha || null,
     subtotal:                t.subtotal,
     descuento:               t.descuentoMonto,
@@ -2233,7 +2248,30 @@ async function confirmarPedido() {
     etapa:                   'pedido'
   }).select().single()
 
-  if (error) { alert('Error al guardar: ' + error.message); return }
+  let pedidoFinal = pedido
+  if (error) {
+    // Si falló (quizás created_at es de solo lectura), reintentar sin forzar created_at
+    console.warn('Insert con created_at falló, reintentando sin él:', error.message)
+    const r2 = await db.from('pedidos').insert({
+      cliente_id:              cliente.id,
+      vendedor_id:             rol === 'cliente' ? null : usuarioActual.id,
+      estado,
+      fecha_pedido:            fechaPedidoStr,
+      fecha_entrega:           fecha || null,
+      subtotal:                t.subtotal,
+      descuento:               t.descuentoMonto,
+      iva_total:               t.ivaTotal,
+      total:                   t.total,
+      condicion_pago:          'contado',
+      observaciones:           obs || null,
+      fecha_vencimiento_cobro: fechaVenc,
+      creado_por_rol:          rol,
+      etapa:                   'pedido'
+    }).select().single()
+    if (r2.error) { alert('Error al guardar: ' + r2.error.message); return }
+    pedidoFinal = r2.data
+  }
+  const pedido_ok = pedidoFinal
 
   // Crear items del pedido
   const itemsParaInsertar = []
@@ -2250,7 +2288,7 @@ async function confirmarPedido() {
     const precio    = esPorKg ? p.precio_caja : p.precio_1
 
     itemsParaInsertar.push({
-      pedido_id:       pedido.id,
+      pedido_id:       pedido_ok.id,
       producto_id:     p.id,
       cantidad,
       precio_unitario: precio,
@@ -2263,7 +2301,7 @@ async function confirmarPedido() {
   await db.from('pedido_items').insert(itemsParaInsertar)
 
   // Registrar en historial
-  await registrarHistorial(pedido.id, 'pedido_creado',
+  await registrarHistorial(pedido_ok.id, 'pedido_creado',
     `Pedido creado por ${rol} — $${Number(t.total).toLocaleString('es-AR')}`)
 
   // Borrar borrador si había
