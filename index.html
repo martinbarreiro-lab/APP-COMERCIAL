@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%230d8fd1'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E%F0%9F%A5%9B%3C/text%3E%3C/svg%3E">
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="styles.css?v=23">
+  <link rel="stylesheet" href="styles.css?v=24">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script>
@@ -620,6 +620,25 @@
           </div>
 
 
+          <!-- Modal OBSERVACIONES DEL ENVÍO -->
+          <div id="modal-envio-obs" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;overflow-y:auto">
+            <div style="background:#fff;border-radius:14px;width:420px;max-width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,0.2)" onclick="event.stopPropagation()">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <h3 style="font-size:16px;font-weight:600;margin:0;color:var(--color-marca-oscuro)">Confirmar envío</h3>
+                <button onclick="cerrarModalEnvioObs()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--color-text-secondary)">✕</button>
+              </div>
+              <div style="font-size:13px;color:var(--color-text-tertiary);margin-bottom:16px">El pedido va a salir. Podés agregar una observación (la verá el cliente).</div>
+
+              <div class="campo"><label>Observaciones del envío (opcional)</label>
+                <textarea id="me-observaciones" rows="3" placeholder="Ej: Se entrega después de las 14hs, llamar antes de llegar..."></textarea></div>
+
+              <div style="display:flex;gap:8px;margin-top:18px">
+                <button onclick="cerrarModalEnvioObs()" class="btn-cancelar" style="flex:1">Cancelar</button>
+                <button onclick="confirmarEnvioConObs()" class="btn-guardar-inline" style="flex:1"><i class="ti ti-truck" aria-hidden="true"></i> Confirmar envío</button>
+              </div>
+            </div>
+          </div>
+
           <!-- Modal INFORMAR PAGO (cliente) -->
           <div id="modal-informar-pago" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;overflow-y:auto">
             <div style="background:#fff;border-radius:14px;width:420px;max-width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,0.2)" onclick="event.stopPropagation()">
@@ -701,6 +720,6 @@
           </div>
 
 
-  <script src="app.js?v=23"></script>
+  <script src="app.js?v=24"></script>
 </body>
 </html>
