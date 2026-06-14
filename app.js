@@ -718,7 +718,6 @@ async function cargarProductos() {
 }
 
 // ── STUBS ────────────────────────────────────────
-function nuevoPedido()   { alert('🚧 Próximamente') }
 function nuevoEnvio()    { alert('🚧 Próximamente') }
 function nuevoProducto() { alert('🚧 Próximamente') }
 
@@ -1940,11 +1939,15 @@ async function nuevoPedido() {
 
   // Si es cliente, cargar su ficha automáticamente
   if (rol === 'cliente') {
-    const { data: perfil } = await db.from('perfiles')
-      .select('cliente_id, clientes(*)')
-      .eq('id', usuarioActual.id).single()
-    if (perfil?.clientes) {
-      pedidoActual.cliente = perfil.clientes
+    // Usar el cliente_id ya cargado, y traer el cliente en consulta separada (más confiable que el join)
+    const cid = clienteIdUsuario
+    if (cid) {
+      const { data: cli } = await db.from('clientes').select('*').eq('id', cid).single()
+      if (cli) pedidoActual.cliente = cli
+    }
+    if (!pedidoActual.cliente) {
+      alert('No se encontró tu cuenta de cliente. Avisá a la empresa para que la configure.')
+      return
     }
   }
 
