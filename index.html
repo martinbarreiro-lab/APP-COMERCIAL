@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%230d8fd1'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E%F0%9F%A5%9B%3C/text%3E%3C/svg%3E">
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="styles.css?v=19">
+  <link rel="stylesheet" href="styles.css?v=20">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script>
@@ -106,6 +106,21 @@
               <button class="btn-nuevo" onclick="nuevoPedido()">+ Nuevo pedido</button>
             </div>
 
+            <!-- Pestañas (solo admin/vendedor) -->
+            <div id="pedidos-pestanas" class="pedidos-pestanas" style="display:none">
+              <button class="ped-pestana activa" id="pest-aprobar" onclick="cambiarPestanaPedidos('aprobar')">
+                Por aprobar <span class="ped-pest-badge" id="pest-aprobar-badge" style="display:none">0</span>
+              </button>
+              <button class="ped-pestana" id="pest-todos" onclick="cambiarPestanaPedidos('todos')">
+                Todos los pedidos
+              </button>
+            </div>
+
+            <!-- Contenido: Por aprobar -->
+            <div id="pedidos-por-aprobar" style="display:none"></div>
+
+            <!-- Contenido: Todos (filtros + kanban) -->
+            <div id="pedidos-todos-wrap">
             <!-- Filtros -->
             <div class="filtros-pedidos">
               <div style="position:relative;flex:1;min-width:200px">
@@ -140,6 +155,7 @@
 
             <!-- Kanban board -->
             <div id="kanban-board" class="kanban-board"></div>
+            </div>
           </div>
 
           <!-- Vista: nuevo pedido -->
@@ -682,6 +698,6 @@
           </div>
 
 
-  <script src="app.js?v=19"></script>
+  <script src="app.js?v=20"></script>
 </body>
 </html>
