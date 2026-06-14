@@ -1939,8 +1939,13 @@ async function nuevoPedido() {
 
   // Si es cliente, cargar su ficha automáticamente
   if (rol === 'cliente') {
-    // Usar el cliente_id ya cargado, y traer el cliente en consulta separada (más confiable que el join)
-    const cid = clienteIdUsuario
+    // Asegurar que tenemos el cliente_id (puede no estar cargado aún)
+    let cid = clienteIdUsuario
+    if (!cid) {
+      const { data: perfil } = await db.from('perfiles').select('cliente_id').eq('id', usuarioActual.id).single()
+      cid = perfil?.cliente_id || null
+      clienteIdUsuario = cid
+    }
     if (cid) {
       const { data: cli } = await db.from('clientes').select('*').eq('id', cid).single()
       if (cli) pedidoActual.cliente = cli
