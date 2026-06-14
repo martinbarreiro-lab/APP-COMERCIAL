@@ -1393,6 +1393,21 @@ let _filtroClienteNombre = null
 let _filtroClientesCache = []
 
 async function cargarPedidos() {
+  const rol = await cargarRolUsuario()
+  const esCliente = rol === 'cliente'
+
+  // Pestañas solo para admin/vendedor
+  const pestanas = document.getElementById('pedidos-pestanas')
+  if (pestanas) pestanas.style.display = esCliente ? 'none' : 'flex'
+
+  if (!esCliente) {
+    await cargarPedidosPorAprobar()
+  }
+
+  await cargarPedidosTodos()
+}
+
+async function cargarPedidosTodos() {
   const fechaDesde = document.getElementById('filtro-fecha-desde')?.value || ''
   const fechaHasta = document.getElementById('filtro-fecha-hasta')?.value || ''
 
@@ -1417,9 +1432,71 @@ async function cargarPedidos() {
   if (fechaHasta) query = query.lte('fecha_pedido', fechaHasta + 'T23:59:59')
 
   const { data: todos } = await query
-  const pedidos = todos
+  renderKanban(todos || [])
+}
 
-  renderKanban(pedidos || [])
+// Pedidos pendientes de aprobación (admin/vendedor)
+async function cargarPedidosPorAprobar() {
+  const rol = await cargarRolUsuario()
+  let query = db.from('pedidos')
+    .select('id, numero, total, fecha_pedido, created_at, clientes(razon_social)')
+    .eq('estado', 'pendiente_aprobacion')
+    .order('created_at', { ascending: false })
+
+  if (rol === 'vendedor') query = query.eq('vendedor_id', usuarioActual.id)
+
+  const { data: pendientes } = await query
+  const lista = pendientes || []
+
+  // Actualizar badge
+  const badge = document.getElementById('pest-aprobar-badge')
+  if (badge) {
+    badge.textContent = lista.length
+    badge.style.display = lista.length > 0 ? 'inline' : 'none'
+  }
+
+  // Contar productos por pedido
+  const cont = document.getElementById('pedidos-por-aprobar')
+  if (!cont) return
+
+  if (lista.length === 0) {
+    cont.innerHTML = `<div style="text-align:center;padding:50px 20px;color:var(--color-text-tertiary)">
+      <i class="ti ti-circle-check" style="font-size:42px;display:block;margin-bottom:10px;color:#1d9e75"></i>
+      <div style="font-size:14px;font-weight:500;color:#085041">No hay pedidos por aprobar</div>
+    </div>`
+    return
+  }
+
+  cont.innerHTML = lista.map(p => `
+    <div class="aprobar-card" onclick="abrirPedido('${p.id}')">
+      <div class="aprobar-card-top">
+        <div>
+          <div class="aprobar-card-cli">${p.clientes?.razon_social || '-'}</div>
+          <div class="aprobar-card-meta">Pedido #${p.numero} · ${formatFecha(p.fecha_pedido||p.created_at)}</div>
+        </div>
+        <span class="aprobar-card-badge">🕐 Pendiente</span>
+      </div>
+      <div class="aprobar-card-monto">${fmtM(Number(p.total))}</div>
+      <div class="aprobar-card-btns">
+        <button onclick="event.stopPropagation(); aprobarPedidoRapido('${p.id}')" class="ac-btn-ok"><i class="ti ti-check"></i> Aprobar</button>
+        <button onclick="event.stopPropagation(); rechazarPedido('${p.id}')" class="ac-btn-no"><i class="ti ti-x"></i></button>
+      </div>
+    </div>`).join('')
+}
+
+// Aprobar desde la tarjeta sin entrar al pedido
+async function aprobarPedidoRapido(pedidoId) {
+  await aprobarPedidoSilencioso(pedidoId)
+  await cargarPedidos()
+}
+
+// Cambiar entre pestañas
+function cambiarPestanaPedidos(cual) {
+  const esAprobar = cual === 'aprobar'
+  document.getElementById('pest-aprobar')?.classList.toggle('activa', esAprobar)
+  document.getElementById('pest-todos')?.classList.toggle('activa', !esAprobar)
+  document.getElementById('pedidos-por-aprobar').style.display = esAprobar ? 'block' : 'none'
+  document.getElementById('pedidos-todos-wrap').style.display = esAprobar ? 'none' : 'block'
 }
 
 function renderKanban(pedidos) {
@@ -2522,6 +2599,28 @@ async function guardarBorrador() {
 }
 
 // ── APROBAR / RECHAZAR PEDIDO ────────────────────
+// Aprueba el pedido y notifica al cliente, sin abrir la ficha
+async function aprobarPedidoSilencioso(pedidoId) {
+  const { error } = await db.from('pedidos').update({
+    estado:           'confirmado',
+    aprobado_por:     usuarioActual.id,
+    fecha_aprobacion: new Date().toISOString()
+  }).eq('id', pedidoId)
+  if (error) { alert('Error al aprobar: ' + error.message); return }
+  await registrarHistorial(pedidoId, 'estado_cambiado', 'Pedido aprobado')
+
+  const { data: p } = await db.from('pedidos').select('cliente_id, numero').eq('id', pedidoId).single()
+  if (p?.cliente_id) {
+    await db.from('notificaciones').insert({
+      usuario_id: p.cliente_id,
+      tipo: 'pedido_aceptado',
+      titulo: '¡Pedido aceptado!',
+      mensaje: `Tu pedido #${p.numero} fue aceptado. Lo estamos preparando.`,
+      leida: false
+    })
+  }
+}
+
 async function aprobarPedido(pedidoId) {
   const { error } = await db.from('pedidos').update({
     estado:           'confirmado',
