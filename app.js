@@ -3430,18 +3430,30 @@ async function confirmarNuevoEnvio() {
     return
   }
   // Abrir modal de observaciones en vez del prompt
-  document.getElementById('me-observaciones').value = ''
-  document.getElementById('modal-envio-obs').style.display = 'flex'
+  const obsEl = document.getElementById('me-observaciones')
+  const modalEl = document.getElementById('modal-envio-obs')
+  if (!obsEl || !modalEl) {
+    // Fallback por si el modal no está en el HTML cargado
+    const obs = prompt('Observaciones del envío (opcional):') || null
+    return _crearEnvio(obs)
+  }
+  obsEl.value = ''
+  modalEl.style.display = 'flex'
 }
 
 function cerrarModalEnvioObs() {
-  document.getElementById('modal-envio-obs').style.display = 'none'
+  const m = document.getElementById('modal-envio-obs')
+  if (m) m.style.display = 'none'
 }
 
 async function confirmarEnvioConObs() {
-  const obs = document.getElementById('me-observaciones').value.trim() || null
+  const obsEl = document.getElementById('me-observaciones')
+  const obs = obsEl ? (obsEl.value.trim() || null) : null
   cerrarModalEnvioObs()
+  return _crearEnvio(obs)
+}
 
+async function _crearEnvio(obs) {
   // Calcular totales del envío
   const { data: pedidosData } = await db.from('pedidos')
     .select('total').in('id', _envioActual.pedidos)
