@@ -2492,7 +2492,8 @@ async function confirmarPedido() {
   }
 
   // Estado según quién crea
-  const estado = rol === 'cliente' ? 'pendiente_aprobacion' : 'confirmado'
+  // Cliente y vendedor: el pedido queda pendiente de aprobación. Admin/empresa: confirmado directo.
+  const estado = (rol === 'cliente' || rol === 'vendedor') ? 'pendiente_aprobacion' : 'confirmado'
 
   // Si lo crea un cliente, asignar el vendedor de su ficha (vendedor_id es obligatorio)
   let vendedorPedido = usuarioActual.id
@@ -2580,11 +2581,12 @@ async function confirmarPedido() {
   await registrarHistorial(pedido_ok.id, 'pedido_creado',
     `Pedido creado por ${rol} — $${Number(t.total).toLocaleString('es-AR')}`)
 
-  // Si lo creó un cliente, notificar a vendedor/empresa para que lo acepte
-  if (rol === 'cliente') {
+  // Si lo creó cliente o vendedor, notificar a la empresa/admin para que lo apruebe
+  if (rol === 'cliente' || rol === 'vendedor') {
+    const quien = rol === 'cliente' ? cliente.razon_social : 'vendedor (' + cliente.razon_social + ')'
     await db.from('notificaciones_admin').insert({
       tipo: 'pedido_nuevo',
-      mensaje: `Nuevo pedido #${pedido_ok.numero} de ${cliente.razon_social} para aceptar — $${Number(t.total).toLocaleString('es-AR')}`,
+      mensaje: `Nuevo pedido #${pedido_ok.numero} de ${quien} para aprobar — $${Number(t.total).toLocaleString('es-AR')}`,
       pedido_id: pedido_ok.id,
       leida: false
     })
@@ -2597,8 +2599,8 @@ async function confirmarPedido() {
 
   pedidoActual = { cliente: null, items: {}, borrador_id: null }
 
-  if (rol === 'cliente') {
-    alert('✅ Pedido enviado. La empresa lo revisará pronto.')
+  if (rol === 'cliente' || rol === 'vendedor') {
+    alert('✅ Pedido cargado. Quedó pendiente de aprobación.')
   } else {
     alert('✅ Pedido confirmado correctamente.')
   }
