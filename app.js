@@ -5,6 +5,7 @@
 let clienteEditandoId = null
 let clientesCache     = []
 let usuarioActual     = null
+let nombreUsuarioActual = ''
 let pedidoActualId    = null
 
 // ── AL CARGAR ────────────────────────────────────
@@ -51,6 +52,7 @@ async function mostrarApp(usuario) {
       cliente:  'Cliente'
     }[perfil.rol] || ''
     const nombre = perfil.nombre_completo || ''
+    nombreUsuarioActual = nombre
     document.getElementById('nombre-usuario').textContent = etiquetaRol ? `${etiquetaRol}: ${nombre}` : nombre
   }
 
@@ -297,6 +299,9 @@ async function cargarDashboard() {
 
   // ── Render ───────────────────────────────────────
   document.getElementById('dash-root').innerHTML = `
+    <div style="margin-bottom:6px">
+      <div style="font-size:18px;font-weight:600;color:var(--color-marca-oscuro)">Hola, ${nombreUsuarioActual || 'Bienvenido'}</div>
+    </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <h2 style="margin:0;font-size:18px;font-weight:500">Dashboard</h2>
       <span style="font-size:12px;color:var(--color-text-tertiary);text-transform:capitalize">${nombreMes}</span>
