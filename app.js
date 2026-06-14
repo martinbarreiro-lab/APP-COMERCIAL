@@ -1898,7 +1898,7 @@ async function confirmarRecepcion() {
     usuario_id: usuarioActual?.id,
     accion:     todoOk ? 'recepcion_ok' : 'recepcion_problema',
     detalle:    detalleHistorial
-  }).catch(() => {})
+  })
 
   // Si hubo problema → notificar admin y vendedor
   if (!todoOk) {
@@ -1907,7 +1907,7 @@ async function confirmarRecepcion() {
       mensaje:   `⚠️ Problema en recepción: ${descripcion}`,
       pedido_id: pedidoIdCopy,
       leida:     false
-    }).catch(() => {})
+    })
 
     const { data: ped } = await db.from('pedidos')
       .select('vendedor_id, numero').eq('id', pedidoIdCopy).single()
@@ -1918,7 +1918,7 @@ async function confirmarRecepcion() {
         titulo:     `⚠️ Problema en Pedido #${ped.numero}`,
         mensaje:    `El cliente reportó un problema al recibir: ${descripcion}`,
         leida:      false
-      }).catch(() => {})
+      })
     }
   }
 
@@ -3514,13 +3514,14 @@ async function notificarClienteEnvio(pedidoId) {
     .select('cliente_id, numero').eq('id', pedidoId).single()
   if (!p?.cliente_id) return
 
-  await db.from('notificaciones').insert({
+  const { error } = await db.from('notificaciones').insert({
     usuario_id: p.cliente_id,
     tipo:       'envio',
     titulo:     '🚚 Tu pedido está en camino',
     mensaje:    `Tu pedido #${p.numero} salió para entrega. ¡Pronto lo tenés!`,
     leida:      false
-  }).catch(() => {}) // Silenciar si la tabla no existe
+  })
+  if (error) console.warn('No se pudo notificar envío al cliente:', error.message)
 }
 
 // ── ENVÍOS ACTIVOS ───────────────────────────────
@@ -3949,11 +3950,11 @@ async function accionAlerta(alertaId, pedidoId, tabla, accion) {
       usuario_id: usuarioActual?.id,
       accion:     'resolucion_problema',
       detalle:    label
-    }).catch(() => {})
+    })
   }
 
   // Marcar alerta como leída/resuelta
-  await db.from(tabla).update({ leida: true, respuesta: label }).eq('id', alertaId).catch(() => {})
+  await db.from(tabla).update({ leida: true, respuesta: label }).eq('id', alertaId)
 
   // Quitar del panel
   const el = document.getElementById(`alerta-${alertaId}`)
@@ -3978,11 +3979,11 @@ async function responderAlerta(alertaId, pedidoId, tabla) {
       usuario_id: usuarioActual?.id,
       accion:     'resolucion_problema',
       detalle:    `💬 Respuesta: ${comentario}`
-    }).catch(() => {})
+    })
   }
 
   // Marcar como leída con la respuesta
-  await db.from(tabla).update({ leida: true, respuesta: comentario }).eq('id', alertaId).catch(() => {})
+  await db.from(tabla).update({ leida: true, respuesta: comentario }).eq('id', alertaId)
 
   const el = document.getElementById(`alerta-${alertaId}`)
   if (el) {
@@ -4361,7 +4362,7 @@ async function _guardarResolucion(notifId, pedidoId, label) {
       usuario_id: usuarioActual?.id,
       accion:     'resolucion_problema',
       detalle:    label
-    }).catch(() => {}) : Promise.resolve()
+    }) : Promise.resolve()
   ]
 
   // Solo marcar notif_admin si el id existe y no viene del historial
@@ -4370,7 +4371,7 @@ async function _guardarResolucion(notifId, pedidoId, label) {
       db.from('notificaciones_admin')
         .update({ leida: true, respuesta: label })
         .eq('id', notifId)
-        .catch(() => {})
+        .then(r => r, () => {})
     )
   }
 
