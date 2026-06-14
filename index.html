@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%230d8fd1'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E%F0%9F%A5%9B%3C/text%3E%3C/svg%3E">
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="styles.css?v=20">
+  <link rel="stylesheet" href="styles.css?v=21">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script>
@@ -348,6 +348,9 @@
           </div>
           <div id="vista-form-cliente" style="display:none">
             <div class="seccion-header"><button class="btn-volver" onclick="volverAClientes()">← Volver</button><h2 id="titulo-form-cliente">Nuevo Cliente</h2></div>
+            <div id="aviso-campos-bloqueados" style="display:none;background:#faeeda;color:#633806;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:14px">
+              <i class="ti ti-lock" aria-hidden="true"></i> Algunos datos (razón social, CUIT, condición fiscal, descuentos) solo los puede modificar la empresa. Vos podés editar teléfono, dirección y contacto.
+            </div>
             <div class="form-card">
               <div class="form-seccion">DATOS BÁSICOS</div>
               <div class="campo"><label>Razón Social *</label><input type="text" id="f-razon-social" placeholder="Nombre o empresa"></div>
@@ -698,6 +701,6 @@
           </div>
 
 
-  <script src="app.js?v=20"></script>
+  <script src="app.js?v=21"></script>
 </body>
 </html>
