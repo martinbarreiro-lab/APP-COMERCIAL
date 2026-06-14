@@ -56,27 +56,35 @@ async function mostrarApp(usuario) {
 async function configurarInterfazPorRol() {
   const rol = await cargarRolUsuario()
   const esCliente = rol === 'cliente'
+  const esVendedor = rol === 'vendedor'
 
-  // Secciones que el CLIENTE NO ve: clientes (otros), reportes, configuración
-  const ocultarParaCliente = ['clientes', 'reportes', 'configuracion']
+  document.body.classList.remove('rol-cliente', 'rol-vendedor')
 
   if (esCliente) {
-    // Ocultar del sidebar de escritorio
+    // El cliente NO ve: clientes (otros), reportes, configuración
+    const ocultarParaCliente = ['clientes', 'reportes', 'configuracion']
     ocultarParaCliente.forEach(sec => {
       const nav = document.getElementById('nav-' + sec)
       if (nav) nav.style.display = 'none'
     })
-    // Ocultar de la hoja "Más" móvil los items que no corresponden
     document.querySelectorAll('.mobile-more-item').forEach(item => {
       const txt = item.textContent.toLowerCase()
       if (txt.includes('cliente') || txt.includes('reporte')) {
         item.style.display = 'none'
       }
     })
-    // El título del dashboard del cliente será distinto (se maneja en cargarDashboard)
     document.body.classList.add('rol-cliente')
-  } else {
-    document.body.classList.remove('rol-cliente')
+
+  } else if (esVendedor) {
+    // El vendedor ve clientes y reportes (filtrados), pero NO configuración
+    const navConfig = document.getElementById('nav-configuracion')
+    if (navConfig) navConfig.style.display = 'none'
+    document.querySelectorAll('.mobile-more-item').forEach(item => {
+      if (item.textContent.toLowerCase().includes('configuraci')) {
+        item.style.display = 'none'
+      }
+    })
+    document.body.classList.add('rol-vendedor')
   }
 }
 
@@ -520,7 +528,13 @@ async function cargarEnvios() {
 // ── CLIENTES ─────────────────────────────────────
 async function cargarClientes() {
   mostrarVistaClientes('lista')
-  const { data, error } = await db.from('clientes').select('id, razon_social, telefono, saldo_pendiente, activo').order('razon_social')
+  const rol = await cargarRolUsuario()
+
+  let query = db.from('clientes').select('id, razon_social, telefono, saldo_pendiente, activo').order('razon_social')
+  // El vendedor solo ve sus clientes
+  if (rol === 'vendedor') query = query.eq('vendedor_id', usuarioActual.id)
+
+  const { data, error } = await query
   if (error) { console.error(error); return }
   clientesCache = data || []
   renderizarListaClientes(clientesCache)
@@ -630,6 +644,28 @@ async function abrirFormCliente(id = null) {
     document.getElementById('f-pago-transferencia').checked = false
     toggleMixto()
   }
+
+  // Si es vendedor EDITANDO un cliente existente, bloquear campos sensibles
+  const rol = await cargarRolUsuario()
+  const camposSensibles = ['f-razon-social','f-cuit','f-condicion-iva','f-condicion-factura',
+    'f-pct-remito','f-pct-factura','f-alicuota-iva','f-descuento','f-bonificacion','f-dias-vencimiento']
+  if (rol === 'vendedor' && id) {
+    // editando: bloquear sensibles, permitir contacto/dirección
+    camposSensibles.forEach(cid => {
+      const el = document.getElementById(cid)
+      if (el) { el.disabled = true; el.style.opacity = '0.6'; el.style.cursor = 'not-allowed' }
+    })
+    const aviso = document.getElementById('aviso-campos-bloqueados')
+    if (aviso) aviso.style.display = 'block'
+  } else {
+    // crear nuevo o admin: todos habilitados
+    camposSensibles.forEach(cid => {
+      const el = document.getElementById(cid)
+      if (el) { el.disabled = false; el.style.opacity = '1'; el.style.cursor = '' }
+    })
+    const aviso = document.getElementById('aviso-campos-bloqueados')
+    if (aviso) aviso.style.display = 'none'
+  }
 }
 async function guardarCliente() {
   const razonSocial = document.getElementById('f-razon-social').value.trim()
@@ -658,7 +694,20 @@ async function guardarCliente() {
   }
   let error
   if (clienteEditandoId) {
-    const res = await db.from('clientes').update(datos).eq('id', clienteEditandoId)
+    // Si es vendedor, no pisar campos sensibles (solo actualizar contacto/dirección)
+    const rolG = await cargarRolUsuario()
+    let datosUpdate = datos
+    if (rolG === 'vendedor') {
+      datosUpdate = {
+        telefono: datos.telefono,
+        email: datos.email,
+        direccion: datos.direccion,
+        provincia: datos.provincia,
+        localidad: datos.localidad,
+        observaciones: datos.observaciones
+      }
+    }
+    const res = await db.from('clientes').update(datosUpdate).eq('id', clienteEditandoId)
     error = res.error
   } else {
     datos.vendedor_id = usuarioActual.id
@@ -4514,13 +4563,22 @@ async function cargarReporte() {
 }
 
 // ── REPORTE CLIENTE ──
+// Aplica filtro de vendedor a una query de reporte si el usuario es vendedor
+async function aplicarFiltroVendedorReporte(query) {
+  const rol = await cargarRolUsuario()
+  if (rol === 'vendedor') return query.eq('vendedor_id', usuarioActual.id)
+  return query
+}
+
 async function reporteCliente(desde, hasta) {
   if (_repSelId) return reporteClienteIndividual(desde, hasta)
 
   // General: ranking de todos
-  const { data: pedidos } = await db.from('pedidos')
+  let q = db.from('pedidos')
     .select('total, monto_cobrado, estado_cobro, cliente_id, clientes(razon_social)')
     .gte('created_at', desde).lte('created_at', hasta).neq('estado', 'cancelado')
+  q = await aplicarFiltroVendedorReporte(q)
+  const { data: pedidos } = await q
 
   const map = {}
   for (const p of (pedidos || [])) {
@@ -4693,7 +4751,9 @@ async function reporteVendedorIndividual(desde, hasta) {
 // ── REPORTE PRODUCTOS ──
 async function reporteProductos(desde, hasta) {
   // Traer pedidos del período (no cancelados)
-  const { data: pedidos } = await db.from('pedidos').select('id').gte('created_at', desde).lte('created_at', hasta).neq('estado','cancelado')
+  let qp = db.from('pedidos').select('id').gte('created_at', desde).lte('created_at', hasta).neq('estado','cancelado')
+  qp = await aplicarFiltroVendedorReporte(qp)
+  const { data: pedidos } = await qp
   const ids = (pedidos||[]).map(p => p.id)
   if (ids.length === 0) {
     document.getElementById('rep-contenido').innerHTML = '<p class="vacio">Sin ventas en el período</p>'
@@ -4734,7 +4794,9 @@ async function reporteProductos(desde, hasta) {
 
 // ── REPORTE COBRANZAS ──
 async function reporteCobranzas(desde, hasta) {
-  const { data: cobros } = await db.from('cobros').select('monto, medio_pago, created_at').gte('created_at', desde).lte('created_at', hasta)
+  let qc = db.from('cobros').select('monto, medio_pago, created_at, vendedor_id').gte('created_at', desde).lte('created_at', hasta)
+  qc = await aplicarFiltroVendedorReporte(qc)
+  const { data: cobros } = await qc
   const total = (cobros||[]).reduce((s,c)=>s+Number(c.monto),0)
 
   // Por medio de pago
