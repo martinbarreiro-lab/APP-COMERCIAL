@@ -42,8 +42,17 @@ async function mostrarApp(usuario) {
   usuarioActual = usuario
   document.getElementById('pantalla-login').style.display = 'none'
   document.getElementById('pantalla-app').style.display   = 'block'
-  const { data: perfil } = await db.from('perfiles').select('nombre_completo').eq('id', usuario.id).single()
-  if (perfil) document.getElementById('nombre-usuario').textContent = perfil.nombre_completo
+  const { data: perfil } = await db.from('perfiles').select('nombre_completo, rol').eq('id', usuario.id).single()
+  if (perfil) {
+    const etiquetaRol = {
+      admin:    'Admin',
+      empresa:  'Empresa',
+      vendedor: 'Vendedor',
+      cliente:  'Cliente'
+    }[perfil.rol] || ''
+    const nombre = perfil.nombre_completo || ''
+    document.getElementById('nombre-usuario').textContent = etiquetaRol ? `${etiquetaRol}: ${nombre}` : nombre
+  }
 
   // Configurar interfaz según el rol del usuario
   await configurarInterfazPorRol()
