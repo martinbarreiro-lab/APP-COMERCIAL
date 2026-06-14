@@ -3429,8 +3429,18 @@ async function confirmarNuevoEnvio() {
     alert('Agregá al menos un pedido al envío')
     return
   }
+  // Abrir modal de observaciones en vez del prompt
+  document.getElementById('me-observaciones').value = ''
+  document.getElementById('modal-envio-obs').style.display = 'flex'
+}
 
-  const obs = prompt('Observaciones del envío (opcional):') || null
+function cerrarModalEnvioObs() {
+  document.getElementById('modal-envio-obs').style.display = 'none'
+}
+
+async function confirmarEnvioConObs() {
+  const obs = document.getElementById('me-observaciones').value.trim() || null
+  cerrarModalEnvioObs()
 
   // Calcular totales del envío
   const { data: pedidosData } = await db.from('pedidos')
