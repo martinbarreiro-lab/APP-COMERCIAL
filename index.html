@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%230d8fd1'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E%F0%9F%A5%9B%3C/text%3E%3C/svg%3E">
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="styles.css?v=15">
+  <link rel="stylesheet" href="styles.css?v=16">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script>
@@ -601,7 +601,40 @@
           </div>
 
 
-          <!-- Modal detalle pedido cobranza -->
+          <!-- Modal INFORMAR PAGO (cliente) -->
+          <div id="modal-informar-pago" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;overflow-y:auto">
+            <div style="background:#fff;border-radius:14px;width:420px;max-width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,0.2)" onclick="event.stopPropagation()">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <h3 style="font-size:16px;font-weight:600;margin:0;color:var(--color-marca-oscuro)">Informar un pago</h3>
+                <button onclick="cerrarInformarPago()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--color-text-secondary)">✕</button>
+              </div>
+              <div style="font-size:13px;color:var(--color-text-tertiary);margin-bottom:16px" id="ip-pedido-nombre"></div>
+
+              <div class="campo"><label>Monto del pago</label>
+                <input type="number" id="ip-monto" placeholder="0" step="0.01"></div>
+
+              <div class="campo"><label>Medio de pago</label>
+                <select id="ip-medio" onchange="toggleOrdenPago()">
+                  <option value="transferencia">Transferencia</option>
+                  <option value="cheque">Cheque</option>
+                  <option value="echeq">eCheq</option>
+                  <option value="efectivo">Efectivo</option>
+                </select></div>
+
+              <div class="campo" id="ip-orden-wrap"><label>Número de orden de pago (si corresponde)</label>
+                <input type="text" id="ip-orden" placeholder="Opcional"></div>
+
+              <div class="campo"><label>Comprobante (foto o PDF)</label>
+                <input type="file" id="ip-archivo" accept="image/*,application/pdf"></div>
+
+              <div style="display:flex;gap:8px;margin-top:18px">
+                <button onclick="cerrarInformarPago()" class="btn-cancelar" style="flex:1">Cancelar</button>
+                <button onclick="confirmarInformarPago()" id="ip-btn-confirmar" class="btn-guardar-inline" style="flex:1">✅ Informar pago</button>
+              </div>
+            </div>
+          </div>
+
+
           <div id="modal-detalle-cob"
             style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:flex-start;justify-content:flex-end"
             onclick="if(event.target===this)cerrarDetalleCob()">
@@ -649,6 +682,6 @@
           </div>
 
 
-  <script src="app.js?v=15"></script>
+  <script src="app.js?v=16"></script>
 </body>
 </html>
