@@ -2368,6 +2368,12 @@ async function confirmarPedido() {
   // Estado según quién crea
   const estado = rol === 'cliente' ? 'pendiente_aprobacion' : 'confirmado'
 
+  // Si lo crea un cliente, asignar el vendedor de su ficha (vendedor_id es obligatorio)
+  let vendedorPedido = usuarioActual.id
+  if (rol === 'cliente') {
+    vendedorPedido = cliente.vendedor_id || null
+  }
+
   // Calcular vencimiento desde la fecha del pedido
   const diasVenc = cliente.dias_vencimiento || 7
   const baseVenc = fecha ? new Date(fecha) : new Date(fechaPedidoStr + 'T12:00:00')
@@ -2376,7 +2382,7 @@ async function confirmarPedido() {
   // Crear pedido
   const { data: pedido, error } = await db.from('pedidos').insert({
     cliente_id:              cliente.id,
-    vendedor_id:             rol === 'cliente' ? null : usuarioActual.id,
+    vendedor_id:             vendedorPedido,
     estado,
     fecha_pedido:            fechaPedidoStr,
     created_at:              fechaPedidoISO,
@@ -2398,7 +2404,7 @@ async function confirmarPedido() {
     console.warn('Insert con created_at falló, reintentando sin él:', error.message)
     const r2 = await db.from('pedidos').insert({
       cliente_id:              cliente.id,
-      vendedor_id:             rol === 'cliente' ? null : usuarioActual.id,
+      vendedor_id:             vendedorPedido,
       estado,
       fecha_pedido:            fechaPedidoStr,
       fecha_entrega:           fecha || null,
