@@ -44,8 +44,40 @@ async function mostrarApp(usuario) {
   document.getElementById('pantalla-app').style.display   = 'block'
   const { data: perfil } = await db.from('perfiles').select('nombre_completo').eq('id', usuario.id).single()
   if (perfil) document.getElementById('nombre-usuario').textContent = perfil.nombre_completo
+
+  // Configurar interfaz según el rol del usuario
+  await configurarInterfazPorRol()
+
   mostrarSeccion('dashboard')
   iniciarSistemaAlertas()
+}
+
+// Oculta/muestra secciones según el rol
+async function configurarInterfazPorRol() {
+  const rol = await cargarRolUsuario()
+  const esCliente = rol === 'cliente'
+
+  // Secciones que el CLIENTE NO ve: clientes (otros), reportes, configuración
+  const ocultarParaCliente = ['clientes', 'reportes', 'configuracion']
+
+  if (esCliente) {
+    // Ocultar del sidebar de escritorio
+    ocultarParaCliente.forEach(sec => {
+      const nav = document.getElementById('nav-' + sec)
+      if (nav) nav.style.display = 'none'
+    })
+    // Ocultar de la hoja "Más" móvil los items que no corresponden
+    document.querySelectorAll('.mobile-more-item').forEach(item => {
+      const txt = item.textContent.toLowerCase()
+      if (txt.includes('cliente') || txt.includes('reporte')) {
+        item.style.display = 'none'
+      }
+    })
+    // El título del dashboard del cliente será distinto (se maneja en cargarDashboard)
+    document.body.classList.add('rol-cliente')
+  } else {
+    document.body.classList.remove('rol-cliente')
+  }
 }
 
 // ── NAVEGACIÓN ───────────────────────────────────
@@ -68,6 +100,11 @@ function mostrarSeccion(nombre) {
 async function cargarDashboard() {
   const rol     = await cargarRolUsuario()
   const esAdmin = rol === 'admin'
+
+  // El cliente tiene su propio inicio
+  if (rol === 'cliente') {
+    return cargarInicioCliente()
+  }
 
   const hoy       = new Date()
   const hoyStr    = hoy.toISOString().split('T')[0]
@@ -300,6 +337,102 @@ function dashMetrica(icono, label, valor, sub, color) {
       <div style="font-size:24px;font-weight:500;color:var(--color-text-primary);line-height:1">${valor}</div>
       <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:5px">${sub}</div>
     </div>`
+}
+
+// ── INICIO DEL CLIENTE ───────────────────────────
+async function cargarInicioCliente() {
+  const clienteId = clienteIdUsuario
+  const cont = document.getElementById('dash-root')
+  if (!clienteId) {
+    cont.innerHTML = '<p class="vacio">No se encontró tu cuenta de cliente. Contactá a la empresa.</p>'
+    return
+  }
+  cont.innerHTML = '<p style="color:var(--color-text-tertiary);font-size:13px;padding:20px;text-align:center">Cargando...</p>'
+
+  // Nombre del cliente
+  const { data: cli } = await db.from('clientes').select('razon_social, saldo_pendiente').eq('id', clienteId).single()
+
+  // Pedidos del cliente (activos)
+  const { data: pedidos } = await db.from('pedidos')
+    .select('id, numero, total, etapa, estado, estado_cobro, fecha_pedido, created_at, fecha_vencimiento_cobro')
+    .eq('cliente_id', clienteId).not('etapa','eq','cancelado')
+    .order('created_at', { ascending: false }).limit(30)
+
+  const todos = pedidos || []
+  // Pedidos por recibir (enviados, no recibidos aún)
+  const porRecibir = todos.filter(p => p.etapa === 'enviado')
+  // Pedidos en curso (no cobrados/finalizados)
+  const enCurso = todos.filter(p => p.etapa !== 'cobrado' && p.estado !== 'cancelado').slice(0, 6)
+  // Deuda
+  const deuda = Number(cli?.saldo_pendiente || 0)
+  // Próximo vencimiento
+  const conVenc = todos.filter(p => p.fecha_vencimiento_cobro && (p.estado_cobro === 'pendiente' || !p.estado_cobro))
+    .sort((a,b) => new Date(a.fecha_vencimiento_cobro) - new Date(b.fecha_vencimiento_cobro))
+  const proxVenc = conVenc[0]?.fecha_vencimiento_cobro
+
+  cont.innerHTML = `
+    <div style="margin-bottom:6px">
+      <div style="font-size:18px;font-weight:600;color:var(--color-marca-oscuro)">Hola, ${cli?.razon_social || 'Cliente'}</div>
+      <div style="font-size:12px;color:var(--color-text-tertiary)">Bienvenido</div>
+    </div>
+
+    <button onclick="navMovil('pedidos'); setTimeout(()=>nuevoPedido(),100)" class="btn-cliente-pedir">
+      <i class="ti ti-plus" aria-hidden="true"></i> Hacer un pedido
+    </button>
+
+    ${porRecibir.length > 0 ? `
+      <div class="cli-bloque-t">PEDIDOS POR RECIBIR</div>
+      ${porRecibir.map(p => `
+        <div class="cli-alert-recibir">
+          <div class="cli-alert-top"><i class="ti ti-truck" aria-hidden="true"></i> Pedido #${p.numero} llegó — confirmá la recepción</div>
+          <button onclick="navMovil('logistica')" class="cli-btn-confirmar"><i class="ti ti-circle-check" aria-hidden="true"></i> Ir a confirmar recepción</button>
+        </div>`).join('')}` : ''}
+
+    <div class="cli-bloque-t">MI CUENTA</div>
+    <div class="cli-deuda-card" onclick="navMovil('cobranza')">
+      <div>
+        <div style="font-size:10px;color:var(--color-text-tertiary)">Saldo pendiente</div>
+        <div style="font-size:19px;font-weight:700;color:${deuda > 0 ? '#e24b4a' : '#1d9e75'}">${fmtM(deuda)}</div>
+        ${proxVenc ? `<div style="font-size:10px;color:#ba7517;margin-top:3px">Vence el ${formatFecha(proxVenc)}</div>` : ''}
+      </div>
+      <i class="ti ti-chevron-right" style="color:#ccc;font-size:20px" aria-hidden="true"></i>
+    </div>
+
+    <div class="cli-bloque-t">MIS PEDIDOS EN CURSO</div>
+    ${enCurso.length === 0 ? '<p class="vacio">No tenés pedidos en curso</p>' : enCurso.map(p => `
+      <div class="cli-ped-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:600">#${p.numero} · ${formatFecha(p.fecha_pedido||p.created_at)}</span>
+          <span style="font-size:13px;font-weight:600;color:var(--color-marca-oscuro)">${fmtM(p.total)}</span>
+        </div>
+        ${renderTrackCliente(p)}
+      </div>`).join('')}`
+}
+
+// Estado simplificado para el cliente
+function estadoClienteSimple(p) {
+  // pendiente_aprobacion -> Pendiente; confirmado/facturado -> Aceptado; enviado -> En camino; recibido/cobrado -> Entregado
+  if (p.estado === 'pendiente_aprobacion') return 0  // Pendiente
+  if (p.etapa === 'enviado') return 2                 // En camino
+  if (p.etapa === 'recibido' || p.etapa === 'cobrado') return 3 // Entregado
+  return 1                                            // Aceptado (confirmado/facturado)
+}
+
+function renderTrackCliente(p) {
+  const paso = estadoClienteSimple(p)
+  const pasos = ['Pedido', 'Aceptado', 'En camino', 'Entregado']
+  // El "Pendiente" se muestra distinto
+  if (paso === 0) {
+    return `<div style="font-size:11px;color:#633806;background:#faeeda;border-radius:8px;padding:7px 10px">🕐 Pendiente — esperando que la empresa lo acepte</div>`
+  }
+  return `<div class="cli-track">
+    ${pasos.map((label, i) => `
+      <div class="cli-track-paso">
+        ${i > 0 ? `<div class="cli-track-linea ${i <= paso ? 'ok' : ''}"></div>` : ''}
+        <div class="cli-track-dot ${i < paso ? 'ok' : (i === paso ? 'now' : '')}">${i < paso ? '✓' : (i+1)}</div>
+        <div class="cli-track-label ${i === paso ? 'now' : ''}">${label}</div>
+      </div>`).join('')}
+  </div>`
 }
 
 function renderDashAlertas(vencidos, porVencer, atascados, alertasPend) {
@@ -664,12 +797,20 @@ function badgeEnvio(e) {
 
 // ── PRODUCTOS ────────────────────────────────────
 let rolUsuarioActual = null
+let clienteIdUsuario = null   // cliente_id del usuario si es un cliente
 
 async function cargarRolUsuario() {
   if (rolUsuarioActual) return rolUsuarioActual
-  const { data } = await db.from('perfiles').select('rol').eq('id', usuarioActual.id).single()
+  const { data } = await db.from('perfiles').select('rol, cliente_id').eq('id', usuarioActual.id).single()
   rolUsuarioActual = data?.rol || 'vendedor'
+  clienteIdUsuario = data?.cliente_id || null
   return rolUsuarioActual
+}
+
+// Devuelve el cliente_id si el usuario es cliente, sino null (admin/vendedor ven todo)
+async function getClienteIdFiltro() {
+  await cargarRolUsuario()
+  return rolUsuarioActual === 'cliente' ? clienteIdUsuario : null
 }
 
 async function cargarProductos() {
@@ -985,21 +1126,6 @@ async function eliminarPedido(pedidoId) {
   volverAPedidos()
 }
 
-async function aprobarPedido(pedidoId) {
-  await db.from('pedidos').update({ estado: 'confirmado', aprobado_por: usuarioActual.id, fecha_aprobacion: new Date().toISOString() }).eq('id', pedidoId)
-  await registrarHistorial(pedidoId, 'estado_cambiado', 'Pedido aprobado por el vendedor')
-  await abrirPedido(pedidoId)
-}
-
-async function rechazarPedido(pedidoId) {
-  const motivo = prompt('¿Por qué rechazás este pedido?')
-  if (!motivo) return
-  await db.from('pedidos').update({ estado: 'rechazado', motivo_rechazo: motivo }).eq('id', pedidoId)
-  await registrarHistorial(pedidoId, 'estado_cambiado', 'Pedido rechazado: ' + motivo)
-  await abrirPedido(pedidoId)
-}
-
-
 async function abrirPedido(id) {
   pedidoActualId = id
   mostrarVistaPedidos('detalle')
@@ -1271,11 +1397,21 @@ async function cargarPedidos() {
   const fechaDesde = document.getElementById('filtro-fecha-desde')?.value || ''
   const fechaHasta = document.getElementById('filtro-fecha-hasta')?.value || ''
 
+  const rol = await cargarRolUsuario()
+  const clienteFiltro = await getClienteIdFiltro()
+
   let query = db.from('pedidos')
     .select('id, numero, total, estado, etapa, estado_cobro, alerta_vencimiento, fecha_vencimiento_cobro, fecha_pedido, created_at, updated_at, clientes(razon_social)')
     .not('etapa', 'eq', 'cancelado')
     .order('created_at', { ascending: false })
     .limit(200)
+
+  // Filtrado por rol
+  if (clienteFiltro) {
+    query = query.eq('cliente_id', clienteFiltro)
+  } else if (rol === 'vendedor') {
+    query = query.eq('vendedor_id', usuarioActual.id)
+  }
 
   if (_filtroClienteId) query = query.eq('cliente_id', _filtroClienteId)
   if (fechaDesde) query = query.gte('fecha_pedido', fechaDesde)
@@ -2304,6 +2440,16 @@ async function confirmarPedido() {
   await registrarHistorial(pedido_ok.id, 'pedido_creado',
     `Pedido creado por ${rol} — $${Number(t.total).toLocaleString('es-AR')}`)
 
+  // Si lo creó un cliente, notificar a vendedor/empresa para que lo acepte
+  if (rol === 'cliente') {
+    await db.from('notificaciones_admin').insert({
+      tipo: 'pedido_nuevo',
+      mensaje: `Nuevo pedido #${pedido_ok.numero} de ${cliente.razon_social} para aceptar — $${Number(t.total).toLocaleString('es-AR')}`,
+      pedido_id: pedido_ok.id,
+      leida: false
+    })
+  }
+
   // Borrar borrador si había
   if (pedidoActual.borrador_id) {
     await db.from('pedidos').delete().eq('id', pedidoActual.borrador_id)
@@ -2312,7 +2458,7 @@ async function confirmarPedido() {
   pedidoActual = { cliente: null, items: {}, borrador_id: null }
 
   if (rol === 'cliente') {
-    alert('✅ Pedido enviado. El vendedor lo revisará pronto.')
+    alert('✅ Pedido enviado. La empresa lo revisará pronto.')
   } else {
     alert('✅ Pedido confirmado correctamente.')
   }
@@ -2371,6 +2517,19 @@ async function aprobarPedido(pedidoId) {
 
   if (error) { alert('Error al aprobar'); return }
   await registrarHistorial(pedidoId, 'estado_cambiado', 'Pedido aprobado por el vendedor')
+
+  // Notificar al cliente que su pedido fue aceptado
+  const { data: p } = await db.from('pedidos').select('cliente_id, numero').eq('id', pedidoId).single()
+  if (p?.cliente_id) {
+    await db.from('notificaciones').insert({
+      usuario_id: p.cliente_id,
+      tipo: 'pedido_aceptado',
+      titulo: '¡Pedido aceptado!',
+      mensaje: `Tu pedido #${p.numero} fue aceptado. Lo estamos preparando.`,
+      leida: false
+    })
+  }
+
   await cargarCobrosPedido(pedidoId)
   await abrirPedido(pedidoId)
 }
@@ -2414,6 +2573,8 @@ async function cargarCobranza() {
   const vendWrap = document.getElementById('cob-vendedor-wrap')
   if (vendWrap) vendWrap.style.display = esAdmin ? 'block' : 'none'
 
+  const clienteFiltro = await getClienteIdFiltro()
+
   // Query pedidos con cobros pendientes o cobrados
   let query = db.from('pedidos')
     .select(`id, numero, total, monto_cobrado, estado_cobro, etapa,
@@ -2422,7 +2583,12 @@ async function cargarCobranza() {
     .not('etapa', 'eq', 'cancelado')
     .order('fecha_vencimiento_cobro', { ascending: true, nullsFirst: false })
 
-  if (!esAdmin) query = query.eq('vendedor_id', usuarioActual.id)
+  // Filtrado por rol: cliente ve solo lo suyo, vendedor lo de sus clientes, admin todo
+  if (clienteFiltro) {
+    query = query.eq('cliente_id', clienteFiltro)
+  } else if (rol === 'vendedor') {
+    query = query.eq('vendedor_id', usuarioActual.id)
+  }
   if (_cobFiltroClienteId)  query = query.eq('cliente_id', _cobFiltroClienteId)
   if (_cobFiltroVendedorId) query = query.eq('vendedor_id', _cobFiltroVendedorId)
   if (desde) query = query.gte('fecha_pedido', desde)
@@ -2566,13 +2732,16 @@ function renderCobCard(p, hoy, esAdmin, esCobrado = false) {
           ${formatMonto(esCobrado ? Number(p.total) : pendiente)}
         </div>
         <div class="cob-card-acciones">
-          ${tel ? `<a href="${waLink(tel)}" target="_blank" class="btn-whatsapp" onclick="event.stopPropagation()">
+          ${tel && rolUsuarioActual !== 'cliente' ? `<a href="${waLink(tel)}" target="_blank" class="btn-whatsapp" onclick="event.stopPropagation()">
             <i class="ti ti-brand-whatsapp" aria-hidden="true"></i>
           </a>` : ''}
-          ${!esCobrado ? `<button onclick="event.stopPropagation(); abrirModalCobro('${p.id}', '${p.clientes?.razon_social || ''}', ${pendiente})"
-            class="btn-cobrar">
-            <i class="ti ti-cash" aria-hidden="true"></i> Cobrar
-          </button>` : `<button onclick="descargarPDF('${p.id}')" class="btn-secundario" style="font-size:12px;padding:6px 12px">
+          ${!esCobrado ? (rolUsuarioActual === 'cliente' ? `
+            <button onclick="event.stopPropagation(); abrirInformarPago('${p.id}', '${(p.clientes?.razon_social || '').replace(/'/g,"\\'")}', ${pendiente})" class="btn-cobrar">
+              <i class="ti ti-upload" aria-hidden="true"></i> Informar pago
+            </button>` : `
+            <button onclick="event.stopPropagation(); abrirModalCobro('${p.id}', '${(p.clientes?.razon_social || '').replace(/'/g,"\\'")}', ${pendiente})" class="btn-cobrar">
+              <i class="ti ti-cash" aria-hidden="true"></i> Cobrar
+            </button>`) : `<button onclick="descargarPDF('${p.id}')" class="btn-secundario" style="font-size:12px;padding:6px 12px">
             <i class="ti ti-file-download" aria-hidden="true"></i> PDF
           </button>`}
         </div>
@@ -2957,11 +3126,25 @@ let _envioActual = { pedidos: [] }
 
 // ── CARGAR LOGÍSTICA ─────────────────────────────
 async function cargarLogistica() {
-  await Promise.all([
-    renderStatsLogistica(),
-    renderPedidosParaEnviar(),
-    renderEnviosActivos()
-  ])
+  const rol = await cargarRolUsuario()
+  const esCliente = rol === 'cliente'
+
+  // El cliente NO ve stats internas ni "pedidos para enviar" (eso es gestión)
+  const statsEl = document.getElementById('log-stats')
+  const enviarEl = document.getElementById('log-pedidos-para-enviar')
+  if (esCliente) {
+    if (statsEl) statsEl.style.display = 'none'
+    if (enviarEl) enviarEl.style.display = 'none'
+    await renderEnviosActivos()
+  } else {
+    if (statsEl) statsEl.style.display = ''
+    if (enviarEl) enviarEl.style.display = ''
+    await Promise.all([
+      renderStatsLogistica(),
+      renderPedidosParaEnviar(),
+      renderEnviosActivos()
+    ])
+  }
 }
 
 // ── STATS ────────────────────────────────────────
@@ -3150,10 +3333,37 @@ async function notificarClienteEnvio(pedidoId) {
 
 // ── ENVÍOS ACTIVOS ───────────────────────────────
 async function renderEnviosActivos() {
-  const { data: envios } = await db.from('envios')
-    .select('*')
-    .order('fecha_salida', { ascending: false })
-    .limit(20)
+  const clienteFiltro = await getClienteIdFiltro()
+  const rol = await cargarRolUsuario()
+
+  let envios = []
+
+  if (clienteFiltro || rol === 'vendedor') {
+    // Cliente/vendedor: traer solo envíos que contienen sus pedidos
+    // 1) sus pedidos
+    let qPed = db.from('pedidos').select('id')
+    if (clienteFiltro) qPed = qPed.eq('cliente_id', clienteFiltro)
+    else qPed = qPed.eq('vendedor_id', usuarioActual.id)
+    const { data: misPedidos } = await qPed
+    const misIds = (misPedidos || []).map(p => p.id)
+
+    if (misIds.length > 0) {
+      // 2) envío_pedidos que referencian esos pedidos
+      const { data: vinculos } = await db.from('envio_pedidos')
+        .select('envio_id').in('pedido_id', misIds)
+      const envioIds = [...new Set((vinculos || []).map(v => v.envio_id))]
+      if (envioIds.length > 0) {
+        const { data } = await db.from('envios').select('*')
+          .in('id', envioIds).order('fecha_salida', { ascending: false }).limit(20)
+        envios = data || []
+      }
+    }
+  } else {
+    // Admin/empresa: todos
+    const { data } = await db.from('envios').select('*')
+      .order('fecha_salida', { ascending: false }).limit(20)
+    envios = data || []
+  }
 
   const el = document.getElementById('log-envios-activos')
   if (!envios || envios.length === 0) {
@@ -3644,17 +3854,27 @@ async function cargarPendientes() {
   const el = document.getElementById('problemas-pendientes-lista')
   el.innerHTML = '<p style="color:var(--color-text-tertiary);font-size:13px">Cargando...</p>'
 
+  const clienteFiltro = await getClienteIdFiltro()
+  const rolP = await cargarRolUsuario()
+
   // Buscar en notificaciones_admin (con o sin campo tipo)
   const { data: notifAdmin } = await db.from('notificaciones_admin')
-    .select('*, pedidos(id, numero, clientes(razon_social, telefono))')
+    .select('*, pedidos(id, numero, cliente_id, vendedor_id, clientes(razon_social, telefono))')
     .eq('leida', false)
     .order('created_at', { ascending: false })
 
   // Filtrar solo las de problema_recepcion — compatibles con registros viejos sin tipo
-  const notifsFiltradas = (notifAdmin || []).filter(n =>
+  let notifsFiltradas = (notifAdmin || []).filter(n =>
     !n.tipo || n.tipo === 'problema_recepcion' ||
     (n.mensaje && n.mensaje.toLowerCase().includes('problema'))
   )
+
+  // Filtrado por rol: cliente solo sus pedidos, vendedor los de sus clientes
+  if (clienteFiltro) {
+    notifsFiltradas = notifsFiltradas.filter(n => n.pedidos?.cliente_id === clienteFiltro)
+  } else if (rolP === 'vendedor') {
+    notifsFiltradas = notifsFiltradas.filter(n => n.pedidos?.vendedor_id === usuarioActual.id)
+  }
 
   // Si no hay nada en notificaciones_admin, buscar directamente en historial_pedido
   let notifs = notifsFiltradas
@@ -4487,3 +4707,135 @@ document.addEventListener('click', (e) => {
     dd.style.display = 'none'
   }
 })
+
+
+// ================================================
+// INFORMAR PAGO (Cliente)
+// ================================================
+let _informarPagoPedidoId = null
+
+function abrirInformarPago(pedidoId, clienteNombre, pendiente) {
+  _informarPagoPedidoId = pedidoId
+  const modal = document.getElementById('modal-informar-pago')
+  document.getElementById('ip-pedido-nombre').textContent = clienteNombre
+  document.getElementById('ip-monto').value = pendiente || ''
+  document.getElementById('ip-medio').value = 'transferencia'
+  document.getElementById('ip-archivo').value = ''
+  document.getElementById('ip-orden').value = ''
+  toggleOrdenPago()
+  modal.style.display = 'flex'
+}
+
+function cerrarInformarPago() {
+  document.getElementById('modal-informar-pago').style.display = 'none'
+  _informarPagoPedidoId = null
+}
+
+function toggleOrdenPago() {
+  // La orden de pago aplica para transferencia/cheque/echeq, no para efectivo
+  const medio = document.getElementById('ip-medio').value
+  const wrap = document.getElementById('ip-orden-wrap')
+  if (wrap) wrap.style.display = (medio === 'efectivo') ? 'none' : 'block'
+}
+
+async function confirmarInformarPago() {
+  if (!_informarPagoPedidoId) return
+  const monto  = Number(document.getElementById('ip-monto').value)
+  const medio  = document.getElementById('ip-medio').value
+  const orden  = document.getElementById('ip-orden').value
+  const archivoFile = document.getElementById('ip-archivo').files[0]
+
+  if (!monto || monto <= 0) { alert('Ingresá el monto del pago'); return }
+
+  const btn = document.getElementById('ip-btn-confirmar')
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando...' }
+
+  // Subir comprobante si hay
+  let comprobanteUrl = null
+  if (archivoFile) {
+    const ext = archivoFile.name.split('.').pop()
+    const path = `pago_${_informarPagoPedidoId}_${Date.now()}.${ext}`
+    const { error: upErr } = await db.storage.from('comprobantes').upload(path, archivoFile, { upsert: true })
+    if (!upErr) {
+      const { data: ud } = db.storage.from('comprobantes').getPublicUrl(path)
+      comprobanteUrl = ud.publicUrl
+    }
+  }
+
+  // Registrar el pago informado como PENDIENTE DE VERIFICAR (no descuenta deuda)
+  const { data: pago, error } = await db.from('pagos_informados').insert({
+    pedido_id:      _informarPagoPedidoId,
+    cliente_id:     clienteIdUsuario,
+    monto,
+    medio_pago:     medio,
+    orden_pago:     orden || null,
+    comprobante_url: comprobanteUrl,
+    estado:         'pendiente_verificar',
+    informado_por:  usuarioActual.id
+  }).select().single()
+
+  if (error) {
+    // Si la tabla no existe o falla, avisar claramente
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Informar pago' }
+    alert('Error al informar el pago: ' + error.message + '\n\nVerificá que la tabla "pagos_informados" exista en la base.')
+    return
+  }
+
+  // Registrar en historial del pedido
+  await registrarHistorial(_informarPagoPedidoId, 'pago_informado',
+    `Pago informado por el cliente — ${labelMedio(medio)} $${monto.toLocaleString('es-AR')}${comprobanteUrl ? ' | comprobante: ' + comprobanteUrl : ''}`)
+
+  // Notificar a empresa/vendedor para verificar
+  const { data: p } = await db.from('pedidos').select('numero, vendedor_id, clientes(razon_social)').eq('id', _informarPagoPedidoId).single()
+  await db.from('notificaciones_admin').insert({
+    tipo: 'pago_informado',
+    mensaje: `${p?.clientes?.razon_social || 'Un cliente'} informó un pago de $${monto.toLocaleString('es-AR')} (${labelMedio(medio)}) en el pedido #${p?.numero} — verificar`,
+    pedido_id: _informarPagoPedidoId,
+    leida: false
+  })
+
+  if (btn) { btn.disabled = false; btn.textContent = '✅ Informar pago' }
+  cerrarInformarPago()
+  alert('✅ Pago informado. La empresa lo va a verificar pronto.')
+  cargarCobranza()
+}
+
+// Verificar un pago informado (empresa/vendedor) — descuenta la deuda
+async function verificarPagoInformado(pagoId) {
+  const { data: pago } = await db.from('pagos_informados').select('*').eq('id', pagoId).single()
+  if (!pago) return
+  if (!confirm(`¿Verificar el pago de $${Number(pago.monto).toLocaleString('es-AR')}? Se registrará como cobrado.`)) return
+
+  // Registrar el cobro real
+  await db.from('cobros').insert({
+    pedido_id:   pago.pedido_id,
+    monto:       pago.monto,
+    medio_pago:  pago.medio_pago,
+    vendedor_id: usuarioActual.id,
+    comprobante_url: pago.comprobante_url || null
+  })
+
+  // Actualizar el pedido (sumar a monto_cobrado)
+  const { data: ped } = await db.from('pedidos').select('total, monto_cobrado').eq('id', pago.pedido_id).single()
+  const nuevoCobrado = Number(ped?.monto_cobrado || 0) + Number(pago.monto)
+  const estadoCobro = nuevoCobrado >= Number(ped?.total || 0) ? 'cobrado' : 'parcial'
+  await db.from('pedidos').update({ monto_cobrado: nuevoCobrado, estado_cobro: estadoCobro }).eq('id', pago.pedido_id)
+
+  // Marcar el pago como verificado
+  await db.from('pagos_informados').update({ estado: 'verificado', verificado_por: usuarioActual.id }).eq('id', pagoId)
+
+  // Notificar al cliente
+  if (pago.cliente_id) {
+    const { data: p } = await db.from('pedidos').select('numero').eq('id', pago.pedido_id).single()
+    await db.from('notificaciones').insert({
+      usuario_id: pago.cliente_id,
+      tipo: 'pago_verificado',
+      titulo: 'Pago verificado ✅',
+      mensaje: `Tu pago del pedido #${p?.numero} fue verificado. ¡Gracias!`,
+      leida: false
+    })
+  }
+
+  alert('✅ Pago verificado y registrado.')
+  cargarCobranza()
+}
