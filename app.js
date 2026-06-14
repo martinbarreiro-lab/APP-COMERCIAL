@@ -1463,11 +1463,17 @@ async function cargarPedidosTodos() {
   const rol = await cargarRolUsuario()
   const clienteFiltro = await getClienteIdFiltro()
 
+  const esCliente = rol === 'cliente'
+
   let query = db.from('pedidos')
     .select('id, numero, total, estado, etapa, estado_cobro, alerta_vencimiento, fecha_vencimiento_cobro, fecha_pedido, created_at, updated_at, clientes(razon_social)')
     .not('etapa', 'eq', 'cancelado')
     .order('created_at', { ascending: false })
     .limit(200)
+
+  // Admin/vendedor: los pendientes van en su propia pestaña, no en "Todos".
+  // El cliente sí ve los suyos pendientes (no tiene pestaña aparte).
+  if (!esCliente) query = query.neq('estado', 'pendiente_aprobacion')
 
   // Filtrado por rol
   if (clienteFiltro) {
