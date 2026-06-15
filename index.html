@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%230d8fd1'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E%F0%9F%A5%9B%3C/text%3E%3C/svg%3E">
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="styles.css?v=32">
+  <link rel="stylesheet" href="styles.css?v=33">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script>
@@ -317,6 +317,9 @@
         <section id="seccion-problemas" class="seccion" style="display:none">
           <div class="seccion-header">
             <h2>Reclamos</h2>
+          </div>
+          <div style="font-size:12px;color:var(--color-text-tertiary);margin-bottom:14px;display:flex;align-items:center;gap:6px">
+            <i class="ti ti-info-circle" aria-hidden="true"></i> Para cargar un reclamo, entrá al pedido (problema de producto) o a Cobranza (problema de facturación).
           </div>
 
           <!-- Tabs -->
@@ -620,6 +623,34 @@
           </div>
 
 
+          <!-- Modal CARGAR RECLAMO (producto / cobranza) -->
+          <div id="modal-reclamo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;overflow-y:auto">
+            <div style="background:#fff;border-radius:14px;width:440px;max-width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,0.2)" onclick="event.stopPropagation()">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <h3 style="font-size:16px;font-weight:600;margin:0;color:var(--color-marca-oscuro)" id="reclamo-titulo">Reportar un reclamo</h3>
+                <button onclick="cerrarModalReclamo()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--color-text-secondary)">✕</button>
+              </div>
+              <div style="font-size:13px;color:var(--color-text-tertiary);margin-bottom:16px" id="reclamo-subtitulo"></div>
+
+              <div class="campo"><label>Tipo de reclamo</label>
+                <select id="reclamo-tipo">
+                  <option value="problema_producto">⚠️ Problema con un producto</option>
+                  <option value="problema_cobranza">💰 Problema de cobranza / facturación</option>
+                </select></div>
+
+              <div class="campo"><label>Descripción del problema *</label>
+                <textarea id="reclamo-desc" rows="3" placeholder="Contanos qué pasó..."></textarea></div>
+
+              <div class="campo"><label>Foto / adjunto * (obligatorio)</label>
+                <input type="file" id="reclamo-foto" accept="image/*,application/pdf"></div>
+
+              <div style="display:flex;gap:8px;margin-top:18px">
+                <button onclick="cerrarModalReclamo()" class="btn-cancelar" style="flex:1">Cancelar</button>
+                <button onclick="confirmarReclamo()" id="reclamo-btn" class="btn-guardar-inline" style="flex:1"><i class="ti ti-send" aria-hidden="true"></i> Enviar reclamo</button>
+              </div>
+            </div>
+          </div>
+
           <!-- Modal OBSERVACIONES DEL ENVÍO -->
           <div id="modal-envio-obs" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;overflow-y:auto">
             <div style="background:#fff;border-radius:14px;width:420px;max-width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,0.2)" onclick="event.stopPropagation()">
@@ -720,6 +751,6 @@
           </div>
 
 
-  <script src="app.js?v=32"></script>
+  <script src="app.js?v=33"></script>
 </body>
 </html>
