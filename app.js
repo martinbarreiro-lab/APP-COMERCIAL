@@ -1923,6 +1923,7 @@ async function confirmarRecepcion() {
     const rolRep = await cargarRolUsuario()
     await db.from('notificaciones_admin').insert({
       tipo:              'problema_recepcion',
+      titulo:            'Problema en recepción',
       mensaje:           `⚠️ Problema en recepción: ${descripcion}`,
       pedido_id:         pedidoIdCopy,
       leida:             false,
@@ -2615,6 +2616,7 @@ async function confirmarPedido() {
     const quien = rol === 'cliente' ? cliente.razon_social : 'vendedor (' + cliente.razon_social + ')'
     await db.from('notificaciones_admin').insert({
       tipo: 'pedido_nuevo',
+      titulo: 'Nuevo pedido para aprobar',
       mensaje: `Nuevo pedido #${pedido_ok.numero} de ${quien} para aprobar — $${Number(t.total).toLocaleString('es-AR')}`,
       pedido_id: pedido_ok.id,
       leida: false
@@ -4976,6 +4978,7 @@ async function confirmarInformarPago() {
   const { data: p } = await db.from('pedidos').select('numero, vendedor_id, clientes(razon_social)').eq('id', _informarPagoPedidoId).single()
   await db.from('notificaciones_admin').insert({
     tipo: 'pago_informado',
+    titulo: 'Pago informado para verificar',
     mensaje: `${p?.clientes?.razon_social || 'Un cliente'} informó un pago de $${monto.toLocaleString('es-AR')} (${labelMedio(medio)}) en el pedido #${p?.numero} — verificar`,
     pedido_id: _informarPagoPedidoId,
     leida: false
