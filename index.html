@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%230d8fd1'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E%F0%9F%A5%9B%3C/text%3E%3C/svg%3E">
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="styles.css?v=30">
+  <link rel="stylesheet" href="styles.css?v=31">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script>
@@ -201,7 +201,7 @@
             <div id="alerta-vencimiento-pedido" style="display:none" class="alerta-box">⚠️ <span id="texto-alerta-vencimiento"></span></div>
             <div id="info-pedido" class="detalle-card"></div>
             <div class="detalle-seccion">
-              <div class="detalle-seccion-header"><h3>📄 Documentos</h3><button class="btn-secundario" onclick="abrirSubirDocumento()">+ Subir</button></div>
+              <div class="detalle-seccion-header"><h3>📄 Documentos</h3><button class="btn-secundario" id="btn-subir-documento" onclick="abrirSubirDocumento()">+ Subir</button></div>
               <div id="lista-documentos-pedido"></div>
               <div id="form-subir-documento" style="display:none" class="form-inline">
                 <div class="campo"><label>Tipo</label><select id="tipo-documento"><option value="remito">Remito</option><option value="factura_a">Factura A</option><option value="factura_b">Factura B</option><option value="factura_c">Factura C</option></select></div>
@@ -720,6 +720,6 @@
           </div>
 
 
-  <script src="app.js?v=30"></script>
+  <script src="app.js?v=31"></script>
 </body>
 </html>
