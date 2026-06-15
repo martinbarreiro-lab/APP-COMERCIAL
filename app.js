@@ -1943,7 +1943,7 @@ async function confirmarRecepcion() {
       .select('vendedor_id, numero').eq('id', pedidoIdCopy).single()
     if (ped?.vendedor_id) {
       await db.from('notificaciones').insert({
-        usuario_id: ped.vendedor_id,
+        cliente_id: ped.vendedor_id,
         tipo:       'problema_recepcion',
         titulo:     `⚠️ Problema en Pedido #${ped.numero}`,
         mensaje:    `El cliente reportó un problema al recibir: ${descripcion}`,
@@ -2700,7 +2700,7 @@ async function aprobarPedidoSilencioso(pedidoId) {
   const { data: p } = await db.from('pedidos').select('cliente_id, numero').eq('id', pedidoId).single()
   if (p?.cliente_id) {
     await db.from('notificaciones').insert({
-      usuario_id: p.cliente_id,
+      cliente_id: p.cliente_id,
       tipo: 'pedido_aceptado',
       titulo: '¡Pedido aceptado!',
       mensaje: `Tu pedido #${p.numero} fue aceptado. Lo estamos preparando.`,
@@ -2723,7 +2723,7 @@ async function aprobarPedido(pedidoId) {
   const { data: p } = await db.from('pedidos').select('cliente_id, numero').eq('id', pedidoId).single()
   if (p?.cliente_id) {
     await db.from('notificaciones').insert({
-      usuario_id: p.cliente_id,
+      cliente_id: p.cliente_id,
       tipo: 'pedido_aceptado',
       titulo: '¡Pedido aceptado!',
       mensaje: `Tu pedido #${p.numero} fue aceptado. Lo estamos preparando.`,
@@ -3546,7 +3546,7 @@ async function notificarClienteEnvio(pedidoId) {
   if (!p?.cliente_id) return
 
   const { error } = await db.from('notificaciones').insert({
-    usuario_id: p.cliente_id,
+    cliente_id: p.cliente_id,
     tipo:       'envio',
     titulo:     '🚚 Tu pedido está en camino',
     mensaje:    `Tu pedido #${p.numero} salió para entrega. ¡Pronto lo tenés!`,
@@ -3864,12 +3864,11 @@ async function cargarAlertas() {
       .order('created_at', { ascending: false })
     alertas = data || []
   } else {
-    // Vendedor ve sus propias notificaciones no leídas de problema
+    // Vendedor/cliente ve sus propias notificaciones no leídas
     const { data } = await db.from('notificaciones')
-      .select('*, pedidos(numero, clientes(razon_social))')
-      .eq('usuario_id', usuarioActual.id)
+      .select('*')
+      .eq('cliente_id', usuarioActual.id)
       .eq('leida', false)
-      .eq('tipo', 'problema_recepcion')
       .order('created_at', { ascending: false })
     alertas = data || []
   }
@@ -4294,7 +4293,7 @@ async function responderReclamo(notifId) {
     .eq('id', notifId).single()
   if (n?.reportado_por_rol === 'cliente' && n?.pedidos?.cliente_id) {
     await db.from('notificaciones').insert({
-      usuario_id: n.pedidos.cliente_id,
+      cliente_id: n.pedidos.cliente_id,
       tipo: 'reclamo_respondido',
       titulo: 'Respuesta a tu reclamo',
       mensaje: `La empresa respondió tu reclamo del pedido #${n.pedidos.numero}. Revisalo.`,
@@ -5024,7 +5023,7 @@ async function verificarPagoInformado(pagoId) {
   if (pago.cliente_id) {
     const { data: p } = await db.from('pedidos').select('numero').eq('id', pago.pedido_id).single()
     await db.from('notificaciones').insert({
-      usuario_id: pago.cliente_id,
+      cliente_id: pago.cliente_id,
       tipo: 'pago_verificado',
       titulo: 'Pago verificado ✅',
       mensaje: `Tu pago del pedido #${p?.numero} fue verificado. ¡Gracias!`,
