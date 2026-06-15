@@ -1235,11 +1235,17 @@ async function abrirPedido(id) {
   await cargarHistorialPedido(id)
   await actualizarEtapaPedido(id, p)
 
+  // El cliente NO puede subir documentos/facturas (solo la empresa)
+  const rolDoc = await cargarRolUsuario()
+  const btnSubirDoc = document.getElementById('btn-subir-documento')
+  if (btnSubirDoc) btnSubirDoc.style.display = (rolDoc === 'cliente') ? 'none' : ''
+
   // Botones de acción
   const rol3 = await cargarRolUsuario()
   const esAdmin3 = rol3 === 'admin'
   const esVendedor3 = rol3 === 'vendedor'
-  const puedeAprobar3 = p.estado === 'pendiente_aprobacion'
+  // Solo admin/vendedor pueden aprobar — el cliente NO aprueba sus propios pedidos
+  const puedeAprobar3 = p.estado === 'pendiente_aprobacion' && (esAdmin3 || esVendedor3)
   const etapaActual3 = p.etapa || 'pedido'
 
   const botonesEl = document.getElementById('info-pedido')
