@@ -1265,6 +1265,10 @@ async function abrirPedido(id) {
         <button onclick="descargarPDF('${id}')" class="btn-secundario">
           <i class="ti ti-file-download" aria-hidden="true"></i> Descargar PDF
         </button>` : ''}
+      ${['recibido','cobrado'].includes(etapaActual3) ? `
+        <button onclick="abrirModalReclamo('${id}','problema_producto')" class="btn-secundario" style="color:#a32d2d;border-color:#e7a3a3">
+          <i class="ti ti-alert-triangle" aria-hidden="true"></i> Reportar problema con un producto
+        </button>` : ''}
       ${!['cobrado','cancelado'].includes(etapaActual3) && (esAdmin3 || esVendedor3) ? `
         <button onclick="cancelarPedido('${id}')" class="btn-cancelar">🚫 Cancelar</button>
       ` : ''}
@@ -2945,6 +2949,10 @@ function renderCobCard(p, hoy, esAdmin, esCobrado = false) {
             </button>`) : `<button onclick="descargarPDF('${p.id}')" class="btn-secundario" style="font-size:12px;padding:6px 12px">
             <i class="ti ti-file-download" aria-hidden="true"></i> PDF
           </button>`}
+          ${!esCobrado ? `
+            <button onclick="event.stopPropagation(); abrirModalReclamo('${p.id}','problema_cobranza')" class="btn-secundario" style="font-size:12px;padding:6px 10px;color:#1a56db;border-color:#a4cafe" title="Reportar problema de cobranza">
+              <i class="ti ti-flag" aria-hidden="true"></i>
+            </button>` : ''}
         </div>
       </div>
     </div>`
@@ -5033,4 +5041,127 @@ async function verificarPagoInformado(pagoId) {
 
   alert('✅ Pago verificado y registrado.')
   cargarCobranza()
+}
+
+
+// ════════════════════════════════════════════════
+// CARGAR RECLAMO (producto / cobranza) — foto obligatoria
+// ════════════════════════════════════════════════
+let _reclamoPedidoId = null
+
+// Abrir modal. tipoFijo = 'problema_producto' o 'problema_cobranza' (opcional, fija el tipo)
+function abrirModalReclamo(pedidoId, tipoFijo) {
+  _reclamoPedidoId = pedidoId
+  document.getElementById('reclamo-desc').value = ''
+  document.getElementById('reclamo-foto').value = ''
+  const selTipo = document.getElementById('reclamo-tipo')
+
+  if (tipoFijo) {
+    selTipo.value = tipoFijo
+    selTipo.parentElement.style.display = 'none'  // ocultar selector si el tipo está fijo
+  } else {
+    selTipo.parentElement.style.display = 'block'
+    selTipo.value = 'problema_producto'
+  }
+
+  const subt = tipoFijo === 'problema_cobranza'
+    ? 'Reportá un problema de facturación o cobranza de este pedido.'
+    : tipoFijo === 'problema_producto'
+      ? 'Reportá un problema con un producto de este pedido.'
+      : 'Elegí el tipo y describí el problema.'
+  document.getElementById('reclamo-subtitulo').textContent = subt
+
+  document.getElementById('modal-reclamo').style.display = 'flex'
+}
+
+function cerrarModalReclamo() {
+  document.getElementById('modal-reclamo').style.display = 'none'
+  _reclamoPedidoId = null
+}
+
+async function confirmarReclamo() {
+  const tipo = document.getElementById('reclamo-tipo').value
+  const desc = document.getElementById('reclamo-desc').value.trim()
+  const fotoFile = document.getElementById('reclamo-foto').files[0]
+
+  if (!desc) { alert('Describí el problema'); return }
+  if (!fotoFile) { alert('La foto/adjunto es obligatoria para este tipo de reclamo'); return }
+
+  const btn = document.getElementById('reclamo-btn')
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando...' }
+
+  // Subir foto
+  let fotoUrl = null
+  const ext = fotoFile.name.split('.').pop()
+  const path = `reclamo_${_reclamoPedidoId || 'gen'}_${Date.now()}.${ext}`
+  const { error: upErr } = await db.storage.from('comprobantes').upload(path, fotoFile, { upsert: true })
+  if (upErr) {
+    if (btn) { btn.disabled = false; btn.textContent = '📤 Enviar reclamo' }
+    alert('Error al subir la foto: ' + upErr.message)
+    return
+  }
+  const { data: ud } = db.storage.from('comprobantes').getPublicUrl(path)
+  fotoUrl = ud.publicUrl
+
+  const rolRep = await cargarRolUsuario()
+  const info = tipoReclamoInfo(tipo)
+
+  // Guardar el reclamo
+  const { error } = await db.from('notificaciones_admin').insert({
+    tipo:              tipo,
+    titulo:            `Reclamo de ${info.label.toLowerCase()}`,
+    mensaje:           `${info.icono} ${info.label}: ${desc}`,
+    pedido_id:         _reclamoPedidoId || null,
+    leida:             false,
+    estado_problema:   'pendiente',
+    reportado_por:     usuarioActual?.id,
+    reportado_por_rol: rolRep,
+    foto_url:          fotoUrl
+  })
+
+  if (error) {
+    if (btn) { btn.disabled = false; btn.textContent = '📤 Enviar reclamo' }
+    alert('Error al enviar el reclamo: ' + error.message)
+    return
+  }
+
+  // Registrar en historial del pedido
+  if (_reclamoPedidoId) {
+    await registrarHistorial(_reclamoPedidoId, 'reclamo_' + tipo, `${info.label}: ${desc} | foto: ${fotoUrl}`)
+  }
+
+  // Notificar a la otra parte
+  if (rolRep === 'cliente' && _reclamoPedidoId) {
+    // Cliente reporta → notificar vendedor
+    const { data: ped } = await db.from('pedidos').select('vendedor_id, numero').eq('id', _reclamoPedidoId).single()
+    if (ped?.vendedor_id) {
+      await db.from('notificaciones').insert({
+        cliente_id: ped.vendedor_id,
+        tipo: tipo,
+        titulo: `Nuevo reclamo — Pedido #${ped.numero}`,
+        mensaje: `${info.label}: ${desc}`,
+        leida: false
+      })
+    }
+  } else if ((rolRep === 'admin' || rolRep === 'vendedor' || rolRep === 'empresa') && _reclamoPedidoId) {
+    // Empresa/vendedor reporta → notificar cliente
+    const { data: ped } = await db.from('pedidos').select('cliente_id, numero').eq('id', _reclamoPedidoId).single()
+    if (ped?.cliente_id) {
+      await db.from('notificaciones').insert({
+        cliente_id: ped.cliente_id,
+        tipo: tipo,
+        titulo: `Reclamo en tu Pedido #${ped.numero}`,
+        mensaje: `${info.label}: ${desc}`,
+        leida: false
+      })
+    }
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = '📤 Enviar reclamo' }
+  cerrarModalReclamo()
+  alert('✅ Reclamo enviado correctamente.')
+  // Refrescar si estamos en la sección reclamos
+  if (typeof cargarPendientes === 'function') {
+    try { await cargarPendientes() } catch(e) {}
+  }
 }
