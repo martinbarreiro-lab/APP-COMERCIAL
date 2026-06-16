@@ -1816,6 +1816,11 @@ let _recibidoPedidoId = null
 let _recibidoEstado   = null
 
 function marcarRecibido(pedidoId) {
+  // Solo el cliente puede confirmar la recepción
+  if (rolUsuarioActual !== 'cliente') {
+    alert('Solo el cliente puede confirmar la recepción del pedido.')
+    return
+  }
   _recibidoPedidoId = pedidoId
   _recibidoEstado   = null
   // Reset modal
@@ -2859,25 +2864,44 @@ function renderListaCobranza(pedidos, hoy, esAdmin) {
   const pendientes = pedidos.filter(p => !p.estado_cobro || p.estado_cobro === 'pendiente')
   const cobrados   = pedidos.filter(p => p.estado_cobro && p.estado_cobro !== 'pendiente')
 
-  let html = ''
+  // Guardar para las pestañas
+  _cobPendientes = pendientes
+  _cobCobrados = cobrados
+  _cobHoy = hoy
+  _cobEsAdmin = esAdmin
 
-  if (pendientes.length > 0) {
-    html += `<div class="cob-seccion-titulo">
-      <i class="ti ti-clock" aria-hidden="true"></i> Pendientes de cobro
-      <span class="cob-seccion-count">${pendientes.length}</span>
-    </div>`
-    html += pendientes.map(p => renderCobCard(p, hoy, esAdmin)).join('')
-  }
-
-  if (cobrados.length > 0) {
-    html += `<div class="cob-seccion-titulo" style="margin-top:20px">
-      <i class="ti ti-circle-check" aria-hidden="true"></i> Cobrados
-      <span class="cob-seccion-count">${cobrados.length}</span>
-    </div>`
-    html += cobrados.map(p => renderCobCard(p, hoy, esAdmin, true)).join('')
-  }
+  // Pestañas
+  let html = `
+    <div class="pedidos-pestanas" style="margin-bottom:14px">
+      <button class="ped-pestana activa" id="cob-pest-porcobrar" onclick="cambiarPestanaCobranza('porcobrar')">
+        Por cobrar <span class="ped-pest-badge" style="${pendientes.length===0?'display:none':''}">${pendientes.length}</span>
+      </button>
+      <button class="ped-pestana" id="cob-pest-cobrados" onclick="cambiarPestanaCobranza('cobrados')">
+        Cobrados <span class="ped-pest-badge" style="background:#1d9e75;${cobrados.length===0?'display:none':''}">${cobrados.length}</span>
+      </button>
+    </div>
+    <div id="cob-contenido-pestana"></div>`
 
   el.innerHTML = html
+  cambiarPestanaCobranza('porcobrar')
+}
+
+let _cobPendientes = [], _cobCobrados = [], _cobHoy = null, _cobEsAdmin = false
+
+function cambiarPestanaCobranza(cual) {
+  const esPorCobrar = cual === 'porcobrar'
+  document.getElementById('cob-pest-porcobrar')?.classList.toggle('activa', esPorCobrar)
+  document.getElementById('cob-pest-cobrados')?.classList.toggle('activa', !esPorCobrar)
+
+  const cont = document.getElementById('cob-contenido-pestana')
+  if (!cont) return
+
+  const lista = esPorCobrar ? _cobPendientes : _cobCobrados
+  if (lista.length === 0) {
+    cont.innerHTML = `<p class="vacio" style="padding:40px 20px;text-align:center">${esPorCobrar ? 'No hay pedidos por cobrar' : 'No hay pedidos cobrados aún'}</p>`
+    return
+  }
+  cont.innerHTML = lista.map(p => renderCobCard(p, _cobHoy, _cobEsAdmin, !esPorCobrar)).join('')
 }
 
 function renderCobCard(p, hoy, esAdmin, esCobrado = false) {
@@ -3819,12 +3843,16 @@ async function cargarPedidosDeEnvio(envioId) {
             ${fotoUrl ? `· <a href="${fotoUrl}" target="_blank" style="color:#185fa5;text-decoration:none;"><i class="ti ti-photo" aria-hidden="true"></i> foto</a>` : ''}
           </div>` : ''}
 
-        ${!entregado && pedidoId ? `
+        ${!entregado && pedidoId && rolUsuarioActual === 'cliente' ? `
           <button onclick="event.stopPropagation(); marcarRecibido('${pedidoId}')"
             style="margin-top:10px;width:100%;background:#185fa5;color:white;border:none;padding:10px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
             <i class="ti ti-circle-check" style="font-size:15px" aria-hidden="true"></i>
             Confirmar entrega del Pedido #${p?.numero}
           </button>` : ''}
+        ${!entregado && pedidoId && rolUsuarioActual !== 'cliente' ? `
+          <div style="margin-top:10px;font-size:12px;color:var(--color-text-tertiary);text-align:center;padding:8px;background:var(--color-background-secondary);border-radius:8px">
+            <i class="ti ti-clock" aria-hidden="true"></i> Esperando que el cliente confirme la recepción
+          </div>` : ''}
       </div>`
   }).join('')
 }
