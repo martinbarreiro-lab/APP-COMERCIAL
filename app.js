@@ -1985,7 +1985,7 @@ async function confirmarRecepcion() {
 
   // Recargar stats y lista completa
   await renderStatsLogistica()
-  await renderEnviosActivos()
+  await renderEnviosPorEstado()
 }
 
 // ── GENERAR PDF ──────────────────────────────────
@@ -3353,23 +3353,40 @@ let _envioActual = { pedidos: [] }
 async function cargarLogistica() {
   const rol = await cargarRolUsuario()
   const esCliente = rol === 'cliente'
+  const esVendedor = rol === 'vendedor'
 
-  // El cliente NO ve stats internas ni "pedidos para enviar" (eso es gestión)
   const statsEl = document.getElementById('log-stats')
-  const enviarEl = document.getElementById('log-pedidos-para-enviar')
+
+  // El cliente NO ve stats internas ni la pestaña "Por enviar"
+  const pestPorEnviar = document.getElementById('log-pest-porenviar')
   if (esCliente) {
     if (statsEl) statsEl.style.display = 'none'
-    if (enviarEl) enviarEl.style.display = 'none'
-    await renderEnviosActivos()
+    if (pestPorEnviar) pestPorEnviar.style.display = 'none'
+    // El cliente arranca en "Enviado"
+    cambiarPestanaLog('enviado')
   } else {
     if (statsEl) statsEl.style.display = ''
-    if (enviarEl) enviarEl.style.display = ''
-    await Promise.all([
-      renderStatsLogistica(),
-      renderPedidosParaEnviar(),
-      renderEnviosActivos()
-    ])
+    if (pestPorEnviar) pestPorEnviar.style.display = ''
+    await renderStatsLogistica()
+    cambiarPestanaLog('porenviar')
   }
+
+  // Cargar contenido de las pestañas
+  await Promise.all([
+    renderPedidosParaEnviar(),
+    renderEnviosPorEstado()
+  ])
+}
+
+// Cambiar entre pestañas de logística
+function cambiarPestanaLog(cual) {
+  const tabs = ['porenviar', 'enviado', 'recibido']
+  tabs.forEach(t => {
+    const tab = document.getElementById('log-tab-' + t)
+    const pest = document.getElementById('log-pest-' + t)
+    if (tab) tab.style.display = (t === cual) ? 'block' : 'none'
+    if (pest) pest.classList.toggle('activa', t === cual)
+  })
 }
 
 // ── STATS ────────────────────────────────────────
@@ -3410,6 +3427,12 @@ async function renderPedidosParaEnviar() {
     .order('created_at', { ascending: true })
 
   const el = document.getElementById('log-pedidos-para-enviar')
+
+  // Actualizar badge "Por enviar"
+  const bPor = document.getElementById('log-badge-porenviar')
+  const cantPor = pedidos?.length || 0
+  if (bPor) { bPor.textContent = cantPor; bPor.style.display = cantPor ? 'inline' : 'none' }
+
   if (!pedidos || pedidos.length === 0) {
     el.innerHTML = '<p class="vacio">No hay pedidos facturados pendientes de envío</p>'
     return
@@ -3579,16 +3602,15 @@ async function notificarClienteEnvio(pedidoId) {
   if (error) console.warn('No se pudo notificar envío al cliente:', error.message)
 }
 
-// ── ENVÍOS ACTIVOS ───────────────────────────────
-async function renderEnviosActivos() {
+// ── ENVÍOS por estado (pestañas Enviado / Recibido) ─────
+async function renderEnviosPorEstado() {
   const clienteFiltro = await getClienteIdFiltro()
   const rol = await cargarRolUsuario()
 
   let envios = []
 
   if (clienteFiltro || rol === 'vendedor') {
-    // Cliente/vendedor: traer solo envíos que contienen sus pedidos
-    // 1) sus pedidos
+    // Cliente/vendedor: solo envíos que contienen sus pedidos
     let qPed = db.from('pedidos').select('id')
     if (clienteFiltro) qPed = qPed.eq('cliente_id', clienteFiltro)
     else qPed = qPed.eq('vendedor_id', usuarioActual.id)
@@ -3596,50 +3618,48 @@ async function renderEnviosActivos() {
     const misIds = (misPedidos || []).map(p => p.id)
 
     if (misIds.length > 0) {
-      // 2) envío_pedidos que referencian esos pedidos
       const { data: vinculos } = await db.from('envio_pedidos')
         .select('envio_id').in('pedido_id', misIds)
       const envioIds = [...new Set((vinculos || []).map(v => v.envio_id))]
       if (envioIds.length > 0) {
         const { data } = await db.from('envios').select('*')
-          .in('id', envioIds).order('fecha_salida', { ascending: false }).limit(20)
+          .in('id', envioIds).order('fecha_salida', { ascending: false }).limit(30)
         envios = data || []
       }
     }
   } else {
-    // Admin/empresa: todos
     const { data } = await db.from('envios').select('*')
-      .order('fecha_salida', { ascending: false }).limit(20)
+      .order('fecha_salida', { ascending: false }).limit(30)
     envios = data || []
   }
 
-  const el = document.getElementById('log-envios-activos')
-  if (!envios || envios.length === 0) {
-    el.innerHTML = '<p class="vacio">No hay envíos registrados</p>'
-    return
+  // Separar: Enviado = en_camino, Recibido = entregado
+  const enviados  = envios.filter(e => e.estado === 'en_camino')
+  const recibidos = envios.filter(e => e.estado !== 'en_camino')
+
+  // Badges
+  const bEnv = document.getElementById('log-badge-enviado')
+  const bRec = document.getElementById('log-badge-recibido')
+  if (bEnv) { bEnv.textContent = enviados.length; bEnv.style.display = enviados.length ? 'inline' : 'none' }
+  if (bRec) { bRec.textContent = recibidos.length; bRec.style.display = recibidos.length ? 'inline' : 'none' }
+
+  // Render pestaña Enviado
+  const elEnv = document.getElementById('log-envios-enviado')
+  if (elEnv) {
+    elEnv.innerHTML = enviados.length === 0
+      ? '<p class="vacio" style="padding:40px 20px;text-align:center">No hay envíos en camino</p>'
+      : enviados.map(e => renderEnvioCard(e, true)).join('')
   }
 
-  // Separar activos e histórico
-  const activos   = envios.filter(e => e.estado === 'en_camino')
-  const cerrados  = envios.filter(e => e.estado !== 'en_camino')
-
-  let html = ''
-
-  if (activos.length > 0) {
-    html += activos.map(e => renderEnvioCard(e, true)).join('')
+  // Render pestaña Recibido
+  const elRec = document.getElementById('log-envios-recibido')
+  if (elRec) {
+    elRec.innerHTML = recibidos.length === 0
+      ? '<p class="vacio" style="padding:40px 20px;text-align:center">No hay envíos recibidos aún</p>'
+      : recibidos.map(e => renderEnvioCard(e, false)).join('')
   }
 
-  if (cerrados.length > 0) {
-    html += `<div class="cob-seccion-titulo" style="margin-top:20px">
-      <i class="ti ti-history" aria-hidden="true"></i> Historial
-      <span class="cob-seccion-count">${cerrados.length}</span>
-    </div>`
-    html += cerrados.map(e => renderEnvioCard(e, false)).join('')
-  }
-
-  el.innerHTML = html
-
-  // Cargar preview de pedidos automáticamente
+  // Cargar preview de pedidos
   for (const e of envios) {
     cargarPedidosPreview(e.id)
   }
