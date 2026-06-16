@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%230d8fd1'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E%F0%9F%A5%9B%3C/text%3E%3C/svg%3E">
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="styles.css?v=36">
+  <link rel="stylesheet" href="styles.css?v=37">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script>
@@ -297,19 +297,39 @@
 
           <div id="log-stats"></div>
 
-          <div id="log-barra-envio"
-            style="display:none;background:#1a3a2a;color:white;padding:14px 20px;border-radius:12px;margin-bottom:16px;justify-content:space-between;align-items:center">
+          <!-- Pestañas -->
+          <div class="pedidos-pestanas" id="log-pestanas" style="margin-bottom:16px">
+            <button class="ped-pestana activa" id="log-pest-porenviar" onclick="cambiarPestanaLog('porenviar')">
+              Por enviar <span class="ped-pest-badge" id="log-badge-porenviar" style="display:none">0</span>
+            </button>
+            <button class="ped-pestana" id="log-pest-enviado" onclick="cambiarPestanaLog('enviado')">
+              Enviado <span class="ped-pest-badge" id="log-badge-enviado" style="background:#185fa5;display:none">0</span>
+            </button>
+            <button class="ped-pestana" id="log-pest-recibido" onclick="cambiarPestanaLog('recibido')">
+              Recibido <span class="ped-pest-badge" id="log-badge-recibido" style="background:#1d9e75;display:none">0</span>
+            </button>
           </div>
 
-          <div class="cob-seccion-titulo" style="margin-bottom:10px">
-            <i class="ti ti-package" aria-hidden="true"></i> Pedidos facturados — listos para enviar
+          <!-- PESTAÑA POR ENVIAR -->
+          <div id="log-tab-porenviar">
+            <div id="log-barra-envio"
+              style="display:none;background:#0a6ca0;color:white;padding:14px 20px;border-radius:12px;margin-bottom:16px;justify-content:space-between;align-items:center">
+            </div>
+            <div class="cob-seccion-titulo" style="margin-bottom:10px">
+              <i class="ti ti-package" aria-hidden="true"></i> Pedidos facturados — listos para enviar
+            </div>
+            <div id="log-pedidos-para-enviar" style="margin-bottom:24px"></div>
           </div>
-          <div id="log-pedidos-para-enviar" style="margin-bottom:24px"></div>
 
-          <div class="cob-seccion-titulo" style="margin-bottom:10px">
-            <i class="ti ti-truck" aria-hidden="true"></i> Envíos
+          <!-- PESTAÑA ENVIADO -->
+          <div id="log-tab-enviado" style="display:none">
+            <div id="log-envios-enviado"></div>
           </div>
-          <div id="log-envios-activos"></div>
+
+          <!-- PESTAÑA RECIBIDO -->
+          <div id="log-tab-recibido" style="display:none">
+            <div id="log-envios-recibido"></div>
+          </div>
 
         </section>
 
@@ -788,6 +808,6 @@
           </div>
 
 
-  <script src="app.js?v=36"></script>
+  <script src="app.js?v=37"></script>
 </body>
 </html>
