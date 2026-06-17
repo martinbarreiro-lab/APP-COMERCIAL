@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%230d8fd1'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E%F0%9F%A5%9B%3C/text%3E%3C/svg%3E">
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="styles.css?v=37">
+  <link rel="stylesheet" href="styles.css?v=38">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script>
@@ -35,11 +35,33 @@
       <div class="login-logo">🥛</div>
       <h1>La Cabaña</h1>
       <p class="login-subtitulo">Sistema de Gestión</p>
-      <div id="login-error" class="error-msg" style="display:none"></div>
-      <div class="campo"><label>Email</label><input type="email" id="login-email" placeholder="tu@email.com"></div>
-      <div class="campo"><label>Contraseña</label><input type="password" id="login-password" placeholder="••••••••"></div>
-      <button onclick="iniciarSesion()" class="btn-login">Ingresar</button>
-      <a href="#" onclick="olvidoPassword()" class="link-olvide">Olvidé mi contraseña</a>
+
+      <!-- FORM LOGIN -->
+      <div id="form-login-box">
+        <div id="login-error" class="error-msg" style="display:none"></div>
+        <div class="campo"><label>Email</label><input type="email" id="login-email" placeholder="tu@email.com"></div>
+        <div class="campo"><label>Contraseña</label><input type="password" id="login-password" placeholder="••••••••"></div>
+        <button onclick="iniciarSesion()" class="btn-login">Ingresar</button>
+        <a href="#" onclick="olvidoPassword(); return false;" class="link-olvide">Olvidé mi contraseña</a>
+        <div style="margin-top:14px;padding-top:14px;border-top:0.5px solid #e2e5e9;font-size:13px;color:var(--color-text-secondary)">
+          ¿No tenés cuenta? <a href="#" onclick="mostrarRegistro(); return false;" style="color:var(--color-marca);font-weight:600">Crear cuenta</a>
+        </div>
+      </div>
+
+      <!-- FORM REGISTRO -->
+      <div id="form-registro-box" style="display:none">
+        <div style="font-size:15px;font-weight:600;color:var(--color-marca-oscuro);margin-bottom:4px">Crear cuenta</div>
+        <div style="font-size:12px;color:var(--color-text-tertiary);margin-bottom:14px">Registrate y la empresa activará tu acceso</div>
+        <div id="registro-error" class="error-msg" style="display:none"></div>
+        <div id="registro-ok" style="display:none;background:#e1f5ee;color:#085041;border-radius:8px;padding:12px;font-size:13px;margin-bottom:12px"></div>
+        <div class="campo"><label>Nombre completo</label><input type="text" id="reg-nombre" placeholder="Tu nombre o empresa"></div>
+        <div class="campo"><label>Email</label><input type="email" id="reg-email" placeholder="tu@email.com"></div>
+        <div class="campo"><label>Teléfono</label><input type="text" id="reg-telefono" placeholder="341 555 1234"></div>
+        <div class="campo"><label>Contraseña</label><input type="password" id="reg-password" placeholder="Mínimo 6 caracteres"></div>
+        <div class="campo"><label>Repetir contraseña</label><input type="password" id="reg-password2" placeholder="Repetí la contraseña"></div>
+        <button onclick="registrarUsuario()" class="btn-login" id="btn-registrar">Crear cuenta</button>
+        <a href="#" onclick="mostrarLoginForm(); return false;" class="link-olvide">← Volver al inicio de sesión</a>
+      </div>
     </div>
   </div>
 
@@ -86,6 +108,7 @@
         <button onclick="mostrarSeccion('clientes')"  class="nav-btn" id="nav-clientes">👥 Clientes</button>
         <button onclick="mostrarSeccion('productos')" class="nav-btn" id="nav-productos">🧀 Productos</button>
         <button onclick="mostrarSeccion('reportes')" class="nav-btn" id="nav-reportes">📊 Reportes</button>
+        <button onclick="mostrarSeccion('usuarios')" class="nav-btn" id="nav-usuarios">🔑 Usuarios <span id="nav-usuarios-badge" style="display:none;background:#e24b4a;color:white;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px"></span></button>
       </nav>
 
       <main id="contenido-principal">
@@ -513,6 +536,25 @@
           <div id="rep-contenido"></div>
         </section>
 
+        <!-- USUARIOS -->
+        <section id="seccion-usuarios" class="seccion" style="display:none">
+          <div class="seccion-header">
+            <h2>Usuarios</h2>
+          </div>
+
+          <div class="pedidos-pestanas" style="margin-bottom:16px">
+            <button class="ped-pestana activa" id="usr-pest-pendientes" onclick="cambiarPestanaUsuarios('pendientes')">
+              Pendientes <span class="ped-pest-badge" id="usr-badge-pendientes" style="display:none">0</span>
+            </button>
+            <button class="ped-pestana" id="usr-pest-activos" onclick="cambiarPestanaUsuarios('activos')">
+              Activos <span class="ped-pest-badge" id="usr-badge-activos" style="background:#1d9e75;display:none">0</span>
+            </button>
+          </div>
+
+          <div id="usr-tab-pendientes"></div>
+          <div id="usr-tab-activos" style="display:none"></div>
+        </section>
+
       </main>
     </div>
 
@@ -808,6 +850,6 @@
           </div>
 
 
-  <script src="app.js?v=37"></script>
+  <script src="app.js?v=38"></script>
 </body>
 </html>
