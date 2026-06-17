@@ -22,11 +22,89 @@ async function iniciarSesion() {
   if (!email || !password) { mostrarErrorLogin('Completá email y contraseña'); return }
   const { data, error } = await db.auth.signInWithPassword({ email, password })
   if (error) { mostrarErrorLogin('Email o contraseña incorrectos'); return }
+
+  // Verificar que el usuario esté aprobado (activo)
+  const { data: perfil } = await db.from('perfiles').select('rol, activo').eq('id', data.user.id).single()
+  if (!perfil || perfil.activo === false) {
+    await db.auth.signOut()
+    mostrarErrorLogin('Tu cuenta está pendiente de aprobación. La empresa debe activarla.')
+    return
+  }
+
   mostrarApp(data.user)
 }
 function mostrarErrorLogin(m) {
   const el = document.getElementById('login-error')
   el.textContent = m; el.style.display = 'block'
+}
+
+// Alternar entre login y registro
+function mostrarRegistro() {
+  document.getElementById('form-login-box').style.display = 'none'
+  document.getElementById('form-registro-box').style.display = 'block'
+}
+function mostrarLoginForm() {
+  document.getElementById('form-registro-box').style.display = 'none'
+  document.getElementById('form-login-box').style.display = 'block'
+}
+
+// Registro de un usuario nuevo (queda pendiente)
+async function registrarUsuario() {
+  const nombre = document.getElementById('reg-nombre').value.trim()
+  const email  = document.getElementById('reg-email').value.trim()
+  const tel    = document.getElementById('reg-telefono').value.trim()
+  const pass   = document.getElementById('reg-password').value
+  const pass2  = document.getElementById('reg-password2').value
+
+  const errEl = document.getElementById('registro-error')
+  const okEl  = document.getElementById('registro-ok')
+  errEl.style.display = 'none'; okEl.style.display = 'none'
+  const err = (m) => { errEl.textContent = m; errEl.style.display = 'block' }
+
+  if (!nombre || !email || !pass) { err('Completá nombre, email y contraseña'); return }
+  if (pass.length < 6) { err('La contraseña debe tener al menos 6 caracteres'); return }
+  if (pass !== pass2) { err('Las contraseñas no coinciden'); return }
+
+  const btn = document.getElementById('btn-registrar')
+  if (btn) { btn.disabled = true; btn.textContent = 'Creando...' }
+
+  // Crear usuario en auth. El trigger crea el perfil; lo dejamos INACTIVO (pendiente)
+  // No mandamos rol 'pendiente' en metadata porque no es un valor válido del enum.
+  const { data, error } = await db.auth.signUp({
+    email,
+    password: pass,
+    options: { data: { nombre_completo: nombre } }
+  })
+
+  if (error) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Crear cuenta' }
+    if (error.message && error.message.toLowerCase().includes('already')) {
+      err('Ese email ya está registrado')
+    } else {
+      err('Error al crear la cuenta: ' + error.message)
+    }
+    return
+  }
+
+  // Marcar el perfil como pendiente: activo = false (el rol real lo asigna la empresa al aprobar)
+  if (data.user) {
+    await db.from('perfiles').update({
+      nombre_completo: nombre,
+      telefono: tel || null,
+      activo: false
+    }).eq('id', data.user.id)
+  }
+
+  // Cerrar cualquier sesión que haya quedado abierta por el signUp
+  await db.auth.signOut()
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Crear cuenta' }
+  okEl.textContent = '✅ Cuenta creada. La empresa va a revisar tu registro y activar tu acceso. Te avisaremos.'
+  okEl.style.display = 'block'
+  // Limpiar campos
+  ;['reg-nombre','reg-email','reg-telefono','reg-password','reg-password2'].forEach(id => {
+    const e = document.getElementById(id); if (e) e.value = ''
+  })
 }
 async function olvidoPassword() {
   const email = document.getElementById('login-email').value.trim()
@@ -38,6 +116,11 @@ async function cerrarSesion() { await db.auth.signOut(); mostrarLogin() }
 function mostrarLogin() {
   document.getElementById('pantalla-login').style.display = 'flex'
   document.getElementById('pantalla-app').style.display   = 'none'
+  // Asegurar que se muestre el form de login (no el de registro)
+  const fl = document.getElementById('form-login-box')
+  const fr = document.getElementById('form-registro-box')
+  if (fl) fl.style.display = 'block'
+  if (fr) fr.style.display = 'none'
 }
 async function mostrarApp(usuario) {
   usuarioActual = usuario
@@ -72,26 +155,29 @@ async function configurarInterfazPorRol() {
   document.body.classList.remove('rol-cliente', 'rol-vendedor')
 
   if (esCliente) {
-    // El cliente NO ve: clientes (otros), reportes, configuración
-    const ocultarParaCliente = ['clientes', 'reportes', 'configuracion']
+    // El cliente NO ve: clientes (otros), reportes, configuración, usuarios
+    const ocultarParaCliente = ['clientes', 'reportes', 'configuracion', 'usuarios']
     ocultarParaCliente.forEach(sec => {
       const nav = document.getElementById('nav-' + sec)
       if (nav) nav.style.display = 'none'
     })
     document.querySelectorAll('.mobile-more-item').forEach(item => {
       const txt = item.textContent.toLowerCase()
-      if (txt.includes('cliente') || txt.includes('reporte')) {
+      if (txt.includes('cliente') || txt.includes('reporte') || txt.includes('usuario')) {
         item.style.display = 'none'
       }
     })
     document.body.classList.add('rol-cliente')
 
   } else if (esVendedor) {
-    // El vendedor ve clientes y reportes (filtrados), pero NO configuración
+    // El vendedor ve clientes y reportes (filtrados), pero NO configuración ni usuarios
     const navConfig = document.getElementById('nav-configuracion')
     if (navConfig) navConfig.style.display = 'none'
+    const navUsr = document.getElementById('nav-usuarios')
+    if (navUsr) navUsr.style.display = 'none'
     document.querySelectorAll('.mobile-more-item').forEach(item => {
-      if (item.textContent.toLowerCase().includes('configuraci')) {
+      const t = item.textContent.toLowerCase()
+      if (t.includes('configuraci') || t.includes('usuario')) {
         item.style.display = 'none'
       }
     })
@@ -113,6 +199,7 @@ function mostrarSeccion(nombre) {
   if (nombre === 'clientes')  cargarClientes()
   if (nombre === 'productos') cargarProductos()
   if (nombre === 'reportes')  cargarReportes()
+  if (nombre === 'usuarios')  cargarUsuarios()
 }
 
 // ── DASHBOARD ────────────────────────────────────
@@ -5282,4 +5369,174 @@ async function confirmarReclamo() {
   cerrarModalReclamo()
   alert('✅ Reclamo enviado correctamente.')
   try { await cargarPendientes() } catch(e) {}
+}
+
+
+// ════════════════════════════════════════════════
+// GESTIÓN DE USUARIOS (empresa/admin)
+// ════════════════════════════════════════════════
+let _usrPendientes = [], _usrActivos = []
+
+async function cargarUsuarios() {
+  // Traer todos los perfiles
+  const { data: perfiles, error } = await db.from('perfiles')
+    .select('id, nombre_completo, rol, telefono, activo, cliente_id, created_at')
+    .order('created_at', { ascending: false })
+
+  if (error) { console.error('Error usuarios:', error); return }
+
+  // Pendientes = activo false (recién registrados, sin aprobar)
+  _usrPendientes = (perfiles || []).filter(p => p.activo === false)
+  // Activos = activo true y con rol asignado
+  _usrActivos = (perfiles || []).filter(p => p.activo !== false && p.rol)
+
+  // Badges
+  const bp = document.getElementById('usr-badge-pendientes')
+  const ba = document.getElementById('usr-badge-activos')
+  if (bp) { bp.textContent = _usrPendientes.length; bp.style.display = _usrPendientes.length ? 'inline' : 'none' }
+  if (ba) { ba.textContent = _usrActivos.length; ba.style.display = _usrActivos.length ? 'inline' : 'none' }
+
+  // Badge del menú (pendientes)
+  const navBadge = document.getElementById('nav-usuarios-badge')
+  if (navBadge) { navBadge.textContent = _usrPendientes.length; navBadge.style.display = _usrPendientes.length ? 'inline' : 'none' }
+
+  renderUsuariosPendientes()
+  renderUsuariosActivos()
+}
+
+function cambiarPestanaUsuarios(cual) {
+  const esPend = cual === 'pendientes'
+  document.getElementById('usr-pest-pendientes')?.classList.toggle('activa', esPend)
+  document.getElementById('usr-pest-activos')?.classList.toggle('activa', !esPend)
+  document.getElementById('usr-tab-pendientes').style.display = esPend ? 'block' : 'none'
+  document.getElementById('usr-tab-activos').style.display = esPend ? 'none' : 'block'
+}
+
+function renderUsuariosPendientes() {
+  const el = document.getElementById('usr-tab-pendientes')
+  if (!el) return
+  if (_usrPendientes.length === 0) {
+    el.innerHTML = '<p class="vacio" style="padding:40px 20px;text-align:center">No hay usuarios pendientes de aprobación</p>'
+    return
+  }
+  el.innerHTML = _usrPendientes.map(u => `
+    <div class="problema-card" style="border-left:3px solid #ba7517">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div>
+          <div style="font-size:14px;font-weight:600">${u.nombre_completo || 'Sin nombre'}</div>
+          <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px">${u.telefono || 'Sin teléfono'}</div>
+          <div style="font-size:10px;color:var(--color-text-tertiary);margin-top:2px">Registrado ${formatFechaHora(u.created_at)}</div>
+        </div>
+        <span style="background:#faeeda;color:#633806;border-radius:6px;font-size:10px;padding:2px 8px;white-space:nowrap">🕐 Pendiente</span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <select id="usr-rol-${u.id}" onchange="usrToggleVinculoCliente('${u.id}')" style="flex:1;min-width:120px;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:8px;font-size:12px">
+          <option value="">Asignar rol...</option>
+          <option value="cliente">Cliente</option>
+          <option value="vendedor">Vendedor</option>
+          <option value="empresa">Empresa</option>
+          <option value="admin">Admin</option>
+        </select>
+        <button onclick="aprobarUsuario('${u.id}')" style="background:#1d9e75;color:white;border:none;border-radius:8px;padding:9px 16px;font-size:12px;font-weight:600;cursor:pointer">✓ Activar</button>
+        <button onclick="rechazarUsuario('${u.id}')" style="background:#fff;color:#e24b4a;border:0.5px solid #f0c4c4;border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer">✕</button>
+      </div>
+      <div id="usr-vinculo-${u.id}" style="display:none;margin-top:10px">
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px">Vincular a ficha de cliente</div>
+        <select id="usr-cliente-${u.id}" style="width:100%;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:8px;font-size:12px">
+          <option value="">Cargando clientes...</option>
+        </select>
+      </div>
+    </div>`).join('')
+}
+
+// Cuando elige rol 'cliente', mostrar el selector de ficha de cliente
+async function usrToggleVinculoCliente(userId) {
+  const rol = document.getElementById('usr-rol-' + userId).value
+  const wrap = document.getElementById('usr-vinculo-' + userId)
+  if (!wrap) return
+  if (rol === 'cliente') {
+    wrap.style.display = 'block'
+    const sel = document.getElementById('usr-cliente-' + userId)
+    // Cargar clientes sin usuario vinculado
+    const { data: clientes } = await db.from('clientes').select('id, razon_social').order('razon_social')
+    sel.innerHTML = '<option value="">Elegí el cliente...</option>' +
+      (clientes || []).map(c => `<option value="${c.id}">${c.razon_social}</option>`).join('')
+  } else {
+    wrap.style.display = 'none'
+  }
+}
+
+async function aprobarUsuario(userId) {
+  const rol = document.getElementById('usr-rol-' + userId).value
+  if (!rol) { alert('Elegí un rol para el usuario'); return }
+
+  const update = { rol: rol, activo: true }
+
+  // Si es cliente, vincular a la ficha
+  if (rol === 'cliente') {
+    const clienteId = document.getElementById('usr-cliente-' + userId).value
+    if (!clienteId) { alert('Elegí a qué cliente vincular este usuario'); return }
+    update.cliente_id = clienteId
+  }
+
+  const { error } = await db.from('perfiles').update(update).eq('id', userId)
+  if (error) { alert('Error al activar: ' + error.message); return }
+
+  alert('✅ Usuario activado correctamente')
+  await cargarUsuarios()
+}
+
+async function rechazarUsuario(userId) {
+  if (!confirm('¿Rechazar este registro? El usuario no podrá acceder.')) return
+  // Marcar como inactivo (no se puede borrar de auth desde el cliente)
+  const { error } = await db.from('perfiles').update({ activo: false }).eq('id', userId)
+  if (error) { alert('Error: ' + error.message); return }
+  await cargarUsuarios()
+}
+
+function renderUsuariosActivos() {
+  const el = document.getElementById('usr-tab-activos')
+  if (!el) return
+  if (_usrActivos.length === 0) {
+    el.innerHTML = '<p class="vacio" style="padding:40px 20px;text-align:center">No hay usuarios activos</p>'
+    return
+  }
+  const colorRol = {
+    cliente:  { bg:'#e6f4fb', c:'#0a6ca0', t:'Cliente' },
+    vendedor: { bg:'#e8f5e9', c:'#1d6a4f', t:'Vendedor' },
+    empresa:  { bg:'#fff3e0', c:'#b45d00', t:'Empresa' },
+    admin:    { bg:'#f3e8fd', c:'#6d28d9', t:'Admin' }
+  }
+  el.innerHTML = _usrActivos.map(u => {
+    const cr = colorRol[u.rol] || { bg:'#f3f4f6', c:'#555', t:u.rol }
+    return `
+    <div class="problema-card" style="display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-size:14px;font-weight:600">${u.nombre_completo || 'Sin nombre'}</div>
+        <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px">${u.telefono || ''}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="background:${cr.bg};color:${cr.c};border-radius:6px;font-size:10px;padding:3px 9px">${cr.t}</span>
+        <button onclick="resetearPasswordUsuario('${u.id}','${u.nombre_completo||''}')" style="background:#fff;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:6px 10px;font-size:11px;cursor:pointer;color:var(--color-text-secondary)">🔑 Resetear</button>
+        <button onclick="desactivarUsuario('${u.id}')" style="background:#fff;border:0.5px solid #f0c4c4;border-radius:8px;padding:6px 10px;font-size:11px;cursor:pointer;color:#e24b4a">Desactivar</button>
+      </div>
+    </div>`
+  }).join('')
+}
+
+// Resetear contraseña: necesitamos el email. Lo buscamos pidiéndolo (no está en perfiles).
+async function resetearPasswordUsuario(userId, nombre) {
+  const email = prompt(`Para resetear la contraseña de ${nombre}, ingresá su email:`)
+  if (!email) return
+  const { error } = await db.auth.resetPasswordForEmail(email.trim())
+  if (error) { alert('Error: ' + error.message); return }
+  alert(`✅ Se envió un email a ${email} para restablecer la contraseña.`)
+}
+
+async function desactivarUsuario(userId) {
+  if (userId === usuarioActual.id) { alert('No podés desactivar tu propia cuenta'); return }
+  if (!confirm('¿Desactivar este usuario? No podrá acceder hasta que lo reactives.')) return
+  const { error } = await db.from('perfiles').update({ activo: false }).eq('id', userId)
+  if (error) { alert('Error: ' + error.message); return }
+  await cargarUsuarios()
 }
