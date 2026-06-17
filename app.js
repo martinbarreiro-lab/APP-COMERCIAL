@@ -5462,25 +5462,34 @@ function renderUsuariosPendientes() {
       </div>
       <div id="usr-vinculo-${u.id}" style="display:none;margin-top:10px">
         <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px">Vincular a ficha de cliente</div>
-        <select id="usr-cliente-${u.id}" style="width:100%;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:8px;font-size:12px">
+        <select id="usr-cliente-${u.id}" style="width:100%;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:8px;font-size:12px;margin-bottom:10px">
           <option value="">Cargando clientes...</option>
+        </select>
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px">Vendedor que lo atiende</div>
+        <select id="usr-vendedor-${u.id}" style="width:100%;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:8px;font-size:12px">
+          <option value="">Cargando vendedores...</option>
         </select>
       </div>
     </div>`).join('')
 }
 
-// Cuando elige rol 'cliente', mostrar el selector de ficha de cliente
+// Cuando elige rol 'cliente', mostrar el selector de ficha + vendedor
 async function usrToggleVinculoCliente(userId) {
   const rol = document.getElementById('usr-rol-' + userId).value
   const wrap = document.getElementById('usr-vinculo-' + userId)
   if (!wrap) return
   if (rol === 'cliente') {
     wrap.style.display = 'block'
+    // Cargar clientes
     const sel = document.getElementById('usr-cliente-' + userId)
-    // Cargar clientes sin usuario vinculado
     const { data: clientes } = await db.from('clientes').select('id, razon_social').order('razon_social')
     sel.innerHTML = '<option value="">Elegí el cliente...</option>' +
       (clientes || []).map(c => `<option value="${c.id}">${c.razon_social}</option>`).join('')
+    // Cargar vendedores (perfiles con rol vendedor) + opción empresa
+    const selV = document.getElementById('usr-vendedor-' + userId)
+    const { data: vendedores } = await db.from('perfiles').select('id, nombre_completo').eq('rol', 'vendedor').eq('activo', true).order('nombre_completo')
+    selV.innerHTML = '<option value="empresa">La empresa (sin vendedor)</option>' +
+      (vendedores || []).map(v => `<option value="${v.id}">${v.nombre_completo || 'Vendedor'}</option>`).join('')
   } else {
     wrap.style.display = 'none'
   }
@@ -5492,11 +5501,17 @@ async function aprobarUsuario(userId) {
 
   const update = { rol: rol, activo: true }
 
-  // Si es cliente, vincular a la ficha
+  // Si es cliente, vincular a la ficha y asignar vendedor
   if (rol === 'cliente') {
     const clienteId = document.getElementById('usr-cliente-' + userId).value
     if (!clienteId) { alert('Elegí a qué cliente vincular este usuario'); return }
     update.cliente_id = clienteId
+
+    // Asignar el vendedor que atiende a ese cliente (en la ficha del cliente)
+    const vendedorSel = document.getElementById('usr-vendedor-' + userId).value
+    const nuevoVendedor = (vendedorSel && vendedorSel !== 'empresa') ? vendedorSel : null
+    const { error: errCli } = await db.from('clientes').update({ vendedor_id: nuevoVendedor }).eq('id', clienteId)
+    if (errCli) { alert('Error al asignar vendedor: ' + errCli.message); return }
   }
 
   const { error } = await db.from('perfiles').update(update).eq('id', userId)
