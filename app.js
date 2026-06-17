@@ -38,6 +38,19 @@ function mostrarErrorLogin(m) {
   el.textContent = m; el.style.display = 'block'
 }
 
+// Mostrar/ocultar contraseña
+function togglePass(inputId, btn) {
+  const inp = document.getElementById(inputId)
+  if (!inp) return
+  if (inp.type === 'password') {
+    inp.type = 'text'
+    btn.innerHTML = '<i class="ti ti-eye-off" aria-hidden="true"></i>'
+  } else {
+    inp.type = 'password'
+    btn.innerHTML = '<i class="ti ti-eye" aria-hidden="true"></i>'
+  }
+}
+
 // Alternar entre login y registro
 function mostrarRegistro() {
   document.getElementById('form-login-box').style.display = 'none'
@@ -78,11 +91,18 @@ async function registrarUsuario() {
 
   if (error) {
     if (btn) { btn.disabled = false; btn.textContent = 'Crear cuenta' }
-    if (error.message && error.message.toLowerCase().includes('already')) {
-      err('Ese email ya está registrado')
+    if (error.message && (error.message.toLowerCase().includes('already') || error.message.toLowerCase().includes('registered'))) {
+      err('Ese email ya está registrado. Probá iniciar sesión o recuperar tu contraseña.')
     } else {
       err('Error al crear la cuenta: ' + error.message)
     }
+    return
+  }
+
+  // Detección de email ya existente: Supabase devuelve user con identities vacío
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Crear cuenta' }
+    err('Ese email ya está registrado. Probá iniciar sesión o recuperar tu contraseña.')
     return
   }
 
