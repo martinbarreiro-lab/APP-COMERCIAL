@@ -1606,6 +1606,10 @@ async function cargarPedidos() {
   const pestanas = document.getElementById('pedidos-pestanas')
   if (pestanas) pestanas.style.display = esCliente ? 'none' : 'flex'
 
+  // El cliente no ve el buscador de clientes (es uno solo); sí puede filtrar por fecha
+  const filtroCliBox = document.getElementById('filtro-cliente-display')
+  if (filtroCliBox) filtroCliBox.parentElement.style.display = esCliente ? 'none' : 'block'
+
   if (!esCliente) {
     await cargarPedidosPorAprobar()
   }
