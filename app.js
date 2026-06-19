@@ -6,6 +6,8 @@ let clienteEditandoId = null
 let clientesCache     = []
 let usuarioActual     = null
 let nombreUsuarioActual = ''
+let _activandoUsuario = null
+let _usrModoCliente = {}
 let pedidoActualId    = null
 
 // ── AL CARGAR ────────────────────────────────────
@@ -835,16 +837,40 @@ async function guardarCliente() {
     const res = await db.from('clientes').update(datosUpdate).eq('id', clienteEditandoId)
     error = res.error
   } else {
-    datos.vendedor_id = usuarioActual.id
+    // Si estamos activando un usuario, usar el vendedor elegido; sino el actual
+    if (_activandoUsuario) {
+      datos.vendedor_id = _activandoUsuario.vendedorId || null
+    } else {
+      datos.vendedor_id = usuarioActual.id
+    }
     datos.codigo = 'CLI-' + Date.now()
-    const res = await db.from('clientes').insert(datos)
+    const res = await db.from('clientes').insert(datos).select().single()
     error = res.error
+
+    // Si era para activar un usuario: vincular la ficha nueva y activar el acceso
+    if (!error && _activandoUsuario && res.data) {
+      const { error: errPerfil } = await db.from('perfiles').update({
+        rol: 'cliente',
+        activo: true,
+        cliente_id: res.data.id
+      }).eq('id', _activandoUsuario.userId)
+      if (errPerfil) {
+        document.getElementById('form-error').textContent = 'Cliente creado pero error al activar acceso: ' + errPerfil.message
+        document.getElementById('form-error').style.display = 'block'
+        return
+      }
+      _activandoUsuario = null
+      await cargarUsuarios()
+      mostrarSeccion('usuarios')
+      alert('✅ Cliente creado y acceso activado correctamente')
+      return
+    }
   }
   if (error) { document.getElementById('form-error').textContent = 'Error: ' + error.message; document.getElementById('form-error').style.display = 'block'; return }
   await cargarClientes()
   alert('✅ Cliente guardado correctamente')
 }
-function volverAClientes() { cargarClientes() }
+function volverAClientes() { _activandoUsuario = null; cargarClientes() }
 function mostrarVistaClientes(vista) {
   document.getElementById('vista-lista-clientes').style.display = vista === 'lista' ? 'block' : 'none'
   document.getElementById('vista-ficha-cliente').style.display  = vista === 'ficha' ? 'block' : 'none'
@@ -5461,16 +5487,39 @@ function renderUsuariosPendientes() {
         <button onclick="rechazarUsuario('${u.id}')" style="background:#fff;color:#e24b4a;border:0.5px solid #f0c4c4;border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer">✕</button>
       </div>
       <div id="usr-vinculo-${u.id}" style="display:none;margin-top:10px">
-        <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px">Vincular a ficha de cliente</div>
-        <select id="usr-cliente-${u.id}" style="width:100%;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:8px;font-size:12px;margin-bottom:10px">
-          <option value="">Cargando clientes...</option>
-        </select>
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:6px">¿Cliente nuevo o ya existe?</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <button type="button" id="usr-modo-nuevo-${u.id}" onclick="usrModoCliente('${u.id}','nuevo')" style="flex:1;border:2px solid var(--color-marca);background:#e6f4fb;color:var(--color-marca-oscuro);border-radius:8px;padding:9px;font-size:12px;font-weight:600;cursor:pointer">➕ Cliente nuevo</button>
+          <button type="button" id="usr-modo-existe-${u.id}" onclick="usrModoCliente('${u.id}','existe')" style="flex:1;border:0.5px solid var(--color-border-tertiary);background:#fff;color:var(--color-text-secondary);border-radius:8px;padding:9px;font-size:12px;cursor:pointer">🔗 Ya existe</button>
+        </div>
+
+        <div id="usr-existe-wrap-${u.id}" style="display:none">
+          <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px">Elegí la ficha de cliente</div>
+          <select id="usr-cliente-${u.id}" style="width:100%;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:8px;font-size:12px;margin-bottom:10px">
+            <option value="">Cargando clientes...</option>
+          </select>
+        </div>
+
         <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px">Vendedor que lo atiende</div>
         <select id="usr-vendedor-${u.id}" style="width:100%;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:8px;font-size:12px">
           <option value="">Cargando vendedores...</option>
         </select>
       </div>
     </div>`).join('')
+}
+
+// Modo cliente nuevo o existente
+function usrModoCliente(userId, modo) {
+  const bNuevo = document.getElementById('usr-modo-nuevo-' + userId)
+  const bExiste = document.getElementById('usr-modo-existe-' + userId)
+  const existeWrap = document.getElementById('usr-existe-wrap-' + userId)
+  const esNuevo = modo === 'nuevo'
+  // estilos
+  bNuevo.style.cssText = `flex:1;border:${esNuevo?'2px solid var(--color-marca)':'0.5px solid var(--color-border-tertiary)'};background:${esNuevo?'#e6f4fb':'#fff'};color:${esNuevo?'var(--color-marca-oscuro)':'var(--color-text-secondary)'};border-radius:8px;padding:9px;font-size:12px;font-weight:${esNuevo?'600':'400'};cursor:pointer`
+  bExiste.style.cssText = `flex:1;border:${!esNuevo?'2px solid var(--color-marca)':'0.5px solid var(--color-border-tertiary)'};background:${!esNuevo?'#e6f4fb':'#fff'};color:${!esNuevo?'var(--color-marca-oscuro)':'var(--color-text-secondary)'};border-radius:8px;padding:9px;font-size:12px;font-weight:${!esNuevo?'600':'400'};cursor:pointer`
+  if (existeWrap) existeWrap.style.display = esNuevo ? 'none' : 'block'
+  // Guardar el modo elegido
+  _usrModoCliente[userId] = modo
 }
 
 // Cuando elige rol 'cliente', mostrar el selector de ficha + vendedor
@@ -5480,16 +5529,18 @@ async function usrToggleVinculoCliente(userId) {
   if (!wrap) return
   if (rol === 'cliente') {
     wrap.style.display = 'block'
-    // Cargar clientes
+    // Cargar clientes (para modo "ya existe")
     const sel = document.getElementById('usr-cliente-' + userId)
     const { data: clientes } = await db.from('clientes').select('id, razon_social').order('razon_social')
     sel.innerHTML = '<option value="">Elegí el cliente...</option>' +
       (clientes || []).map(c => `<option value="${c.id}">${c.razon_social}</option>`).join('')
-    // Cargar vendedores (perfiles con rol vendedor) + opción empresa
+    // Cargar vendedores + opción empresa
     const selV = document.getElementById('usr-vendedor-' + userId)
     const { data: vendedores } = await db.from('perfiles').select('id, nombre_completo').eq('rol', 'vendedor').eq('activo', true).order('nombre_completo')
     selV.innerHTML = '<option value="empresa">La empresa (sin vendedor)</option>' +
       (vendedores || []).map(v => `<option value="${v.id}">${v.nombre_completo || 'Vendedor'}</option>`).join('')
+    // Por defecto modo "nuevo"
+    usrModoCliente(userId, 'nuevo')
   } else {
     wrap.style.display = 'none'
   }
@@ -5499,26 +5550,55 @@ async function aprobarUsuario(userId) {
   const rol = document.getElementById('usr-rol-' + userId).value
   if (!rol) { alert('Elegí un rol para el usuario'); return }
 
-  const update = { rol: rol, activo: true }
-
-  // Si es cliente, vincular a la ficha y asignar vendedor
-  if (rol === 'cliente') {
-    const clienteId = document.getElementById('usr-cliente-' + userId).value
-    if (!clienteId) { alert('Elegí a qué cliente vincular este usuario'); return }
-    update.cliente_id = clienteId
-
-    // Asignar el vendedor que atiende a ese cliente (en la ficha del cliente)
-    const vendedorSel = document.getElementById('usr-vendedor-' + userId).value
-    const nuevoVendedor = (vendedorSel && vendedorSel !== 'empresa') ? vendedorSel : null
-    const { error: errCli } = await db.from('clientes').update({ vendedor_id: nuevoVendedor }).eq('id', clienteId)
-    if (errCli) { alert('Error al asignar vendedor: ' + errCli.message); return }
+  // Roles que no son cliente: activar directo
+  if (rol !== 'cliente') {
+    const { error } = await db.from('perfiles').update({ rol: rol, activo: true }).eq('id', userId)
+    if (error) { alert('Error al activar: ' + error.message); return }
+    alert('✅ Usuario activado correctamente')
+    await cargarUsuarios()
+    return
   }
 
-  const { error } = await db.from('perfiles').update(update).eq('id', userId)
-  if (error) { alert('Error al activar: ' + error.message); return }
+  // Cliente: vendedor elegido
+  const vendedorSel = document.getElementById('usr-vendedor-' + userId).value
+  const nuevoVendedor = (vendedorSel && vendedorSel !== 'empresa') ? vendedorSel : null
 
-  alert('✅ Usuario activado correctamente')
-  await cargarUsuarios()
+  const modo = _usrModoCliente[userId] || 'nuevo'
+
+  if (modo === 'existe') {
+    // Vincular a ficha existente
+    const clienteId = document.getElementById('usr-cliente-' + userId).value
+    if (!clienteId) { alert('Elegí a qué cliente vincular este usuario'); return }
+    const { error: errCli } = await db.from('clientes').update({ vendedor_id: nuevoVendedor }).eq('id', clienteId)
+    if (errCli) { alert('Error al asignar vendedor: ' + errCli.message); return }
+    const { error } = await db.from('perfiles').update({ rol: 'cliente', activo: true, cliente_id: clienteId }).eq('id', userId)
+    if (error) { alert('Error al activar: ' + error.message); return }
+    alert('✅ Cliente activado y vinculado correctamente')
+    await cargarUsuarios()
+  } else {
+    // Cliente nuevo: abrir formulario de ficha precargado
+    const u = _usrPendientes.find(x => x.id === userId)
+    abrirFichaNuevoCliente(userId, u, nuevoVendedor)
+  }
+}
+
+// Abrir el formulario de cliente para crear la ficha del usuario nuevo
+async function abrirFichaNuevoCliente(userId, perfil, vendedorId) {
+  _activandoUsuario = { userId, vendedorId }
+  // Traer el email del usuario desde auth (lo pedimos al admin si no está)
+  mostrarSeccion('clientes')
+  abrirFormCliente(null)  // formulario en blanco para nuevo cliente
+
+  // Precargar nombre y teléfono del registro
+  setTimeout(() => {
+    const rs = document.getElementById('f-razon-social')
+    const tel = document.getElementById('f-telefono')
+    if (rs && perfil) rs.value = perfil.nombre_completo || ''
+    if (tel && perfil) tel.value = perfil.telefono || ''
+    // Aviso de que se está activando un usuario
+    const titulo = document.getElementById('titulo-form-cliente')
+    if (titulo) titulo.textContent = 'Nuevo cliente (activar acceso)'
+  }, 150)
 }
 
 async function rechazarUsuario(userId) {
