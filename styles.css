@@ -531,20 +531,53 @@ body { background:#f0f2f5; color:#1a1a1a; }
   input, select, textarea { max-width:100%; box-sizing:border-box; }
   /* Imágenes y previsualizaciones */
   .seccion img { max-width:100%; height:auto; }
-  /* Cualquier tabla dentro de una sección scrollea sola, no empuja la página */
+  /* Tablas normales: scroll horizontal de respaldo */
   .seccion table, .tabla {
-    display:block;
-    overflow-x:auto;
-    -webkit-overflow-scrolling:touch;
     max-width:100%;
-    white-space:nowrap;
   }
-  /* El thead/tbody deben comportarse como tabla para mantener columnas alineadas */
-  .tabla thead, .tabla tbody { display:table; width:100%; table-layout:auto; }
-  /* Indicador visual de que hay más para deslizar */
-  .tabla { border:1px solid #eee; }
-  /* Achicar padding/fuente de tablas en móvil para que entren mejor */
-  .tabla th, .tabla td { padding:9px 10px; font-size:12.5px; }
+
+  /* Tablas marcadas como responsive → se convierten en TARJETAS en móvil */
+  .tabla-responsive { display:block; border:none; box-shadow:none; background:transparent; }
+  .tabla-responsive thead { display:none; }
+  .tabla-responsive tbody { display:block; }
+  .tabla-responsive tr {
+    display:block;
+    background:#fff;
+    border:0.5px solid #e8e8e8;
+    border-radius:10px;
+    padding:10px 12px;
+    margin-bottom:10px;
+    box-shadow:0 1px 4px rgba(0,0,0,0.05);
+  }
+  .tabla-responsive td {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    padding:5px 0;
+    border-bottom:0.5px solid #f2f2f2;
+    font-size:13px;
+    text-align:right;
+    white-space:normal;
+  }
+  .tabla-responsive td:last-child { border-bottom:none; }
+  /* La primera celda (producto) ocupa todo el ancho, sin label */
+  .tabla-responsive td:first-child {
+    display:block;
+    text-align:left;
+    font-size:14px;
+    border-bottom:1px solid #eee;
+    padding-bottom:8px;
+    margin-bottom:4px;
+  }
+  /* Etiqueta de cada dato (Cantidad, Precio, etc.) a la izquierda */
+  .tabla-responsive td:not(:first-child)::before {
+    content: attr(data-label);
+    color:#888;
+    font-weight:400;
+    font-size:12px;
+    text-align:left;
+  }
   /* Contenedores que suelen tener anchos fijos */
   .detalle-card, .detalle-seccion, .form-inline, .form-card,
   #rep-contenido, #rep-contenido *, .cob-card, .cliente-card {
