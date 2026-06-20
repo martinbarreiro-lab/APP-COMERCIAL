@@ -1436,7 +1436,7 @@ async function cargarDocumentosPedido(pedidoId) {
 
 async function cargarProductosPedido(pedidoId) {
   const { data: items } = await db.from('pedido_items')
-    .select('*, productos(descripcion, codigo, unidad)')
+    .select('*, productos(descripcion, codigo, unidad, tipo_precio, unidades_por_caja)')
     .eq('pedido_id', pedidoId)
   const el = document.getElementById('productos-pedido')
   if (!items || items.length === 0) { el.innerHTML = '<p class="vacio">Sin productos</p>'; return }
@@ -1445,7 +1445,7 @@ async function cargarProductosPedido(pedidoId) {
     <tbody>
       ${items.map(i => `<tr>
         <td><b>${i.productos?.descripcion || '-'}</b><br><small>${i.productos?.codigo || ''}</small></td>
-        <td>${i.cantidad} ${i.productos?.unidad || ''}</td>
+        <td>${textoCantidadItem(i)}</td>
         <td>$${Number(i.precio_unitario).toLocaleString('es-AR')}</td>
         <td><b>$${Number(i.subtotal).toLocaleString('es-AR')}</b></td>
       </tr>`).join('')}
@@ -2131,7 +2131,7 @@ async function descargarPDF(pedidoId) {
     .select('*, clientes(*)')
     .eq('id', pedidoId).single()
   const { data: items } = await db.from('pedido_items')
-    .select('*, productos(descripcion, unidad)')
+    .select('*, productos(descripcion, unidad, tipo_precio, unidades_por_caja)')
     .eq('pedido_id', pedidoId)
   const { data: cobros } = await db.from('cobros')
     .select('*').eq('pedido_id', pedidoId)
@@ -2188,7 +2188,7 @@ function generarHTMLPDF(p, items, cobros, historial) {
       <tbody>
         ${items?.map(i => `<tr>
           <td>${i.productos?.descripcion || '-'}</td>
-          <td>${i.cantidad} ${i.productos?.unidad || ''}</td>
+          <td>${i.cantidad} ${i.productos?.unidad || ''}${(()=>{const pr=i.productos||{};const t=pr.tipo_precio||'por_unidad';const uxc=Number(pr.unidades_por_caja)||0;const kg=Number(i.kg)||0;if((t==='por_kg'||t==='por_unidad_caja')&&uxc>0){const tot=Number(i.cantidad)*uxc;const nu=t==='por_kg'?'paq':'potes';return ` (${tot} ${nu}${kg>0?' · '+kg.toFixed(1)+' kg':''})`}else if(kg>0){return ` (${kg.toFixed(1)} kg)`}return ''})()}</td>
           <td>$${Number(i.precio_unitario).toLocaleString('es-AR')}</td>
           <td>$${Number(i.subtotal).toLocaleString('es-AR')}</td>
         </tr>`).join('') || '<tr><td colspan="4">Sin items</td></tr>'}
@@ -2513,6 +2513,28 @@ function actualizarBarraTotal() {
 //  - por_kg:          se pide en CAJAS. precio = cajas × kg_por_caja × precio_por_kg. kg = cajas × kg_por_caja
 //  - por_unidad_caja: se pide en CAJAS. precio = cajas × unidades_por_caja × precio_1 (precio por pote). kg = cajas × kg_por_caja
 //  - por_unidad:      se pide en UNIDADES. precio = unidades × precio_1. kg = unidades × kg_por_unidad
+// Devuelve el texto "X cajas (Y potes · Z kg)" para un item guardado (con datos del producto)
+function textoCantidadItem(item) {
+  const cant = Number(item.cantidad) || 0
+  const prod = item.productos || {}
+  const tipo = prod.tipo_precio || 'por_unidad'
+  const uxc  = Number(prod.unidades_por_caja) || 0
+  const kg   = Number(item.kg) || 0
+
+  let label = '', extra = ''
+  if (tipo === 'por_kg' || tipo === 'por_unidad_caja') {
+    label = cant === 1 ? 'caja' : 'cajas'
+    const totalUnid = cant * uxc
+    const nombreU = tipo === 'por_kg' ? 'paquetes' : 'potes'
+    if (totalUnid > 0 && kg > 0) extra = ` (${totalUnid} ${nombreU} · ${kg.toFixed(1)} kg)`
+    else if (kg > 0) extra = ` (${kg.toFixed(1)} kg)`
+  } else {
+    label = (prod.unidad || 'unidad') + (cant === 1 ? '' : 's')
+    if (kg > 0) extra = ` (${kg.toFixed(1)} kg)`
+  }
+  return `${cant} ${label}<small style="color:#888">${extra}</small>`
+}
+
 function calcularTotales() {
   const cliente   = pedidoActual.cliente
   const descuento = cliente?.descuento_pct || 0
@@ -2535,6 +2557,8 @@ function calcularTotales() {
     let lineaSubtotal = 0
     let lineaKg = 0
     let unidadLabel = ''
+    let unidadesTotales = 0   // paquetes/potes totales
+    let nombreUnidad = ''     // "paquetes" o "potes"
 
     if (tipo === 'por_kg') {
       // Manteca: cajas × kg_por_caja × precio_por_kg
@@ -2542,17 +2566,23 @@ function calcularTotales() {
       lineaSubtotal = cant * kgCaja * Number(p.precio_por_kg || 0)
       lineaKg = cant * kgCaja
       unidadLabel = cant === 1 ? 'caja' : 'cajas'
+      unidadesTotales = cant * (Number(p.unidades_por_caja) || 0)
+      nombreUnidad = 'paquetes'
     } else if (tipo === 'por_unidad_caja') {
       // Crema en pote: cajas × potes_por_caja × precio_por_pote (precio_1)
       const uxc = Number(p.unidades_por_caja) || 1
       lineaSubtotal = cant * uxc * Number(p.precio_1 || 0)
       lineaKg = cant * (Number(p.kg_por_caja) || 0)
       unidadLabel = cant === 1 ? 'caja' : 'cajas'
+      unidadesTotales = cant * uxc
+      nombreUnidad = 'potes'
     } else {
       // Suelto: unidades × precio_1
       lineaSubtotal = cant * Number(p.precio_1 || 0)
       lineaKg = cant * (Number(p.kg_por_unidad) || 0)
       unidadLabel = cant === 1 ? (p.unidad || 'unidad') : (p.unidad || 'unidad') + 's'
+      unidadesTotales = 0  // sueltos no tienen sub-unidades
+      nombreUnidad = ''
     }
 
     subtotal += lineaSubtotal
@@ -2564,7 +2594,9 @@ function calcularTotales() {
       unidad: unidadLabel,
       precioUnitario: lineaSubtotal / cant,  // precio por caja/unidad (para mostrar)
       subtotal: lineaSubtotal,
-      kg: lineaKg
+      kg: lineaKg,
+      unidadesTotales: unidadesTotales,
+      nombreUnidad: nombreUnidad
     })
   })
 
@@ -2611,7 +2643,7 @@ function mostrarResumenPedido() {
         <tbody>
           ${t.lineas.map(l => `<tr>
             <td>${l.descripcion}</td>
-            <td>${l.cantidad} ${l.unidad} ${l.kg > 0 ? `<small>(${l.kg.toFixed(1)} kg)</small>` : ''}</td>
+            <td>${l.cantidad} ${l.unidad} ${l.unidadesTotales > 0 ? `<small>(${l.unidadesTotales} ${l.nombreUnidad} · ${l.kg.toFixed(1)} kg)</small>` : (l.kg > 0 ? `<small>(${l.kg.toFixed(1)} kg)</small>` : '')}</td>
             <td>$${Number(l.precioUnitario).toLocaleString('es-AR')}</td>
             <td>$${Number(l.subtotal).toLocaleString('es-AR')}</td>
           </tr>`).join('')}
@@ -3401,7 +3433,7 @@ async function abrirDetalleCob(pedidoId) {
     { data: historial }
   ] = await Promise.all([
     db.from('pedidos').select('*, clientes(*)').eq('id', pedidoId).single(),
-    db.from('pedido_items').select('*, productos(descripcion, unidad, codigo)').eq('pedido_id', pedidoId),
+    db.from('pedido_items').select('*, productos(descripcion, unidad, codigo, tipo_precio, unidades_por_caja)').eq('pedido_id', pedidoId),
     db.from('cobros').select('*').eq('pedido_id', pedidoId).order('created_at'),
     db.from('documentos_pedido').select('*').eq('pedido_id', pedidoId).order('created_at'),
     db.from('historial_pedido').select('*').eq('pedido_id', pedidoId).order('created_at')
@@ -3441,7 +3473,7 @@ async function abrirDetalleCob(pedidoId) {
         <thead><tr><th>Producto</th><th>Cantidad</th><th>Subtotal</th></tr></thead>
         <tbody>${items.map(i => `<tr>
           <td>${i.productos?.descripcion || '-'}</td>
-          <td>${i.cantidad} ${i.productos?.unidad || ''}</td>
+          <td>${textoCantidadItem(i)}</td>
           <td>$${Number(i.subtotal).toLocaleString('es-AR')}</td>
         </tr>`).join('')}</tbody>
       </table>`
