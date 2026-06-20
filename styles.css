@@ -532,7 +532,19 @@ body { background:#f0f2f5; color:#1a1a1a; }
   /* Imágenes y previsualizaciones */
   .seccion img { max-width:100%; height:auto; }
   /* Cualquier tabla dentro de una sección scrollea sola, no empuja la página */
-  .seccion table, .tabla { display:block; overflow-x:auto; white-space:nowrap; max-width:100%; -webkit-overflow-scrolling:touch; }
+  .seccion table, .tabla {
+    display:block;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    max-width:100%;
+    white-space:nowrap;
+  }
+  /* El thead/tbody deben comportarse como tabla para mantener columnas alineadas */
+  .tabla thead, .tabla tbody { display:table; width:100%; table-layout:auto; }
+  /* Indicador visual de que hay más para deslizar */
+  .tabla { border:1px solid #eee; }
+  /* Achicar padding/fuente de tablas en móvil para que entren mejor */
+  .tabla th, .tabla td { padding:9px 10px; font-size:12.5px; }
   /* Contenedores que suelen tener anchos fijos */
   .detalle-card, .detalle-seccion, .form-inline, .form-card,
   #rep-contenido, #rep-contenido *, .cob-card, .cliente-card {
@@ -542,6 +554,9 @@ body { background:#f0f2f5; color:#1a1a1a; }
   .seccion td, .seccion span, .rep-fila-nombre, .cliente-nombre { overflow-wrap:anywhere; word-break:break-word; }
   /* Filas flex que envuelvan en vez de desbordar */
   .rep-fila, .rep-det-fila, .ficha-fila, .fiscal-fila { flex-wrap:wrap; }
+  /* Resumen de cobros: gap chico y que envuelva en móvil */
+  .cobro-numeros { gap:8px 16px; font-size:13px; }
+  .cobro-numeros span { white-space:nowrap; }
   /* La barra de monto del reporte: que no fuerce ancho */
   .rep-fila-monto { white-space:normal; }
 
