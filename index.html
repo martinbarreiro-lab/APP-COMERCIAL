@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%230d8fd1'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E%F0%9F%A5%9B%3C/text%3E%3C/svg%3E">
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="styles.css?v=46">
+  <link rel="stylesheet" href="styles.css?v=48">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
   <script>
@@ -604,6 +604,10 @@
       <div class="mobile-more-item" onclick="navMovil('productos')">
         <i class="ti ti-cheese" aria-hidden="true"></i> Productos
       </div>
+      <div class="mobile-more-item" id="more-usuarios" onclick="navMovil('usuarios')">
+        <i class="ti ti-key" aria-hidden="true"></i> Usuarios
+        <span id="more-usuarios-badge" style="display:none;background:#e24b4a;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 7px;margin-left:auto"></span>
+      </div>
     </div>
   </div>
 
@@ -860,6 +864,6 @@
           </div>
 
 
-  <script src="app.js?v=46"></script>
+  <script src="app.js?v=48"></script>
 </body>
 </html>
