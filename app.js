@@ -3638,14 +3638,33 @@ async function abrirDetalleCob(pedidoId) {
         </div>`).join('')
     : '<p class="vacio">Sin historial</p>'
 
-  // Botón cobrar si pendiente
+  // Botón según rol: cliente informa pago, admin/vendedor registra cobro
   const btnEl = document.getElementById('mdc-btn-cobrar')
   if (pendiente > 0.01) {
-    btnEl.innerHTML = `
-      <button onclick="cerrarDetalleCob(); abrirModalCobro('${pedidoId}', '${c?.razon_social || ''}', ${pendiente})"
-        class="btn-cobrar" style="width:100%;justify-content:center;padding:14px">
-        <i class="ti ti-cash" aria-hidden="true"></i> Registrar cobro ($${pendiente.toLocaleString('es-AR')} pendiente)
-      </button>`
+    if (rolUsuarioActual === 'cliente') {
+      // El cliente solo puede informar pago, y solo si está facturado + tiene factura
+      const etapasOk = ['facturado','enviado','recibido','cobrado'].includes(p.etapa)
+      const tieneFactura = (docs && docs.length > 0)
+      if (etapasOk && tieneFactura) {
+        btnEl.innerHTML = `
+          <button onclick="cerrarDetalleCob(); abrirInformarPago('${pedidoId}', '${(c?.razon_social || '').replace(/'/g,"\\'")}', ${pendiente})"
+            class="btn-cobrar" style="width:100%;justify-content:center;padding:14px">
+            <i class="ti ti-upload" aria-hidden="true"></i> Informar pago
+          </button>`
+      } else {
+        btnEl.innerHTML = `
+          <div style="text-align:center;padding:12px;font-size:13px;color:var(--color-text-tertiary);background:var(--color-background-secondary);border-radius:8px">
+            <i class="ti ti-clock" aria-hidden="true"></i> Esperando factura para poder informar el pago
+          </div>`
+      }
+    } else {
+      // Admin/vendedor: registrar cobro
+      btnEl.innerHTML = `
+        <button onclick="cerrarDetalleCob(); abrirModalCobro('${pedidoId}', '${(c?.razon_social || '').replace(/'/g,"\\'")}', ${pendiente})"
+          class="btn-cobrar" style="width:100%;justify-content:center;padding:14px">
+          <i class="ti ti-cash" aria-hidden="true"></i> Registrar cobro ($${pendiente.toLocaleString('es-AR')} pendiente)
+        </button>`
+    }
   } else {
     btnEl.innerHTML = ''
   }
