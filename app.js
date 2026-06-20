@@ -3098,14 +3098,10 @@ async function renderCobStats(pedidos, hoy, esAdmin) {
 // ── LISTA ─────────────────────────────────────────
 function renderListaCobranza(pedidos, hoy, esAdmin) {
   const el = document.getElementById('lista-cobranza')
-  if (!pedidos || pedidos.length === 0) {
-    el.innerHTML = '<p class="vacio">No hay cobros en este período</p>'
-    return
-  }
 
   // Separar pendientes y cobrados
-  const pendientes = pedidos.filter(p => !p.estado_cobro || p.estado_cobro === 'pendiente')
-  const cobrados   = pedidos.filter(p => p.estado_cobro && p.estado_cobro !== 'pendiente')
+  const pendientes = (pedidos || []).filter(p => !p.estado_cobro || p.estado_cobro === 'pendiente')
+  const cobrados   = (pedidos || []).filter(p => p.estado_cobro && p.estado_cobro !== 'pendiente')
 
   // Guardar para las pestañas
   _cobPendientes = pendientes
@@ -3113,12 +3109,19 @@ function renderListaCobranza(pedidos, hoy, esAdmin) {
   _cobHoy = hoy
   _cobEsAdmin = esAdmin
 
+  // ¿Mostrar pestaña "Por verificar"? Solo admin/vendedor (no cliente)
+  const mostrarVerificar = rolUsuarioActual !== 'cliente'
+
   // Pestañas
   let html = `
     <div class="pedidos-pestanas" style="margin-bottom:14px">
       <button class="ped-pestana activa" id="cob-pest-porcobrar" onclick="cambiarPestanaCobranza('porcobrar')">
         Por cobrar <span class="ped-pest-badge" style="${pendientes.length===0?'display:none':''}">${pendientes.length}</span>
       </button>
+      ${mostrarVerificar ? `
+      <button class="ped-pestana" id="cob-pest-verificar" onclick="cambiarPestanaCobranza('verificar')">
+        Por verificar <span class="ped-pest-badge" id="cob-badge-verificar" style="background:#ba7517;display:none">0</span>
+      </button>` : ''}
       <button class="ped-pestana" id="cob-pest-cobrados" onclick="cambiarPestanaCobranza('cobrados')">
         Cobrados <span class="ped-pest-badge" style="background:#1d9e75;${cobrados.length===0?'display:none':''}">${cobrados.length}</span>
       </button>
@@ -3127,24 +3130,98 @@ function renderListaCobranza(pedidos, hoy, esAdmin) {
 
   el.innerHTML = html
   cambiarPestanaCobranza('porcobrar')
+
+  // Cargar pagos por verificar en segundo plano (para el badge)
+  if (mostrarVerificar) cargarPagosPorVerificar()
 }
 
 let _cobPendientes = [], _cobCobrados = [], _cobHoy = null, _cobEsAdmin = false
+let _pagosPorVerificar = []
+
+// Traer los pagos informados pendientes de verificar
+async function cargarPagosPorVerificar() {
+  const rol = await cargarRolUsuario()
+  let query = db.from('pagos_informados')
+    .select('*, pedidos(numero, total, vendedor_id, clientes(razon_social))')
+    .eq('estado', 'pendiente_verificar')
+    .order('created_at', { ascending: false })
+
+  const { data, error } = await query
+  if (error) { console.warn('No se pudieron cargar pagos por verificar:', error.message); _pagosPorVerificar = []; return }
+
+  let pagos = data || []
+  // Si es vendedor, filtrar solo los de sus clientes
+  if (rol === 'vendedor') {
+    pagos = pagos.filter(pg => pg.pedidos?.vendedor_id === usuarioActual.id)
+  }
+  _pagosPorVerificar = pagos
+
+  // Badge
+  const badge = document.getElementById('cob-badge-verificar')
+  if (badge) {
+    badge.textContent = pagos.length
+    badge.style.display = pagos.length ? 'inline' : 'none'
+  }
+}
 
 function cambiarPestanaCobranza(cual) {
-  const esPorCobrar = cual === 'porcobrar'
-  document.getElementById('cob-pest-porcobrar')?.classList.toggle('activa', esPorCobrar)
-  document.getElementById('cob-pest-cobrados')?.classList.toggle('activa', !esPorCobrar)
+  document.getElementById('cob-pest-porcobrar')?.classList.toggle('activa', cual === 'porcobrar')
+  document.getElementById('cob-pest-verificar')?.classList.toggle('activa', cual === 'verificar')
+  document.getElementById('cob-pest-cobrados')?.classList.toggle('activa', cual === 'cobrados')
 
   const cont = document.getElementById('cob-contenido-pestana')
   if (!cont) return
 
-  const lista = esPorCobrar ? _cobPendientes : _cobCobrados
-  if (lista.length === 0) {
-    cont.innerHTML = `<p class="vacio" style="padding:40px 20px;text-align:center">${esPorCobrar ? 'No hay pedidos por cobrar' : 'No hay pedidos cobrados aún'}</p>`
+  if (cual === 'verificar') {
+    if (_pagosPorVerificar.length === 0) {
+      cont.innerHTML = '<p class="vacio" style="padding:40px 20px;text-align:center">No hay pagos por verificar</p>'
+      return
+    }
+    cont.innerHTML = _pagosPorVerificar.map(pg => renderPagoPorVerificar(pg)).join('')
     return
   }
-  cont.innerHTML = lista.map(p => renderCobCard(p, _cobHoy, _cobEsAdmin, !esPorCobrar)).join('')
+
+  const lista = cual === 'porcobrar' ? _cobPendientes : _cobCobrados
+  if (lista.length === 0) {
+    cont.innerHTML = `<p class="vacio" style="padding:40px 20px;text-align:center">${cual === 'porcobrar' ? 'No hay pedidos por cobrar' : 'No hay pedidos cobrados aún'}</p>`
+    return
+  }
+  cont.innerHTML = lista.map(p => renderCobCard(p, _cobHoy, _cobEsAdmin, cual === 'cobrados')).join('')
+}
+
+// Tarjeta de un pago informado por verificar
+function renderPagoPorVerificar(pg) {
+  const ped = pg.pedidos || {}
+  const cliente = ped.clientes?.razon_social || 'Cliente'
+  return `
+    <div class="cob-card" style="border-left:3px solid #ba7517">
+      <div class="cob-card-left">
+        <div class="cob-card-cliente">${cliente}</div>
+        <div class="cob-card-pedido">Pedido #${ped.numero || '-'} · ${labelMedio(pg.medio_pago)}</div>
+        ${pg.orden_pago ? `<div style="font-size:12px;color:var(--color-text-tertiary)">Orden/Ref: ${pg.orden_pago}</div>` : ''}
+        ${pg.comprobante_url ? `<a href="${pg.comprobante_url}" target="_blank" style="font-size:12px;color:var(--color-marca)" onclick="event.stopPropagation()"><i class="ti ti-paperclip" aria-hidden="true"></i> Ver comprobante</a>` : '<span style="font-size:12px;color:var(--color-text-tertiary)">Sin comprobante</span>'}
+      </div>
+      <div class="cob-card-right">
+        <div class="cob-card-monto">${formatMonto(Number(pg.monto))}</div>
+        <div class="cob-card-acciones">
+          <button onclick="event.stopPropagation(); verificarPagoInformado('${pg.id}')" class="btn-cobrar" style="background:#1d9e75">
+            <i class="ti ti-check" aria-hidden="true"></i> Verificar
+          </button>
+          <button onclick="event.stopPropagation(); rechazarPagoInformado('${pg.id}')" class="btn-secundario" style="font-size:12px;padding:6px 10px;color:#e24b4a;border-color:#f0c4c4">
+            Rechazar
+          </button>
+        </div>
+      </div>
+    </div>`
+}
+
+// Rechazar un pago informado
+async function rechazarPagoInformado(pagoId) {
+  if (!confirm('¿Rechazar este pago informado? El cliente deberá volver a informarlo.')) return
+  const { error } = await db.from('pagos_informados').update({ estado: 'rechazado', verificado_por: usuarioActual.id }).eq('id', pagoId)
+  if (error) { alert('Error: ' + error.message); return }
+  await cargarPagosPorVerificar()
+  cambiarPestanaCobranza('verificar')
 }
 
 function renderCobCard(p, hoy, esAdmin, esCobrado = false) {
