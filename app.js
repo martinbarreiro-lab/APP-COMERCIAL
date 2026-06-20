@@ -2725,10 +2725,21 @@ async function confirmarPedido() {
   // Cliente y vendedor: el pedido queda pendiente de aprobación. Admin/empresa: confirmado directo.
   const estado = (rol === 'cliente' || rol === 'vendedor') ? 'pendiente_aprobacion' : 'confirmado'
 
-  // Si lo crea un cliente, asignar el vendedor de su ficha (vendedor_id es obligatorio)
-  let vendedorPedido = usuarioActual.id
-  if (rol === 'cliente') {
-    vendedorPedido = cliente.vendedor_id || null
+  // Determinar el vendedor del pedido (vendedor_id es NOT NULL, nunca puede quedar null)
+  let vendedorPedido = null
+  // 1) Traer el vendedor real de la ficha del cliente desde la base (no confiar en memoria)
+  const { data: cliFresh } = await db.from('clientes').select('vendedor_id').eq('id', cliente.id).single()
+  if (cliFresh?.vendedor_id) {
+    vendedorPedido = cliFresh.vendedor_id
+  } else if (rol === 'vendedor' || rol === 'admin') {
+    // Si lo crea un vendedor/admin y el cliente no tiene vendedor, usar al que lo crea
+    vendedorPedido = usuarioActual.id
+  }
+  // 2) Fallback final: si sigue null (cliente sin vendedor, lo carga el cliente o empresa),
+  //    asignar un admin para no violar el NOT NULL
+  if (!vendedorPedido) {
+    const { data: adminFb } = await db.from('perfiles').select('id').eq('rol', 'admin').eq('activo', true).limit(1).single()
+    vendedorPedido = adminFb?.id || usuarioActual.id
   }
 
   // Calcular vencimiento desde la fecha del pedido
