@@ -2526,13 +2526,13 @@ function textoCantidadItem(item) {
     label = cant === 1 ? 'caja' : 'cajas'
     const totalUnid = cant * uxc
     const nombreU = tipo === 'por_kg' ? 'paquetes' : 'potes'
-    if (totalUnid > 0 && kg > 0) extra = ` (${totalUnid} ${nombreU} · ${kg.toFixed(1)} kg)`
-    else if (kg > 0) extra = ` (${kg.toFixed(1)} kg)`
+    if (totalUnid > 0 && kg > 0) extra = `${totalUnid} ${nombreU} · ${kg.toFixed(1)} kg`
+    else if (kg > 0) extra = `${kg.toFixed(1)} kg`
   } else {
     label = (prod.unidad || 'unidad') + (cant === 1 ? '' : 's')
-    if (kg > 0) extra = ` (${kg.toFixed(1)} kg)`
+    if (kg > 0) extra = `${kg.toFixed(1)} kg`
   }
-  return `${cant} ${label}<small style="color:#888">${extra}</small>`
+  return `${cant} ${label}${extra ? `<br><small style="color:#888;font-size:11px">${extra}</small>` : ''}`
 }
 
 function calcularTotales() {
@@ -2643,7 +2643,7 @@ function mostrarResumenPedido() {
         <tbody>
           ${t.lineas.map(l => `<tr>
             <td>${l.descripcion}</td>
-            <td>${l.cantidad} ${l.unidad} ${l.unidadesTotales > 0 ? `<small>(${l.unidadesTotales} ${l.nombreUnidad} · ${l.kg.toFixed(1)} kg)</small>` : (l.kg > 0 ? `<small>(${l.kg.toFixed(1)} kg)</small>` : '')}</td>
+            <td>${l.cantidad} ${l.unidad}${l.unidadesTotales > 0 ? `<br><small style="color:#888;font-size:11px">${l.unidadesTotales} ${l.nombreUnidad} · ${l.kg.toFixed(1)} kg</small>` : (l.kg > 0 ? `<br><small style="color:#888;font-size:11px">${l.kg.toFixed(1)} kg</small>` : '')}</td>
             <td>$${Number(l.precioUnitario).toLocaleString('es-AR')}</td>
             <td>$${Number(l.subtotal).toLocaleString('es-AR')}</td>
           </tr>`).join('')}
