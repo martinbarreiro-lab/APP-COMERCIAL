@@ -3043,6 +3043,14 @@ async function cargarCobranza() {
   const { data: pedidos, error: pedErr } = await query
   if (pedErr) { console.error('Cobranza error:', pedErr); return }
 
+  // Para el cliente: marcar qué pedidos tienen factura subida (para habilitar "Informar pago")
+  if (rol === 'cliente' && pedidos && pedidos.length > 0) {
+    const ids = pedidos.map(p => p.id)
+    const { data: docs } = await db.from('documentos_pedido').select('pedido_id').in('pedido_id', ids)
+    const conFactura = new Set((docs || []).map(d => d.pedido_id))
+    pedidos.forEach(p => { p._tieneFactura = conFactura.has(p.id) })
+  }
+
   // Calcular stats
   await renderCobStats(pedidos, hoy, esAdmin)
 
@@ -3195,10 +3203,15 @@ function renderCobCard(p, hoy, esAdmin, esCobrado = false) {
           ${tel && rolUsuarioActual !== 'cliente' ? `<a href="${waLink(tel)}" target="_blank" class="btn-whatsapp" onclick="event.stopPropagation()">
             <i class="ti ti-brand-whatsapp" aria-hidden="true"></i>
           </a>` : ''}
-          ${!esCobrado ? (rolUsuarioActual === 'cliente' ? `
+          ${!esCobrado ? (rolUsuarioActual === 'cliente' ? (
+            (['facturado','enviado','recibido','cobrado'].includes(p.etapa) && p._tieneFactura) ? `
             <button onclick="event.stopPropagation(); abrirInformarPago('${p.id}', '${(p.clientes?.razon_social || '').replace(/'/g,"\\'")}', ${pendiente})" class="btn-cobrar">
               <i class="ti ti-upload" aria-hidden="true"></i> Informar pago
             </button>` : `
+            <div style="font-size:12px;color:var(--color-text-tertiary);display:flex;align-items:center;gap:5px;padding:6px 10px;background:var(--color-background-secondary);border-radius:8px">
+              <i class="ti ti-clock" aria-hidden="true"></i> Esperando factura
+            </div>`
+          ) : `
             <button onclick="event.stopPropagation(); abrirModalCobro('${p.id}', '${(p.clientes?.razon_social || '').replace(/'/g,"\\'")}', ${pendiente})" class="btn-cobrar">
               <i class="ti ti-cash" aria-hidden="true"></i> Cobrar
             </button>`) : `<button onclick="descargarPDF('${p.id}')" class="btn-secundario" style="font-size:12px;padding:6px 12px">
