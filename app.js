@@ -1440,14 +1440,14 @@ async function cargarProductosPedido(pedidoId) {
     .eq('pedido_id', pedidoId)
   const el = document.getElementById('productos-pedido')
   if (!items || items.length === 0) { el.innerHTML = '<p class="vacio">Sin productos</p>'; return }
-  el.innerHTML = `<table class="tabla">
+  el.innerHTML = `<table class="tabla tabla-responsive">
     <thead><tr><th>Producto</th><th>Cantidad</th><th>Precio unit.</th><th>Subtotal</th></tr></thead>
     <tbody>
       ${items.map(i => `<tr>
-        <td><b>${i.productos?.descripcion || '-'}</b><br><small>${i.productos?.codigo || ''}</small></td>
-        <td>${textoCantidadItem(i)}</td>
-        <td>$${Number(i.precio_unitario).toLocaleString('es-AR')}</td>
-        <td><b>$${Number(i.subtotal).toLocaleString('es-AR')}</b></td>
+        <td data-label="Producto"><b>${i.productos?.descripcion || '-'}</b><br><small>${i.productos?.codigo || ''}</small></td>
+        <td data-label="Cantidad">${textoCantidadItem(i)}</td>
+        <td data-label="Precio unit.">$${Number(i.precio_unitario).toLocaleString('es-AR')}</td>
+        <td data-label="Subtotal"><b>$${Number(i.subtotal).toLocaleString('es-AR')}</b></td>
       </tr>`).join('')}
     </tbody></table>`
 }
@@ -3577,12 +3577,12 @@ async function abrirDetalleCob(pedidoId) {
 
   // Productos
   document.getElementById('mdc-productos').innerHTML = items?.length
-    ? `<table class="tabla">
+    ? `<table class="tabla tabla-responsive">
         <thead><tr><th>Producto</th><th>Cantidad</th><th>Subtotal</th></tr></thead>
         <tbody>${items.map(i => `<tr>
-          <td>${i.productos?.descripcion || '-'}</td>
-          <td>${textoCantidadItem(i)}</td>
-          <td>$${Number(i.subtotal).toLocaleString('es-AR')}</td>
+          <td data-label="Producto">${i.productos?.descripcion || '-'}</td>
+          <td data-label="Cantidad">${textoCantidadItem(i)}</td>
+          <td data-label="Subtotal">$${Number(i.subtotal).toLocaleString('es-AR')}</td>
         </tr>`).join('')}</tbody>
       </table>`
     : '<p class="vacio">Sin productos</p>'
