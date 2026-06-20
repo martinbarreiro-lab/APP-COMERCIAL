@@ -604,7 +604,7 @@ body { background:#f0f2f5; color:#1a1a1a; }
   /* Contenido ocupa todo el ancho */
   .layout { margin-top:60px; }
   #contenido-principal { margin-left:0 !important; padding:14px 14px 80px !important; }
-  .seccion { padding-bottom:70px; }
+  .seccion { padding-bottom:70px; padding-left:12px; padding-right:12px; box-sizing:border-box; }
 
   /* Títulos más chicos */
   .seccion h2 { font-size:18px; margin-bottom:14px; }
