@@ -2387,92 +2387,103 @@ function renderCatalogoPedido(prods) {
   const el = document.getElementById('catalogo-pedido')
 
   el.innerHTML = prods.map(p => {
-    const esPorKg    = p.tipo_precio === 'por_kg'
-    const tieneCaja  = p.unidades_por_caja > 1 || esPorKg
-    const precioBase = esPorKg ? p.precio_caja : p.precio_1
-    const precioDesc = precioBase * (1 - descuento / 100)
-    const item       = pedidoActual.items[p.id]
-    const cantCaja   = item?.cantidad_caja || 0
-    const cantUnidad = item?.cantidad_unidad || 0
+    const tipo = p.tipo_precio || 'por_unidad'
+    const item = pedidoActual.items[p.id]
+    const cant = item?.cantidad || 0
+
+    // Precio por unidad de venta (caja o unidad) y kg por unidad de venta
+    let precioUnidadVenta = 0, kgUnidadVenta = 0, unidadVenta = '', precioBaseTxt = ''
+    if (tipo === 'por_kg') {
+      precioUnidadVenta = (Number(p.kg_por_caja)||0) * Number(p.precio_por_kg||0)
+      kgUnidadVenta = Number(p.kg_por_caja)||0
+      unidadVenta = 'caja'
+      precioBaseTxt = `$${Number(p.precio_por_kg).toLocaleString('es-AR')}/kg`
+    } else if (tipo === 'por_unidad_caja') {
+      precioUnidadVenta = (Number(p.unidades_por_caja)||1) * Number(p.precio_1||0)
+      kgUnidadVenta = Number(p.kg_por_caja)||0
+      unidadVenta = 'caja'
+      precioBaseTxt = `$${Number(p.precio_1).toLocaleString('es-AR')}/${p.unidad||'unidad'}`
+    } else {
+      precioUnidadVenta = Number(p.precio_1||0)
+      kgUnidadVenta = Number(p.kg_por_unidad)||0
+      unidadVenta = p.unidad || 'unidad'
+      precioBaseTxt = ''
+    }
+
+    const precioDesc = precioUnidadVenta * (1 - descuento / 100)
+    const kgTotal = cant * kgUnidadVenta
 
     return `
       <div class="producto-pedido-card" id="card-${p.id}">
         <div class="prod-pedido-info">
           <div class="prod-pedido-nombre">${p.descripcion}</div>
           <div class="prod-pedido-precios">
-            ${esPorKg
-              ? `<span>$${Number(p.precio_por_kg).toLocaleString('es-AR')}/kg</span>
-                 <span class="sep">•</span>
-                 <span class="precio-dest">$${Number(precioDesc).toLocaleString('es-AR')}/caja</span>`
-              : `<span class="precio-dest">$${Number(precioDesc).toLocaleString('es-AR')}/${p.unidad}</span>
-                 ${tieneCaja ? `<span class="sep">•</span><span>$${Number(precioDesc * p.unidades_por_caja).toLocaleString('es-AR')}/caja</span>` : ''}`
-            }
+            ${precioBaseTxt ? `<span>${precioBaseTxt}</span><span class="sep">•</span>` : ''}
+            <span class="precio-dest">$${Number(precioDesc).toLocaleString('es-AR')}/${unidadVenta}</span>
             ${descuento > 0 ? `<span class="badge badge-verde">-${descuento}%</span>` : ''}
+            ${kgUnidadVenta > 0 ? `<span class="sep">•</span><span style="color:#888">${kgUnidadVenta} kg/${unidadVenta}</span>` : ''}
           </div>
         </div>
         <div class="prod-pedido-controles">
-          ${tieneCaja && !esPorKg ? `
-            <div class="control-cantidad">
-              <span class="control-label">Cajas</span>
-              <div class="cantidad-btns">
-                <button onclick="cambiarCantidad('${p.id}', 'caja', -1)" class="btn-cant">−</button>
-                <input type="number" value="${cantCaja}" min="0"
-                  onchange="setCantidad('${p.id}', 'caja', this.value)"
-                  class="input-cant">
-                <button onclick="cambiarCantidad('${p.id}', 'caja', 1)" class="btn-cant">+</button>
-              </div>
-            </div>` : ''}
           <div class="control-cantidad">
-            <span class="control-label">${esPorKg ? 'Cajas' : p.unidad + 's'}</span>
+            <span class="control-label">${unidadVenta === 'caja' ? 'Cajas' : (unidadVenta.charAt(0).toUpperCase()+unidadVenta.slice(1)+'s')}</span>
             <div class="cantidad-btns">
-              <button onclick="cambiarCantidad('${p.id}', 'unidad', -1)" class="btn-cant">−</button>
-              <input type="number" value="${cantUnidad}" min="0"
-                onchange="setCantidad('${p.id}', 'unidad', this.value)"
+              <button onclick="cambiarCantidad('${p.id}', -1)" class="btn-cant">−</button>
+              <input type="number" value="${cant}" min="0"
+                onchange="setCantidad('${p.id}', this.value)"
                 class="input-cant">
-              <button onclick="cambiarCantidad('${p.id}', 'unidad', 1)" class="btn-cant">+</button>
+              <button onclick="cambiarCantidad('${p.id}', 1)" class="btn-cant">+</button>
             </div>
+            ${kgTotal > 0 ? `<span class="control-kg" id="kg-${p.id}" style="font-size:11px;color:#0a6ca0;font-weight:600;margin-top:3px">${kgTotal.toFixed(1)} kg</span>` : `<span class="control-kg" id="kg-${p.id}" style="font-size:11px;color:#888;margin-top:3px"></span>`}
           </div>
         </div>
       </div>`
   }).join('')
 }
 
-function cambiarCantidad(prodId, tipo, delta) {
-  const prod  = window._productosPedido.find(p => p.id === prodId)
-  if (!prod) return
-  if (!pedidoActual.items[prodId]) {
-    pedidoActual.items[prodId] = { producto: prod, cantidad_caja: 0, cantidad_unidad: 0 }
-  }
-  const key = tipo === 'caja' ? 'cantidad_caja' : 'cantidad_unidad'
-  pedidoActual.items[prodId][key] = Math.max(0, (pedidoActual.items[prodId][key] || 0) + delta)
-  if (pedidoActual.items[prodId].cantidad_caja === 0 && pedidoActual.items[prodId].cantidad_unidad === 0) {
-    delete pedidoActual.items[prodId]
-  }
-  // Actualizar input en pantalla
-  const card = document.getElementById(`card-${prodId}`)
-  if (card) {
-    const inputs = card.querySelectorAll('.input-cant')
-    if (tipo === 'caja' && inputs[0]) inputs[0].value = pedidoActual.items[prodId]?.cantidad_caja || 0
-    if (tipo === 'unidad') {
-      const lastInput = inputs[inputs.length - 1]
-      if (lastInput) lastInput.value = pedidoActual.items[prodId]?.cantidad_unidad || 0
-    }
-  }
-  actualizarBarraTotal()
-}
-
-function setCantidad(prodId, tipo, valor) {
+function cambiarCantidad(prodId, delta) {
   const prod = window._productosPedido.find(p => p.id === prodId)
   if (!prod) return
   if (!pedidoActual.items[prodId]) {
-    pedidoActual.items[prodId] = { producto: prod, cantidad_caja: 0, cantidad_unidad: 0 }
+    pedidoActual.items[prodId] = { producto: prod, cantidad: 0 }
   }
-  const key = tipo === 'caja' ? 'cantidad_caja' : 'cantidad_unidad'
-  pedidoActual.items[prodId][key] = Math.max(0, parseFloat(valor) || 0)
-  if (pedidoActual.items[prodId].cantidad_caja === 0 && pedidoActual.items[prodId].cantidad_unidad === 0) {
-    delete pedidoActual.items[prodId]
-  }
+  pedidoActual.items[prodId].cantidad = Math.max(0, (pedidoActual.items[prodId].cantidad || 0) + delta)
+  if (pedidoActual.items[prodId].cantidad === 0) delete pedidoActual.items[prodId]
+
+  _actualizarCardCantidad(prodId)
   actualizarBarraTotal()
+}
+
+function setCantidad(prodId, valor) {
+  const prod = window._productosPedido.find(p => p.id === prodId)
+  if (!prod) return
+  if (!pedidoActual.items[prodId]) {
+    pedidoActual.items[prodId] = { producto: prod, cantidad: 0 }
+  }
+  pedidoActual.items[prodId].cantidad = Math.max(0, parseFloat(valor) || 0)
+  if (pedidoActual.items[prodId].cantidad === 0) delete pedidoActual.items[prodId]
+
+  _actualizarCardCantidad(prodId)
+  actualizarBarraTotal()
+}
+
+// Actualiza el input y el texto de kg de una tarjeta
+function _actualizarCardCantidad(prodId) {
+  const prod = window._productosPedido.find(p => p.id === prodId)
+  const card = document.getElementById(`card-${prodId}`)
+  if (!card || !prod) return
+  const cant = pedidoActual.items[prodId]?.cantidad || 0
+  const input = card.querySelector('.input-cant')
+  if (input) input.value = cant
+  // kg
+  const tipo = prod.tipo_precio || 'por_unidad'
+  let kgUnidadVenta = (tipo === 'por_unidad') ? (Number(prod.kg_por_unidad)||0) : (Number(prod.kg_por_caja)||0)
+  const kgEl = document.getElementById('kg-' + prodId)
+  if (kgEl) {
+    const kgTotal = cant * kgUnidadVenta
+    kgEl.textContent = kgTotal > 0 ? `${kgTotal.toFixed(1)} kg` : ''
+    kgEl.style.color = kgTotal > 0 ? '#0a6ca0' : '#888'
+  }
 }
 
 // ── BARRA DE TOTAL FLOTANTE ──────────────────────
@@ -2498,6 +2509,10 @@ function actualizarBarraTotal() {
 }
 
 // ── CÁLCULO DE TOTALES ───────────────────────────
+// Lógica de precio/kg por tipo:
+//  - por_kg:          se pide en CAJAS. precio = cajas × kg_por_caja × precio_por_kg. kg = cajas × kg_por_caja
+//  - por_unidad_caja: se pide en CAJAS. precio = cajas × unidades_por_caja × precio_1 (precio por pote). kg = cajas × kg_por_caja
+//  - por_unidad:      se pide en UNIDADES. precio = unidades × precio_1. kg = unidades × kg_por_unidad
 function calcularTotales() {
   const cliente   = pedidoActual.cliente
   const descuento = cliente?.descuento_pct || 0
@@ -2512,42 +2527,50 @@ function calcularTotales() {
   const lineas = []
 
   Object.values(pedidoActual.items).forEach(item => {
-    const p         = item.producto
-    const esPorKg   = p.tipo_precio === 'por_kg'
-    const tieneCaja = p.unidades_por_caja > 1 || esPorKg
+    const p   = item.producto
+    const cant = item.cantidad || 0   // cantidad en la unidad de venta (cajas o unidades)
+    if (cant === 0) return
 
-    // Calcular cantidad total en unidades base
-    let cantidadBase = item.cantidad_unidad || 0
-    if (tieneCaja && item.cantidad_caja > 0) {
-      cantidadBase += item.cantidad_caja * (esPorKg ? 1 : p.unidades_por_caja)
-    }
-    if (cantidadBase === 0) return
+    const tipo = p.tipo_precio || 'por_unidad'
+    let lineaSubtotal = 0
+    let lineaKg = 0
+    let unidadLabel = ''
 
-    // Precio base por unidad de venta
-    const precioBase = esPorKg ? p.precio_caja : p.precio_1
-    const lineaSubtotal = precioBase * cantidadBase
-
-    // Kg
-    if (esPorKg) {
-      totalKg += item.cantidad_caja * p.kg_por_unidad
-      totalKg += (item.cantidad_unidad || 0) * p.kg_por_unidad
+    if (tipo === 'por_kg') {
+      // Manteca: cajas × kg_por_caja × precio_por_kg
+      const kgCaja = Number(p.kg_por_caja) || 0
+      lineaSubtotal = cant * kgCaja * Number(p.precio_por_kg || 0)
+      lineaKg = cant * kgCaja
+      unidadLabel = cant === 1 ? 'caja' : 'cajas'
+    } else if (tipo === 'por_unidad_caja') {
+      // Crema en pote: cajas × potes_por_caja × precio_por_pote (precio_1)
+      const uxc = Number(p.unidades_por_caja) || 1
+      lineaSubtotal = cant * uxc * Number(p.precio_1 || 0)
+      lineaKg = cant * (Number(p.kg_por_caja) || 0)
+      unidadLabel = cant === 1 ? 'caja' : 'cajas'
+    } else {
+      // Suelto: unidades × precio_1
+      lineaSubtotal = cant * Number(p.precio_1 || 0)
+      lineaKg = cant * (Number(p.kg_por_unidad) || 0)
+      unidadLabel = cant === 1 ? (p.unidad || 'unidad') : (p.unidad || 'unidad') + 's'
     }
 
     subtotal += lineaSubtotal
+    totalKg  += lineaKg
+
     lineas.push({
       descripcion: p.descripcion,
-      cantidad: cantidadBase,
-      unidad: esPorKg ? 'cajas' : p.unidad + 's',
-      precioUnitario: precioBase,
+      cantidad: cant,
+      unidad: unidadLabel,
+      precioUnitario: lineaSubtotal / cant,  // precio por caja/unidad (para mostrar)
       subtotal: lineaSubtotal,
-      kg: esPorKg ? cantidadBase * p.kg_por_unidad : 0
+      kg: lineaKg
     })
   })
 
   const descuentoMonto = subtotal * (descuento / 100)
   const neto           = subtotal - descuentoMonto
 
-  // Split remito / factura
   let montoRemito  = 0
   let montoFactura = 0
   let ivaTotal     = 0
@@ -2565,11 +2588,8 @@ function calcularTotales() {
 
   const total = neto + ivaTotal
 
-  // Bonificación
   let bonifDetalle = ''
-  if (bonif > 0) {
-    bonifDetalle = `${bonif}% de mercadería extra`
-  }
+  if (bonif > 0) bonifDetalle = `${bonif}% de mercadería extra`
 
   return { subtotal, descuentoMonto, neto, montoRemito, montoFactura, ivaTotal, total, totalKg, lineas, bonifDetalle, iva, factura, pctRemito, pctFact }
 }
@@ -2728,32 +2748,49 @@ async function confirmarPedido() {
   }
   const pedido_ok = pedidoFinal
 
-  // Crear items del pedido
+  // Crear items del pedido (usando la lógica por tipo_precio)
+  const descuentoCli = cliente.descuento_pct || 0
   const itemsParaInsertar = []
   Object.values(pedidoActual.items).forEach(item => {
-    const p       = item.producto
-    const esPorKg = p.tipo_precio === 'por_kg'
-    let cantidad  = item.cantidad_unidad || 0
-    if (item.cantidad_caja > 0) {
-      cantidad += item.cantidad_caja * (esPorKg ? 1 : p.unidades_por_caja)
-    }
-    if (cantidad === 0) return
+    const p    = item.producto
+    const cant = item.cantidad || 0
+    if (cant === 0) return
 
-    const descuento = cliente.descuento_pct || 0
-    const precio    = esPorKg ? p.precio_caja : p.precio_1
+    const tipo = p.tipo_precio || 'por_unidad'
+    let precioUnitario = 0, lineaSubtotal = 0, lineaKg = 0
+
+    if (tipo === 'por_kg') {
+      const kgCaja = Number(p.kg_por_caja) || 0
+      precioUnitario = kgCaja * Number(p.precio_por_kg || 0)   // precio por caja
+      lineaSubtotal  = cant * precioUnitario
+      lineaKg        = cant * kgCaja
+    } else if (tipo === 'por_unidad_caja') {
+      const uxc = Number(p.unidades_por_caja) || 1
+      precioUnitario = uxc * Number(p.precio_1 || 0)            // precio por caja
+      lineaSubtotal  = cant * precioUnitario
+      lineaKg        = cant * (Number(p.kg_por_caja) || 0)
+    } else {
+      precioUnitario = Number(p.precio_1 || 0)                  // precio por unidad
+      lineaSubtotal  = cant * precioUnitario
+      lineaKg        = cant * (Number(p.kg_por_unidad) || 0)
+    }
 
     itemsParaInsertar.push({
       pedido_id:       pedido_ok.id,
       producto_id:     p.id,
-      cantidad,
-      precio_unitario: precio,
-      descuento_pct:   descuento,
+      cantidad:        cant,
+      precio_unitario: precioUnitario,
+      descuento_pct:   descuentoCli,
       alicuota_iva:    p.alicuota_iva,
-      subtotal:        precio * cantidad * (1 - descuento / 100)
+      subtotal:        lineaSubtotal * (1 - descuentoCli / 100),
+      kg:              lineaKg
     })
   })
 
   await db.from('pedido_items').insert(itemsParaInsertar)
+
+  // Guardar el total de kg en el pedido
+  await db.from('pedidos').update({ total_kg: t.totalKg }).eq('id', pedido_ok.id).then(r=>r,()=>{})
 
   // Registrar en historial
   await registrarHistorial(pedido_ok.id, 'pedido_creado',
@@ -2809,19 +2846,30 @@ async function guardarBorrador() {
 
   const itemsParaInsertar = []
   Object.values(pedidoActual.items).forEach(item => {
-    const p       = item.producto
-    const esPorKg = p.tipo_precio === 'por_kg'
-    let cantidad  = item.cantidad_unidad || 0
-    if (item.cantidad_caja > 0) cantidad += item.cantidad_caja * (esPorKg ? 1 : p.unidades_por_caja)
-    if (cantidad === 0) return
+    const p    = item.producto
+    const cant = item.cantidad || 0
+    if (cant === 0) return
+    const tipo = p.tipo_precio || 'por_unidad'
+    let precioUnitario = 0, lineaKg = 0
+    if (tipo === 'por_kg') {
+      precioUnitario = (Number(p.kg_por_caja)||0) * Number(p.precio_por_kg||0)
+      lineaKg = cant * (Number(p.kg_por_caja)||0)
+    } else if (tipo === 'por_unidad_caja') {
+      precioUnitario = (Number(p.unidades_por_caja)||1) * Number(p.precio_1||0)
+      lineaKg = cant * (Number(p.kg_por_caja)||0)
+    } else {
+      precioUnitario = Number(p.precio_1||0)
+      lineaKg = cant * (Number(p.kg_por_unidad)||0)
+    }
     itemsParaInsertar.push({
-      pedido_id: pedido.id, producto_id: p.id, cantidad,
-      precio_unitario: esPorKg ? p.precio_caja : p.precio_1,
+      pedido_id: pedido.id, producto_id: p.id, cantidad: cant,
+      precio_unitario: precioUnitario,
       descuento_pct: pedidoActual.cliente.descuento_pct || 0,
-      alicuota_iva: p.alicuota_iva, subtotal: 0
+      alicuota_iva: p.alicuota_iva, subtotal: 0, kg: lineaKg
     })
   })
   if (itemsParaInsertar.length > 0) await db.from('pedido_items').insert(itemsParaInsertar)
+  await db.from('pedidos').update({ total_kg: t.totalKg }).eq('id', pedido.id).then(r=>r,()=>{})
 
   alert('💾 Borrador guardado correctamente')
   mostrarVistaPedidos('lista')
