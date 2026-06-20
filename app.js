@@ -2044,13 +2044,20 @@ async function confirmarRecepcion() {
   }
 
   // Actualizar etapa del pedido
-  const { error: updErr } = await db.from('pedidos')
+  const { data: updData, error: updErr } = await db.from('pedidos')
     .update({ etapa: 'recibido', updated_at: new Date().toISOString() })
     .eq('id', pedidoIdCopy)
+    .select()
 
   if (updErr) {
     console.error('Error update pedido:', updErr)
     alert('Error al guardar: ' + (updErr.message || JSON.stringify(updErr)))
+    return
+  }
+  // Si no devolvió filas, el update no se aplicó (probablemente por permisos)
+  if (!updData || updData.length === 0) {
+    alert('No se pudo confirmar la recepción (permisos). Avisá a la empresa.')
+    console.error('Update de pedido no afectó filas — revisar RLS de pedidos para cliente')
     return
   }
 
