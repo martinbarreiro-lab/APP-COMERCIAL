@@ -541,6 +541,10 @@ body { background:#f0f2f5; color:#1a1a1a; }
 
   /* ── PREVENCIÓN GLOBAL DE DESBORDE EN MÓVIL ── */
   .seccion, .seccion * { max-width:100%; }
+  /* Que el padding nunca sume ancho extra (causa principal de desbordes) */
+  .detalle-card, .detalle-seccion, .form-card, .cob-card, .rep-fila,
+  .producto-pedido-card, .aprobar-card, .pedido-card, .cliente-card,
+  [id^="modal-"] > div { box-sizing:border-box !important; }
   /* Inputs de archivo: que no desborden con su ancho natural */
   input[type="file"] { max-width:100%; width:100%; box-sizing:border-box; font-size:12px; }
   input, select, textarea { max-width:100%; box-sizing:border-box; }
@@ -718,8 +722,20 @@ body { background:#f0f2f5; color:#1a1a1a; }
   /* Modales ocupan casi toda la pantalla */
   #modal-recibido > div,
   #modal-cobro > div,
-  #modal-detalle-cob > div { max-width:100% !important; width:100% !important; border-radius:16px 16px 0 0 !important; }
-  #modal-detalle-cob > div { height:90vh !important; margin-top:auto; }
+  /* ── PANELES LATERALES (modales anclados a la derecha) en móvil ── */
+  /* Ocupan toda la pantalla y respetan el ancho (box-sizing) */
+  #modal-detalle-cob { justify-content:center !important; align-items:flex-end !important; }
+  #modal-detalle-cob > div {
+    max-width:100% !important;
+    width:100% !important;
+    height:92vh !important;
+    margin:0 !important;
+    border-radius:16px 16px 0 0 !important;
+    box-sizing:border-box !important;
+    padding:18px !important;
+  }
+  /* Regla general: cualquier modal de pantalla completa con panel interno */
+  [id^="modal-"] > div { box-sizing:border-box !important; }
 
   /* Barra total pedido ajustada */
   .barra-total-pedido { left:0 !important; bottom:64px !important; }
