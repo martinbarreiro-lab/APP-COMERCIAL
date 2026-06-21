@@ -422,7 +422,7 @@ async function cargarDashboard() {
 
     ${alertasHTML}
 
-    <div class="dash-kpi-grid" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px">
+    <div class="dash-kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px">
       ${dashMetrica('ti-chart-bar', 'Facturado este mes', fmtM(facturadoMes), pedidosMesCount + ' pedidos', '#378add')}
       ${dashMetrica('ti-circle-check', 'Cobrado este mes', fmtM(cobradoMes), cobrosMesCount + ' cobros', '#1d9e75')}
       <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px;border-top:3px solid #e24b4a">
@@ -445,7 +445,7 @@ async function cargarDashboard() {
 
     <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px;margin-bottom:16px">
       <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px;display:flex;align-items:center;gap:6px"><i class="ti ti-git-branch" aria-hidden="true"></i> Pipeline — todos los pedidos activos</div>
-      <div class="dash-pipeline" style="display:flex;margin:0 -16px -14px;overflow-x:auto">
+      <div class="dash-pipeline" style="display:flex;overflow-x:auto;gap:4px;-webkit-overflow-scrolling:touch">
         ${pipelineHTML}
       </div>
     </div>
