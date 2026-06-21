@@ -972,8 +972,9 @@ function badgeVerificacion(v) {
   return `<span class="badge ${c[v]||'badge-gris'}">${l[v]||v}</span>`
 }
 function badgeEtapa(e) {
-  const c = { pedido:'badge-gris', documentado:'badge-azul', cobrado:'badge-amarillo', cerrado:'badge-verde' }
-  const l = { pedido:'Pedido', documentado:'Documentado', cobrado:'Cobrado', cerrado:'Cerrado' }
+  // Progreso: pedido=gris(empieza), facturado/enviado/recibido=amarillo(en curso), cobrado=verde(hecho)
+  const c = { pedido:'badge-gris', facturado:'badge-amarillo', enviado:'badge-amarillo', recibido:'badge-amarillo', cobrado:'badge-verde', documentado:'badge-amarillo', cerrado:'badge-verde' }
+  const l = { pedido:'Pedido', facturado:'Facturado', enviado:'Enviado', recibido:'Recibido', cobrado:'Cobrado', documentado:'Facturado', cerrado:'Cobrado' }
   return `<span class="badge ${c[e]||'badge-gris'}">${l[e]||e}</span>`
 }
 function badgeEstado(e) {
@@ -987,7 +988,8 @@ function badgeCobro(e) {
 }
 function badgeEnvio(e) {
   const c = { preparando:'badge-gris', en_camino:'badge-amarillo', entregado:'badge-verde' }
-  return `<span class="badge ${c[e]||'badge-gris'}">${e}</span>`
+  const l = { preparando:'Preparando', en_camino:'En camino', entregado:'Entregado' }
+  return `<span class="badge ${c[e]||'badge-gris'}">${l[e]||e}</span>`
 }
 // ================================================
 // AGREGAR AL FINAL DE app.js
@@ -1293,7 +1295,15 @@ function actualizarBarraProgreso(etapa) {
     const el = document.getElementById('prog-' + et)
     if (!el) return
     const c = el.querySelector('.progreso-circulo')
-    if (c) c.className = 'progreso-circulo' + (i <= idx ? ' activo' : '')
+    // hecho (verde) si ya pasó, en-curso (amarillo) si es el actual, falta (gris) si no llegó
+    let estado = 'pendiente'
+    if (i < idx) estado = 'hecho'
+    else if (i === idx) estado = 'actual'
+    el.className = 'progreso-paso prog-' + estado
+    if (c) {
+      c.className = 'progreso-circulo prog-circ-' + estado
+      c.textContent = (estado === 'hecho') ? '✓' : (i + 1)
+    }
   })
 }
 
