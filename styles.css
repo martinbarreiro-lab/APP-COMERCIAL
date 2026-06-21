@@ -524,6 +524,21 @@ body { background:#f0f2f5; color:#1a1a1a; }
   /* Sin scroll horizontal en toda la app */
   html, body { overflow-x:hidden; max-width:100vw; }
 
+  /* ── ARREGLOS DE DESBORDE EN MÓVIL ── */
+  /* Dashboard: 4 tarjetas KPI → 2 columnas en celular */
+  .dash-kpi-grid { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+  /* Reportes: KPIs en una sola fila que envuelve */
+  .rep-kpi3 { grid-template-columns:repeat(3,minmax(0,1fr)) !important; gap:8px !important; }
+  .rep-kpi-v { font-size:15px !important; word-break:break-word; }
+  /* Header de sección detalle: que el botón no se salga */
+  .detalle-seccion-header { flex-wrap:wrap; gap:8px; }
+  .detalle-seccion-header h3 { flex:1; min-width:0; }
+  /* Botones secundarios en headers: que no desborden */
+  .detalle-seccion-header .btn-secundario { white-space:nowrap; flex-shrink:0; }
+  /* Filas de reportes (ranking clientes): monto que no se corte */
+  .rep-fila, .rep-rank-fila { flex-wrap:wrap; }
+  .rep-fila-monto { font-size:14px !important; white-space:normal !important; width:100%; text-align:right; margin-top:4px; }
+
   /* ── PREVENCIÓN GLOBAL DE DESBORDE EN MÓVIL ── */
   .seccion, .seccion * { max-width:100%; }
   /* Inputs de archivo: que no desborden con su ancho natural */
