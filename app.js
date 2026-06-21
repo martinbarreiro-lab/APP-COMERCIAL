@@ -1133,13 +1133,30 @@ async function cargarTablaActualizarPrecios() {
       <table class="tabla-precios">
         <thead><tr><th>Producto</th><th>Precio actual</th><th>Precio nuevo</th></tr></thead>
         <tbody>
-          ${cat.productos.map(p => `<tr>
+          ${cat.productos.map(p => {
+            const tipo = p.tipo_precio || 'por_unidad'
+            // Precio base editable según tipo
+            let precioBase = 0, sufijo = '', ayuda = ''
+            if (tipo === 'por_kg') {
+              precioBase = Number(p.precio_por_kg) || 0
+              sufijo = '/kg'
+              ayuda = `Caja ${p.kg_por_caja || p.kg_por_unidad}kg → la caja se cobra kg × precio`
+            } else if (tipo === 'por_unidad_caja') {
+              precioBase = Number(p.precio_1) || 0
+              sufijo = `/${p.unidad === 'caja' ? 'pote' : p.unidad}`
+              ayuda = `${p.unidades_por_caja} por caja → la caja se cobra unidades × precio`
+            } else {
+              precioBase = Number(p.precio_1) || 0
+              sufijo = `/${p.unidad}`
+              ayuda = ''
+            }
+            return `<tr>
             <td>
               <b>${p.descripcion}</b><br>
-              <small>${p.unidad}</small>
+              <small style="color:#888">${ayuda}</small>
             </td>
             <td class="precio-actual-col">
-              ${p.precio_1 > 0 ? '$' + Number(p.precio_1).toLocaleString('es-AR') : '<span class="precio-sin-definir">Sin precio</span>'}
+              ${precioBase > 0 ? '$' + precioBase.toLocaleString('es-AR') + '<small>' + sufijo + '</small>' : '<span class="precio-sin-definir">Sin precio</span>'}
             </td>
             <td>
               <div class="input-con-sufijo">
@@ -1147,12 +1164,16 @@ async function cargarTablaActualizarPrecios() {
                 <input type="number"
                   class="input-precio-nuevo"
                   data-producto-id="${p.id}"
-                  data-precio-actual="${p.precio_1}"
-                  placeholder="${p.precio_1 > 0 ? Number(p.precio_1).toLocaleString('es-AR') : '0'}"
+                  data-precio-actual="${precioBase}"
+                  data-tipo="${tipo}"
+                  data-kgcaja="${p.kg_por_caja || 0}"
+                  data-uxc="${p.unidades_por_caja || 1}"
+                  placeholder="${precioBase > 0 ? precioBase.toLocaleString('es-AR') : '0'}"
                   min="0" step="0.01">
+                <span style="font-size:11px;color:#888;margin-left:2px">${sufijo}</span>
               </div>
             </td>
-          </tr>`).join('')}
+          </tr>`}).join('')}
         </tbody>
       </table>
     </div>`
@@ -1180,7 +1201,10 @@ async function guardarNuevosPrecios() {
       cambios.push({
         id:       input.dataset.productoId,
         anterior: actual,
-        nuevo:    nuevo
+        nuevo:    nuevo,
+        tipo:     input.dataset.tipo,
+        kgcaja:   parseFloat(input.dataset.kgcaja) || 0,
+        uxc:      parseFloat(input.dataset.uxc) || 1
       })
     }
   })
@@ -1203,14 +1227,29 @@ async function guardarNuevosPrecios() {
     }
   }
 
-  // Actualizar cada producto que cambió
+  // Actualizar cada producto que cambió, según su tipo de precio
   let actualizados = 0
   for (const c of cambios) {
-    const { error } = await db.from('productos').update({
-      precio_anterior:    c.anterior,
-      precio_1:           c.nuevo,
-      fecha_ultimo_precio: fechaVigencia
-    }).eq('id', c.id)
+    let update = { fecha_ultimo_precio: fechaVigencia }
+
+    if (c.tipo === 'por_kg') {
+      // Manteca: el precio base es por kg. Recalcular precio de la caja
+      update.precio_anterior = c.anterior
+      update.precio_por_kg   = c.nuevo
+      update.precio_1        = c.nuevo * c.kgcaja   // precio de la caja
+      update.precio_caja     = c.nuevo * c.kgcaja
+    } else if (c.tipo === 'por_unidad_caja') {
+      // Crema en caja: precio base por pote. Recalcular precio de la caja
+      update.precio_anterior = c.anterior
+      update.precio_1        = c.nuevo              // precio por pote
+      update.precio_caja     = c.nuevo * c.uxc      // precio de la caja
+    } else {
+      // Suelto: precio directo
+      update.precio_anterior = c.anterior
+      update.precio_1        = c.nuevo
+    }
+
+    const { error } = await db.from('productos').update(update).eq('id', c.id)
     if (!error) actualizados++
   }
 
