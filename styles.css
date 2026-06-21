@@ -522,7 +522,13 @@ body { background:#f0f2f5; color:#1a1a1a; }
 
 @media (max-width: 768px) {
   /* Sin scroll horizontal en toda la app */
-  html, body { overflow-x:hidden; max-width:100vw; }
+  html, body { overflow-x:hidden; max-width:100vw; width:100%; }
+  /* El contenedor principal nunca más ancho que la pantalla */
+  #contenido-principal { width:100%; max-width:100vw; box-sizing:border-box; overflow-x:hidden; }
+  #dash-root { width:100%; max-width:100%; box-sizing:border-box; }
+  #dash-root > * { max-width:100%; box-sizing:border-box; }
+  /* El grid KPI nunca fuerza ancho */
+  .dash-kpi-grid { width:100%; max-width:100%; }
 
   /* ── ARREGLOS DE DESBORDE EN MÓVIL ── */
   /* Dashboard: 4 tarjetas KPI → 2 columnas en celular */
