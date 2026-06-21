@@ -703,8 +703,12 @@ body { background:#f0f2f5; color:#1a1a1a; }
   .progreso-paso { min-width:54px; }
 
   /* Cards de detalle con menos padding */
-  .detalle-card, .detalle-seccion { padding:14px; }
+  .detalle-card, .detalle-seccion { padding:14px; box-sizing:border-box; border-radius:10px; margin-bottom:12px; }
   .detalle-card *, .detalle-seccion * { max-width:100%; }
+  /* Headers de sección (Documentos, Cobros): título + botón, que el botón nunca se salga */
+  .detalle-seccion-header { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:nowrap; margin-bottom:10px; }
+  .detalle-seccion-header h3 { font-size:14px; margin:0; flex:1; min-width:0; }
+  .detalle-seccion-header .btn-secundario { font-size:12px; padding:5px 12px; white-space:nowrap; flex-shrink:0; }
 
   /* info-grid del pedido: 1 columna sin ancho mínimo */
   .info-grid { grid-template-columns:1fr !important; gap:14px; }
