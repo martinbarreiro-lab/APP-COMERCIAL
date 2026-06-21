@@ -4084,13 +4084,13 @@ function renderEnvioCard(envio, activo) {
   return `
     <div class="log-envio-card" id="log-envio-${envio.id}"
       onclick="toggleEnvioDetalle('${envio.id}')"
-      style="border-left:3px solid ${activo ? '#1d9e75' : '#888780'};cursor:pointer">
+      style="border-left:3px solid ${activo ? '#e8b730' : '#1d9e75'};cursor:pointer">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
         <div>
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-            <i class="ti ti-truck" style="font-size:15px;color:${activo ? '#1d9e75' : '#888780'}" aria-hidden="true"></i>
+            <i class="ti ti-truck" style="font-size:15px;color:${activo ? '#c8890a' : '#1d9e75'}" aria-hidden="true"></i>
             <span style="font-size:15px;font-weight:500">Envío #${num}</span>
-            <span class="badge ${activo ? 'badge-verde' : 'badge-gris'}" id="badge-envio-${envio.id}">${activo ? 'En camino' : 'Completado'}</span>
+            <span class="badge ${activo ? 'badge-amarillo' : 'badge-verde'}" id="badge-envio-${envio.id}">${activo ? 'En camino' : 'Entregado'}</span>
           </div>
           <div style="display:flex;gap:14px;font-size:12px;color:var(--color-text-secondary)">
             <span><i class="ti ti-calendar" style="font-size:12px" aria-hidden="true"></i> Salida: ${formatFechaHora(envio.fecha_salida)}</span>
