@@ -491,7 +491,7 @@ async function cargarInicioCliente() {
   cont.innerHTML = '<p style="color:var(--color-text-tertiary);font-size:13px;padding:20px;text-align:center">Cargando...</p>'
 
   // Nombre del cliente
-  const { data: cli } = await db.from('clientes').select('razon_social, saldo_pendiente').eq('id', clienteId).single()
+  const { data: cli } = await db.from('clientes').select('razon_social').eq('id', clienteId).single()
 
   // Pedidos del cliente (activos)
   const { data: pedidos } = await db.from('pedidos')
@@ -504,8 +504,9 @@ async function cargarInicioCliente() {
   const porRecibir = todos.filter(p => p.etapa === 'enviado')
   // Pedidos en curso (no cobrados/finalizados)
   const enCurso = todos.filter(p => p.etapa !== 'cobrado' && p.estado !== 'cancelado').slice(0, 6)
-  // Deuda
-  const deuda = Number(cli?.saldo_pendiente || 0)
+  // Deuda — calculada en vivo a partir de los pedidos pendientes de cobro (no usamos clientes.saldo_pendiente, que no se actualiza solo)
+  const deudaMapaCliente = await calcularDeudaPorCliente(clienteId)
+  const deuda = deudaMapaCliente[clienteId]?.deuda || 0
   // Próximo vencimiento
   const conVenc = todos.filter(p => p.fecha_vencimiento_cobro && (p.estado_cobro === 'pendiente' || !p.estado_cobro))
     .sort((a,b) => new Date(a.fecha_vencimiento_cobro) - new Date(b.fecha_vencimiento_cobro))
@@ -666,11 +667,32 @@ async function cargarEnvios() {
 }
 
 // ── CLIENTES ─────────────────────────────────────
+// Calcula la deuda (y la deuda vencida) en vivo a partir de los pedidos pendientes de cobro.
+// No usamos clientes.saldo_pendiente / clientes.bloqueado porque no se actualizan solos.
+// Sin clienteId: devuelve un mapa { [cliente_id]: { deuda, vencida } } de todos los clientes.
+// Con clienteId: devuelve el mismo mapa pero solo para ese cliente.
+async function calcularDeudaPorCliente(clienteId = null) {
+  const hoyStr = new Date().toISOString().split('T')[0]
+  let q = db.from('pedidos').select('cliente_id, total, monto_cobrado, fecha_vencimiento_cobro')
+    .eq('estado_cobro', 'pendiente').neq('etapa', 'cancelado')
+  if (clienteId) q = q.eq('cliente_id', clienteId)
+  const { data: pedidos } = await q
+
+  const mapa = {}
+  ;(pedidos || []).forEach(p => {
+    if (!mapa[p.cliente_id]) mapa[p.cliente_id] = { deuda: 0, vencida: 0 }
+    const saldo = Number(p.total) - Number(p.monto_cobrado || 0)
+    mapa[p.cliente_id].deuda += saldo
+    if (p.fecha_vencimiento_cobro && p.fecha_vencimiento_cobro < hoyStr) mapa[p.cliente_id].vencida += saldo
+  })
+  return mapa
+}
+
 async function cargarClientes() {
   mostrarVistaClientes('lista')
   const rol = await cargarRolUsuario()
 
-  let query = db.from('clientes').select('id, razon_social, telefono, email, saldo_pendiente, activo, objetivo_kg_mensual').order('razon_social')
+  let query = db.from('clientes').select('id, razon_social, telefono, email, activo, objetivo_kg_mensual').order('razon_social')
   // El vendedor solo ve sus clientes
   if (rol === 'vendedor') query = query.eq('vendedor_id', usuarioActual.id)
 
@@ -685,7 +707,10 @@ async function cargarClientes() {
   const kgPorCliente = {}
   ;(pedidosMes || []).forEach(p => { kgPorCliente[p.cliente_id] = (kgPorCliente[p.cliente_id] || 0) + (Number(p.total_kg) || 0) })
 
-  clientesCache = (data || []).map(c => ({ ...c, kgMes: kgPorCliente[c.id] || 0 }))
+  // Deuda — calculada en vivo a partir de los pedidos pendientes de cobro (no usamos clientes.saldo_pendiente, que no se actualiza solo)
+  const deudaMapa = await calcularDeudaPorCliente()
+
+  clientesCache = (data || []).map(c => ({ ...c, kgMes: kgPorCliente[c.id] || 0, deuda: deudaMapa[c.id]?.deuda || 0 }))
   renderizarListaClientes(clientesCache)
 }
 function renderizarListaClientes(clientes) {
@@ -731,8 +756,8 @@ function renderizarListaClientes(clientes) {
           ${iconosContacto}
         </div>
         <div class="cliente-tel"><i class="ti ti-phone" aria-hidden="true"></i> ${c.telefono || 'Sin teléfono'}</div>
-        <div class="cliente-saldo ${Number(c.saldo_pendiente) > 0 ? 'saldo-deuda' : 'saldo-ok'}">
-          ${Number(c.saldo_pendiente) > 0 ? '💰 Saldo: $' + Number(c.saldo_pendiente).toLocaleString('es-AR') + ' pendiente' : '✅ Sin deuda'}
+        <div class="cliente-saldo ${Number(c.deuda) > 0 ? 'saldo-deuda' : 'saldo-ok'}">
+          ${Number(c.deuda) > 0 ? '💰 Saldo: $' + Number(c.deuda).toLocaleString('es-AR') + ' pendiente' : '✅ Sin deuda'}
         </div>
         ${recuadroKg}
       </div>
@@ -1887,9 +1912,14 @@ let _clientesPedidoCache = []
 
 async function cargarListaClientesPedido() {
   const { data: clientes } = await db.from('clientes')
-    .select('id, razon_social, descuento_pct, bonificacion_pct, condicion_factura, pct_remito, pct_factura, alicuota_iva, bloqueado, saldo_pendiente, activo')
+    .select('id, razon_social, descuento_pct, bonificacion_pct, condicion_factura, pct_remito, pct_factura, alicuota_iva, activo')
     .eq('activo', true).order('razon_social')
-  _clientesPedidoCache = clientes || []
+  const deudaMapa = await calcularDeudaPorCliente()
+  _clientesPedidoCache = (clientes || []).map(c => ({
+    ...c,
+    saldo_pendiente: deudaMapa[c.id]?.deuda || 0,
+    bloqueado: (deudaMapa[c.id]?.vencida || 0) > 0
+  }))
   renderListaClientesPedido(_clientesPedidoCache)
 }
 
@@ -2451,10 +2481,17 @@ async function buscarClientePedido() {
   if (q.length < 2) { document.getElementById('resultados-cliente-pedido').innerHTML = ''; return }
 
   const { data: clientes } = await db.from('clientes')
-    .select('id, razon_social, descuento_pct, bonificacion_pct, condicion_factura, pct_remito, pct_factura, alicuota_iva, bloqueado, saldo_pendiente, activo')
+    .select('id, razon_social, descuento_pct, bonificacion_pct, condicion_factura, pct_remito, pct_factura, alicuota_iva, activo')
     .ilike('razon_social', `%${q}%`).eq('activo', true).limit(8)
 
-  document.getElementById('resultados-cliente-pedido').innerHTML = clientes?.map(c => `
+  const deudaMapa = await calcularDeudaPorCliente()
+  const clientesConDeuda = (clientes || []).map(c => ({
+    ...c,
+    saldo_pendiente: deudaMapa[c.id]?.deuda || 0,
+    bloqueado: (deudaMapa[c.id]?.vencida || 0) > 0
+  }))
+
+  document.getElementById('resultados-cliente-pedido').innerHTML = clientesConDeuda.map(c => `
     <div class="resultado-cliente" onclick="seleccionarClientePedido('${c.id}')">
       <span>${c.razon_social}</span>
       ${c.bloqueado ? '<span class="badge badge-rojo">⚠️</span>' : ''}
@@ -2464,6 +2501,9 @@ async function buscarClientePedido() {
 
 async function seleccionarClientePedido(id) {
   const { data: c } = await db.from('clientes').select('*').eq('id', id).single()
+  const deudaMapa = await calcularDeudaPorCliente(id)
+  c.saldo_pendiente = deudaMapa[id]?.deuda || 0
+  c.bloqueado = (deudaMapa[id]?.vencida || 0) > 0
   pedidoActual.cliente = c
   await renderizarFormPedido()
 }
