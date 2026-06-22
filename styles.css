@@ -898,3 +898,12 @@ body { background:#f0f2f5; color:#1a1a1a; }
   [onclick]:hover { transform: translateY(-1px); }
   [onclick]:hover:active { transform: scale(0.96); }
 }
+
+/* ── Modal de detalle de pedido (Cobranza) en escritorio ──
+   En móvil esto no aplica: el bloque de #modal-detalle-cob de más arriba
+   fuerza sus propios estilos con !important (hoja desde abajo). */
+.mdc-grid { display:block; }
+@media (min-width:769px) {
+  .mdc-panel { width:920px !important; }
+  .mdc-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
+}
