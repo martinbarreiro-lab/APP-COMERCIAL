@@ -227,7 +227,7 @@ function mostrarSeccion(nombre) {
 // ── DASHBOARD ────────────────────────────────────
 async function cargarDashboard() {
   const rol     = await cargarRolUsuario()
-  const esAdmin = rol === 'admin'
+  const esAdmin = rol === 'admin' || rol === 'empresa'
 
   // El cliente tiene su propio inicio
   if (rol === 'cliente') {
@@ -1108,7 +1108,7 @@ async function cargarProductos() {
   mostrarVistaProductos('catalogo')
   const rol = await cargarRolUsuario()
   const btnActualizar = document.getElementById('btn-actualizar-precios')
-  if (btnActualizar) btnActualizar.style.display = rol === 'admin' ? 'block' : 'none'
+  if (btnActualizar) btnActualizar.style.display = (rol === 'admin' || rol === 'empresa') ? 'block' : 'none'
 
   const { data: productos } = await db.from('productos')
     .select('*, categorias(nombre, orden)')
@@ -1514,9 +1514,9 @@ async function abrirPedido(id) {
 
   // Botones de acción
   const rol3 = await cargarRolUsuario()
-  const esAdmin3 = rol3 === 'admin'
+  const esAdmin3 = rol3 === 'admin' || rol3 === 'empresa'
   const esVendedor3 = rol3 === 'vendedor'
-  // Solo admin/vendedor pueden aprobar — el cliente NO aprueba sus propios pedidos
+  // Solo admin/empresa/vendedor pueden aprobar — el cliente NO aprueba sus propios pedidos
   const puedeAprobar3 = p.estado === 'pendiente_aprobacion' && (esAdmin3 || esVendedor3)
   const etapaActual3 = p.etapa || 'pedido'
 
@@ -3159,7 +3159,7 @@ let _cobroPedidoActualId  = null
 // ── CARGAR COBRANZA ──────────────────────────────
 async function cargarCobranza() {
   const rol      = await cargarRolUsuario()
-  const esAdmin  = rol === 'admin'
+  const esAdmin  = rol === 'admin' || rol === 'empresa'
   const hoy      = new Date().toISOString().split('T')[0]
   const desde    = document.getElementById('cob-fecha-desde')?.value || ''
   const hasta    = document.getElementById('cob-fecha-hasta')?.value || ''
@@ -4404,7 +4404,7 @@ async function iniciarSistemaAlertas() {
 
 async function cargarAlertas() {
   const rol    = await cargarRolUsuario()
-  const esAdmin = rol === 'admin'
+  const esAdmin = rol === 'admin' || rol === 'empresa'
 
   let alertas = []
 
@@ -4459,7 +4459,7 @@ async function renderPanelAlertas() {
   panel.innerHTML = '<p style="color:var(--color-text-tertiary);font-size:13px;padding:8px">Cargando...</p>'
 
   const rol     = await cargarRolUsuario()
-  const esAdmin = rol === 'admin'
+  const esAdmin = rol === 'admin' || rol === 'empresa'
   const alertas = await cargarAlertas()
 
   if (alertas.length === 0) {
