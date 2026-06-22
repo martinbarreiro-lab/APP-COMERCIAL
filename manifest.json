@@ -9,15 +9,15 @@
   "theme_color": "#0d8fd1",
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%230d8fd1'/%3E%3Ccircle cx='96' cy='96' r='78' fill='%23ffffff'/%3E%3Ccircle cx='96' cy='96' r='72' fill='%231c7cc4'/%3E%3Ccircle cx='96' cy='96' r='48' fill='%23f6f1e3'/%3E%3Cpath d='M66,100 a7.5,7.5 0 0,0 15,0 a7.5,7.5 0 0,0 15,0 a7.5,7.5 0 0,0 15,0 a7.5,7.5 0 0,0 15,0 Z' fill='%23d9412c'/%3E%3Crect x='78' y='100' width='36' height='20' rx='2' fill='%23f6f1e3' stroke='%231c7cc4' stroke-width='3'/%3E%3C/svg%3E",
+      "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%230d8fd1'/%3E%3Ccircle cx='256' cy='256' r='208' fill='%23ffffff'/%3E%3Ccircle cx='256' cy='256' r='192' fill='%231c7cc4'/%3E%3Ccircle cx='256' cy='256' r='128' fill='%23f6f1e3'/%3E%3Cpath d='M176,267 a20,20 0 0,0 40,0 a20,20 0 0,0 40,0 a20,20 0 0,0 40,0 a20,20 0 0,0 40,0 Z' fill='%23d9412c'/%3E%3Crect x='208' y='267' width='96' height='53' rx='5' fill='%23f6f1e3' stroke='%231c7cc4' stroke-width='8'/%3E%3C/svg%3E",
+      "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]
