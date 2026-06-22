@@ -410,6 +410,10 @@ async function cargarDashboard() {
 
   const nombreMes = hoy.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
 
+  // ── Objetivos del mes (vendedor: sus clientes / admin-empresa: todos) ──
+  const objetivosLista = await calcularObjetivosDashboard(rol)
+  const objetivosHTML  = renderObjetivosDashboard(objetivosLista)
+
   // ── Render ───────────────────────────────────────
   document.getElementById('dash-root').innerHTML = `
     <div style="margin-bottom:6px">
@@ -449,6 +453,8 @@ async function cargarDashboard() {
         ${pipelineHTML}
       </div>
     </div>
+
+    ${objetivosHTML}
 
     <div style="display:grid;grid-template-columns:${esAdmin ? '1fr 2fr' : '1fr'};gap:12px;margin-bottom:16px">
       <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px">
@@ -701,11 +707,15 @@ async function abrirFichaCliente(id) {
   clienteEditandoId = id
   const formasPago = [c.pago_efectivo ? 'Efectivo' : null, c.pago_cheque ? 'Cheque' : null, c.pago_transferencia ? 'Transferencia' : null].filter(Boolean).join(', ') || 'No especificado'
   const { data: pedidos } = await db.from('pedidos').select('numero, total, estado_cobro, etapa, fecha_pedido').eq('cliente_id', id).order('created_at', { ascending: false }).limit(5)
-  // Barra de objetivo mensual (empresa/vendedor pueden editar)
-  const { kg: kgMesFicha, cant: cantKgFicha } = await calcularKgMesCliente(id)
-  const barraObjetivoFicha = renderBarraObjetivo(id, c.objetivo_kg_mensual || 0, kgMesFicha, cantKgFicha, 'gestion')
+  // Botón para asignar/editar el objetivo mensual (solo empresa/vendedor; el cliente nunca llega a esta vista)
+  const objetivoActualFicha = Number(c.objetivo_kg_mensual) || 0
+  const botonObjetivoFicha = rolUsuarioActual !== 'cliente' ? `
+    <button onclick="abrirEditarObjetivo('${id}', ${objetivoActualFicha})" style="width:100%;background:#eef7fc;border:1px solid #b3ddf2;border-radius:8px;padding:10px;font-size:12px;color:var(--color-marca-oscuro);cursor:pointer;font-weight:600;margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:6px">
+      <i class="ti ${objetivoActualFicha > 0 ? 'ti-edit' : 'ti-target-arrow'}" aria-hidden="true"></i>
+      ${objetivoActualFicha > 0 ? `Editar objetivo mensual (${objetivoActualFicha.toLocaleString('es-AR')} kg)` : 'Asignar objetivo mensual'}
+    </button>` : ''
   document.getElementById('contenido-ficha-cliente').innerHTML = `
-    ${barraObjetivoFicha}
+    ${botonObjetivoFicha}
     <div class="form-card">
       <div class="ficha-nombre">${c.razon_social}</div>
       ${c.activo ? '<span class="badge badge-verde">Activo</span>' : '<span class="badge badge-rojo">Inactivo</span>'}
@@ -5933,6 +5943,84 @@ async function desactivarUsuario(userId) {
   await cargarUsuarios()
 }
 
+
+// Calcula los kg del mes de todos los clientes visibles para el rol (para el dashboard)
+async function calcularObjetivosDashboard(rol) {
+  const ahora = new Date()
+  const primerDia = new Date(ahora.getFullYear(), ahora.getMonth(), 1).toISOString().split('T')[0]
+
+  let qClientes = db.from('clientes').select('id, razon_social, objetivo_kg_mensual, vendedor_id').eq('activo', true)
+  if (rol === 'vendedor') qClientes = qClientes.eq('vendedor_id', usuarioActual.id)
+
+  const qPedidos = db.from('pedidos').select('cliente_id, total_kg, etapa, fecha_pedido')
+    .in('etapa', ['recibido', 'cobrado']).gte('fecha_pedido', primerDia)
+
+  const [{ data: clientes }, { data: pedidos }] = await Promise.all([qClientes, qPedidos])
+
+  const kgPorCliente = {}
+  ;(pedidos || []).forEach(p => {
+    kgPorCliente[p.cliente_id] = (kgPorCliente[p.cliente_id] || 0) + (Number(p.total_kg) || 0)
+  })
+
+  return (clientes || []).map(c => ({
+    id:       c.id,
+    nombre:   c.razon_social,
+    objetivo: Number(c.objetivo_kg_mensual) || 0,
+    kg:       kgPorCliente[c.id] || 0
+  }))
+}
+
+// Renderiza la lista de "barritas" de objetivo para el dashboard
+// (con objetivo primero, ordenados de mayor a menor % completado; después el resto sin objetivo, por kg desc)
+function renderObjetivosDashboard(lista) {
+  if (!lista || lista.length === 0) return ''
+
+  const conObjetivo = lista.filter(c => c.objetivo > 0)
+    .map(c => ({ ...c, pct: Math.min(100, Math.round((c.kg / c.objetivo) * 100)) }))
+    .sort((a, b) => b.pct - a.pct)
+  const sinObjetivo = lista.filter(c => c.objetivo <= 0).sort((a, b) => b.kg - a.kg)
+
+  if (conObjetivo.length === 0 && sinObjetivo.length === 0) return ''
+
+  const filaConObjetivo = c => `
+    <div onclick="irAFichaDesdeDashboard('${c.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:0.5px solid var(--color-border-tertiary);cursor:pointer">
+      <div style="flex:1;min-width:0;margin-right:12px">
+        <div style="font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.nombre}</div>
+        <div style="background:var(--color-border-tertiary);border-radius:20px;height:6px;overflow:hidden;width:100%;max-width:180px">
+          <div style="width:${c.pct}%;height:100%;background:${c.pct >= 100 ? '#1d9e75' : '#378add'};border-radius:20px"></div>
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <span style="font-size:12px;font-weight:600;color:${c.pct >= 100 ? '#0f6e56' : 'var(--color-marca-oscuro)'};white-space:nowrap">${c.kg.toLocaleString('es-AR')} / ${c.objetivo.toLocaleString('es-AR')} kg</span>
+        <i class="ti ti-chevron-right" style="display:block;color:var(--color-text-tertiary);font-size:16px;margin-left:auto;margin-top:2px" aria-hidden="true"></i>
+      </div>
+    </div>`
+
+  const filaSinObjetivo = c => `
+    <div onclick="irAFichaDesdeDashboard('${c.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;cursor:pointer">
+      <div style="font-size:13px;color:var(--color-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-right:12px">${c.nombre}</div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <span style="font-size:12px;color:var(--color-text-secondary);white-space:nowrap">${c.kg.toLocaleString('es-AR')} kg</span>
+        <i class="ti ti-chevron-right" style="color:var(--color-text-tertiary);font-size:16px" aria-hidden="true"></i>
+      </div>
+    </div>`
+
+  return `
+    <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px;margin-bottom:16px">
+      <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px;display:flex;align-items:center;gap:6px"><i class="ti ti-target-arrow" aria-hidden="true"></i> Objetivos del mes — kg comprados</div>
+      <div style="max-height:340px;overflow-y:auto">
+        ${conObjetivo.map(filaConObjetivo).join('')}
+        ${sinObjetivo.length > 0 ? `<div style="font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.04em;padding:12px 0 4px;border-top:0.5px solid var(--color-border-tertiary)">Sin objetivo asignado</div>` : ''}
+        ${sinObjetivo.map(filaSinObjetivo).join('')}
+      </div>
+    </div>`
+}
+
+// Navega a la ficha de un cliente haciendo clic en su barrita desde el dashboard
+function irAFichaDesdeDashboard(id) {
+  mostrarSeccion('clientes')
+  setTimeout(() => abrirFichaCliente(id), 150)
+}
 
 // ════════════════════════════════════════════════
 // OBJETIVO MENSUAL EN KG (barra de progreso por cliente)
