@@ -37,7 +37,7 @@ body { background:#f0f2f5; color:#1a1a1a; }
 /* ── LOGIN ── */
 #pantalla-login { min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#0a6ca0,#0d8fd1); }
 .login-box { background:white; padding:40px; border-radius:16px; width:100%; max-width:380px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.3); }
-.login-logo { font-size:60px; margin-bottom:10px; }
+.login-logo { margin-bottom:10px; display:flex; justify-content:center; }
 .login-box h1 { font-size:28px; color:#0a6ca0; margin-bottom:4px; }
 .login-subtitulo { color:#888; margin-bottom:28px; font-size:14px; }
 .campo { text-align:left; margin-bottom:16px; }
