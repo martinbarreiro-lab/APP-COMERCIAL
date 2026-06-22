@@ -505,6 +505,11 @@ async function cargarInicioCliente() {
     .sort((a,b) => new Date(a.fecha_vencimiento_cobro) - new Date(b.fecha_vencimiento_cobro))
   const proxVenc = conVenc[0]?.fecha_vencimiento_cobro
 
+  // Objetivo mensual en kg (el cliente solo lo ve)
+  const { data: cliObj } = await db.from('clientes').select('objetivo_kg_mensual').eq('id', clienteId).single()
+  const { kg: kgMes, cant: cantKgMes } = await calcularKgMesCliente(clienteId)
+  const barraObjetivo = renderBarraObjetivo(clienteId, cliObj?.objetivo_kg_mensual || 0, kgMes, cantKgMes, 'cliente')
+
   cont.innerHTML = `
     <div style="margin-bottom:6px">
       <div style="font-size:18px;font-weight:600;color:var(--color-marca-oscuro)">Hola, ${cli?.razon_social || 'Cliente'}</div>
@@ -514,6 +519,8 @@ async function cargarInicioCliente() {
     <button onclick="navMovil('pedidos'); setTimeout(()=>nuevoPedido(),100)" class="btn-cliente-pedir">
       <i class="ti ti-plus" aria-hidden="true"></i> Hacer un pedido
     </button>
+
+    ${barraObjetivo}
 
     ${porRecibir.length > 0 ? `
       <div class="cli-bloque-t">PEDIDOS POR RECIBIR</div>
@@ -694,7 +701,11 @@ async function abrirFichaCliente(id) {
   clienteEditandoId = id
   const formasPago = [c.pago_efectivo ? 'Efectivo' : null, c.pago_cheque ? 'Cheque' : null, c.pago_transferencia ? 'Transferencia' : null].filter(Boolean).join(', ') || 'No especificado'
   const { data: pedidos } = await db.from('pedidos').select('numero, total, estado_cobro, etapa, fecha_pedido').eq('cliente_id', id).order('created_at', { ascending: false }).limit(5)
+  // Barra de objetivo mensual (empresa/vendedor pueden editar)
+  const { kg: kgMesFicha, cant: cantKgFicha } = await calcularKgMesCliente(id)
+  const barraObjetivoFicha = renderBarraObjetivo(id, c.objetivo_kg_mensual || 0, kgMesFicha, cantKgFicha, 'gestion')
   document.getElementById('contenido-ficha-cliente').innerHTML = `
+    ${barraObjetivoFicha}
     <div class="form-card">
       <div class="ficha-nombre">${c.razon_social}</div>
       ${c.activo ? '<span class="badge badge-verde">Activo</span>' : '<span class="badge badge-rojo">Inactivo</span>'}
@@ -5920,4 +5931,87 @@ async function desactivarUsuario(userId) {
   const { error } = await db.from('perfiles').update({ activo: false }).eq('id', userId)
   if (error) { alert('Error: ' + error.message); return }
   await cargarUsuarios()
+}
+
+
+// ════════════════════════════════════════════════
+// OBJETIVO MENSUAL EN KG (barra de progreso por cliente)
+// ════════════════════════════════════════════════
+
+// Calcula los kg acumulados del mes actual para un cliente (pedidos recibidos/cobrados)
+async function calcularKgMesCliente(clienteId) {
+  const ahora = new Date()
+  const primerDia = new Date(ahora.getFullYear(), ahora.getMonth(), 1).toISOString().split('T')[0]
+  const { data: pedidos } = await db.from('pedidos')
+    .select('total_kg, etapa, fecha_pedido')
+    .eq('cliente_id', clienteId)
+    .in('etapa', ['recibido', 'cobrado'])
+    .gte('fecha_pedido', primerDia)
+  let kg = 0, cant = 0
+  ;(pedidos || []).forEach(p => { kg += Number(p.total_kg) || 0; cant++ })
+  return { kg, cant }
+}
+
+// Renderiza la barra de objetivo. modo: 'cliente' (solo ve) o 'gestion' (puede editar)
+function renderBarraObjetivo(clienteId, objetivoKg, kgMes, cantPedidos, modo) {
+  const obj = Number(objetivoKg) || 0
+  const kg = Number(kgMes) || 0
+  const mesNombre = new Date().toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
+  const puedeEditar = (modo === 'gestion')
+
+  if (obj > 0) {
+    const pct = Math.min(100, Math.round((kg / obj) * 100))
+    const cumplido = kg >= obj
+    const falta = Math.max(0, obj - kg)
+    return `
+      <div style="background:#fff;border-radius:12px;padding:18px;margin-bottom:16px;border:0.5px solid var(--color-border-tertiary)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="font-size:13px;font-weight:600;color:var(--color-marca-oscuro)">🎯 Objetivo del mes</div>
+          ${cumplido
+            ? '<span style="background:#e8f6ef;color:#0f6b4d;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:600">✓ CUMPLIDO</span>'
+            : `<span style="font-size:11px;color:var(--color-text-tertiary);text-transform:capitalize">${mesNombre}</span>`}
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+          <span style="font-size:22px;font-weight:700;color:#1d9e75">${kg.toLocaleString('es-AR')} kg</span>
+          <span style="font-size:13px;color:var(--color-text-tertiary)">de ${obj.toLocaleString('es-AR')} kg</span>
+        </div>
+        <div style="background:#e8eaed;border-radius:20px;height:14px;overflow:hidden;margin-bottom:6px">
+          <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,#1d9e75,#37b88a);border-radius:20px;transition:width .4s"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px">
+          <span style="color:#1d9e75;font-weight:600">${pct}% completado</span>
+          ${cumplido
+            ? '<span style="color:#1d9e75;font-weight:600">¡Objetivo alcanzado! 🎉</span>'
+            : `<span style="color:var(--color-text-tertiary)">Faltan ${falta.toLocaleString('es-AR')} kg</span>`}
+        </div>
+        ${puedeEditar ? `<button onclick="abrirEditarObjetivo('${clienteId}', ${obj})" style="margin-top:12px;width:100%;background:#fff;border:1px solid var(--color-border-tertiary);border-radius:8px;padding:8px;font-size:12px;color:var(--color-text-secondary);cursor:pointer">✏️ Editar objetivo</button>` : ''}
+      </div>`
+  } else {
+    // Sin objetivo: solo acumulado
+    return `
+      <div style="background:#fff;border-radius:12px;padding:18px;margin-bottom:16px;border:0.5px solid var(--color-border-tertiary)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="font-size:13px;font-weight:600;color:var(--color-marca-oscuro)">📦 Comprado este mes</div>
+          <span style="font-size:11px;color:var(--color-text-tertiary);text-transform:capitalize">${mesNombre}</span>
+        </div>
+        <div style="font-size:22px;font-weight:700;color:var(--color-marca-oscuro);margin-bottom:4px">${kg.toLocaleString('es-AR')} kg</div>
+        <div style="font-size:12px;color:var(--color-text-tertiary);margin-bottom:${puedeEditar ? '12px' : '0'}">en ${cantPedidos} pedido${cantPedidos !== 1 ? 's' : ''} recibido${cantPedidos !== 1 ? 's' : ''}</div>
+        ${puedeEditar ? `<button onclick="abrirEditarObjetivo('${clienteId}', 0)" style="width:100%;background:#eef7fc;border:1px solid #b3ddf2;border-radius:8px;padding:8px;font-size:12px;color:var(--color-marca-oscuro);cursor:pointer;font-weight:600">🎯 Asignar objetivo mensual</button>` : ''}
+      </div>`
+  }
+}
+
+// Modal simple para asignar/editar objetivo (solo empresa/vendedor)
+async function abrirEditarObjetivo(clienteId, objetivoActual) {
+  const valor = prompt('Objetivo mensual en kg para este cliente (poné 0 para quitar el objetivo):', objetivoActual || '')
+  if (valor === null) return
+  const num = parseFloat(valor)
+  if (isNaN(num) || num < 0) { alert('Ingresá un número válido'); return }
+  const { error } = await db.from('clientes').update({ objetivo_kg_mensual: num }).eq('id', clienteId)
+  if (error) { alert('Error al guardar el objetivo: ' + error.message); return }
+  alert(num > 0 ? `✅ Objetivo de ${num.toLocaleString('es-AR')} kg guardado.` : '✅ Objetivo quitado.')
+  // Refrescar la vista actual
+  if (rolUsuarioActual === 'cliente') { cargarInicioCliente() }
+  else if (clienteEditandoId === clienteId) { abrirFichaCliente(clienteId) }
+  else { cargarClientes() }
 }
