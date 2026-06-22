@@ -22,6 +22,8 @@ async function iniciarSesion() {
   const email    = document.getElementById('login-email').value.trim()
   const password = document.getElementById('login-password').value
   if (!email || !password) { mostrarErrorLogin('Completá email y contraseña'); return }
+  const loginOkEl = document.getElementById('login-ok')
+  if (loginOkEl) loginOkEl.style.display = 'none'
   const { data, error } = await db.auth.signInWithPassword({ email, password })
   if (error) { mostrarErrorLogin('Email o contraseña incorrectos'); return }
 
@@ -57,6 +59,8 @@ function togglePass(inputId, btn) {
 function mostrarRegistro() {
   document.getElementById('form-login-box').style.display = 'none'
   document.getElementById('form-registro-box').style.display = 'block'
+  const loginOkEl = document.getElementById('login-ok')
+  if (loginOkEl) loginOkEl.style.display = 'none'
 }
 function mostrarLoginForm() {
   document.getElementById('form-registro-box').style.display = 'none'
@@ -121,12 +125,19 @@ async function registrarUsuario() {
   await db.auth.signOut()
 
   if (btn) { btn.disabled = false; btn.textContent = 'Crear cuenta' }
-  okEl.textContent = '✅ Cuenta creada. La empresa va a revisar tu registro y activar tu acceso. Te avisaremos.'
-  okEl.style.display = 'block'
-  // Limpiar campos
+  // Limpiar campos del formulario de registro
   ;['reg-nombre','reg-email','reg-telefono','reg-password','reg-password2'].forEach(id => {
     const e = document.getElementById(id); if (e) e.value = ''
   })
+  okEl.style.display = 'none'
+
+  // Volver a la pantalla de login y mostrar ahí el mensaje de éxito
+  mostrarLoginForm()
+  const loginOkEl = document.getElementById('login-ok')
+  if (loginOkEl) {
+    loginOkEl.textContent = '✅ Cuenta creada. La empresa va a revisar tu registro y activar tu acceso. Te avisaremos.'
+    loginOkEl.style.display = 'block'
+  }
 }
 async function olvidoPassword() {
   const email = document.getElementById('login-email').value.trim()
