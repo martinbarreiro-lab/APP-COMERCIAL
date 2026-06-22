@@ -827,7 +827,7 @@
           <div id="modal-detalle-cob"
             style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center"
             onclick="if(event.target===this)cerrarDetalleCob()">
-            <div style="background:#ffffff;width:560px;max-width:calc(100% - 32px);max-height:90vh;overflow-y:auto;border-radius:14px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,0.35)" onclick="event.stopPropagation()">
+            <div class="mdc-panel" style="background:#ffffff;width:560px;max-width:calc(100% - 32px);max-height:90vh;overflow-y:auto;border-radius:14px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,0.35)" onclick="event.stopPropagation()">
               <button onclick="cerrarDetalleCob()" class="btn-volver" style="margin-bottom:14px">← Volver</button>
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
                 <h3 id="mdc-titulo" style="font-size:18px;font-weight:500;margin:0">Pedido #</h3>
@@ -839,31 +839,37 @@
                 </div>
               </div>
 
-              <!-- Info cliente -->
-              <div id="mdc-cliente" class="form-card" style="margin-bottom:16px"></div>
+              <div class="mdc-grid">
+                <div class="mdc-col">
+                  <!-- Info cliente -->
+                  <div id="mdc-cliente" class="form-card" style="margin-bottom:16px"></div>
 
-              <!-- Productos -->
-              <div class="form-card" style="margin-bottom:16px">
-                <div class="form-seccion">PRODUCTOS</div>
-                <div id="mdc-productos"></div>
-              </div>
+                  <!-- Productos -->
+                  <div class="form-card" style="margin-bottom:16px">
+                    <div class="form-seccion">PRODUCTOS</div>
+                    <div id="mdc-productos"></div>
+                  </div>
+                </div>
 
-              <!-- Documentos -->
-              <div class="form-card" style="margin-bottom:16px">
-                <div class="form-seccion">FACTURA / DOCUMENTOS</div>
-                <div id="mdc-documentos"></div>
-              </div>
+                <div class="mdc-col">
+                  <!-- Documentos -->
+                  <div class="form-card" style="margin-bottom:16px">
+                    <div class="form-seccion">FACTURA / DOCUMENTOS</div>
+                    <div id="mdc-documentos"></div>
+                  </div>
 
-              <!-- Cobros con fotos -->
-              <div class="form-card" style="margin-bottom:16px">
-                <div class="form-seccion">COBROS RECIBIDOS</div>
-                <div id="mdc-cobros"></div>
-              </div>
+                  <!-- Cobros con fotos -->
+                  <div class="form-card" style="margin-bottom:16px">
+                    <div class="form-seccion">COBROS RECIBIDOS</div>
+                    <div id="mdc-cobros"></div>
+                  </div>
 
-              <!-- Línea de tiempo -->
-              <div class="form-card" style="margin-bottom:16px">
-                <div class="form-seccion">LÍNEA DE TIEMPO</div>
-                <div id="mdc-historial"></div>
+                  <!-- Línea de tiempo -->
+                  <div class="form-card" style="margin-bottom:16px">
+                    <div class="form-seccion">LÍNEA DE TIEMPO</div>
+                    <div id="mdc-historial"></div>
+                  </div>
+                </div>
               </div>
 
               <!-- Botón cobrar si pendiente -->
