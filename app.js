@@ -3686,10 +3686,10 @@ async function abrirDetalleCob(pedidoId) {
   const modal = document.getElementById('modal-detalle-cob')
   if (!modal) return
   modal.style.display = 'flex'
-  // En escritorio: panel a la derecha. En móvil: hoja desde abajo (lo maneja el CSS)
+  // En escritorio: ventana centrada. En móvil: hoja desde abajo (lo maneja el CSS)
   if (window.innerWidth > 768) {
-    modal.style.alignItems = 'flex-start'
-    modal.style.justifyContent = 'flex-end'
+    modal.style.alignItems = 'center'
+    modal.style.justifyContent = 'center'
   } else {
     modal.style.alignItems = ''
     modal.style.justifyContent = ''
