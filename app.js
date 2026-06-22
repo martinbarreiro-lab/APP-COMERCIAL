@@ -412,7 +412,7 @@ async function cargarDashboard() {
 
   // ── Objetivos del mes (vendedor: sus clientes / admin-empresa: todos) ──
   const objetivosLista = await calcularObjetivosDashboard(rol)
-  const objetivosHTML  = renderObjetivosDashboard(objetivosLista)
+  const objetivosHTML  = renderObjetivosDashboard(objetivosLista, rol)
 
   // ── Render ───────────────────────────────────────
   document.getElementById('dash-root').innerHTML = `
@@ -670,19 +670,45 @@ async function cargarClientes() {
   mostrarVistaClientes('lista')
   const rol = await cargarRolUsuario()
 
-  let query = db.from('clientes').select('id, razon_social, telefono, saldo_pendiente, activo').order('razon_social')
+  let query = db.from('clientes').select('id, razon_social, telefono, saldo_pendiente, activo, objetivo_kg_mensual').order('razon_social')
   // El vendedor solo ve sus clientes
   if (rol === 'vendedor') query = query.eq('vendedor_id', usuarioActual.id)
 
   const { data, error } = await query
   if (error) { console.error(error); return }
-  clientesCache = data || []
+
+  // Kg comprados este mes (recibido/cobrado) para la mini-barra de cada tarjeta
+  const ahora = new Date()
+  const primerDia = new Date(ahora.getFullYear(), ahora.getMonth(), 1).toISOString().split('T')[0]
+  const { data: pedidosMes } = await db.from('pedidos').select('cliente_id, total_kg')
+    .in('etapa', ['recibido', 'cobrado']).gte('fecha_pedido', primerDia)
+  const kgPorCliente = {}
+  ;(pedidosMes || []).forEach(p => { kgPorCliente[p.cliente_id] = (kgPorCliente[p.cliente_id] || 0) + (Number(p.total_kg) || 0) })
+
+  clientesCache = (data || []).map(c => ({ ...c, kgMes: kgPorCliente[c.id] || 0 }))
   renderizarListaClientes(clientesCache)
 }
 function renderizarListaClientes(clientes) {
   const lista = document.getElementById('lista-clientes')
   if (!clientes || clientes.length === 0) { lista.innerHTML = '<p class="vacio">No hay clientes cargados</p>'; return }
-  lista.innerHTML = clientes.map(c => `
+  lista.innerHTML = clientes.map(c => {
+    const obj = Number(c.objetivo_kg_mensual) || 0
+    const kg  = Number(c.kgMes) || 0
+    const pct = obj > 0 ? Math.min(100, Math.round((kg / obj) * 100)) : 0
+    const miniBarraObjetivo = obj > 0 ? `
+        <div style="margin-top:10px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
+            <span style="color:var(--color-text-secondary)">Objetivo del mes</span>
+            <span style="color:${pct >= 100 ? '#0f6e56' : 'var(--color-marca-oscuro)'};font-weight:600">${kg.toLocaleString('es-AR')} / ${obj.toLocaleString('es-AR')} kg</span>
+          </div>
+          <div style="background:var(--color-border-tertiary);border-radius:20px;height:7px;overflow:hidden">
+            <div style="width:${pct}%;height:100%;background:${pct >= 100 ? '#1d9e75' : '#378add'};border-radius:20px"></div>
+          </div>
+        </div>` : `
+        <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:10px">
+          <i class="ti ti-package" style="font-size:13px;vertical-align:-1px" aria-hidden="true"></i> ${kg.toLocaleString('es-AR')} kg este mes · sin objetivo asignado
+        </div>`
+    return `
     <div class="cliente-card" onclick="abrirFichaCliente('${c.id}')">
       <div class="cliente-card-info">
         <div class="cliente-nombre">${c.razon_social}</div>
@@ -692,9 +718,11 @@ function renderizarListaClientes(clientes) {
         <div class="cliente-saldo ${Number(c.saldo_pendiente) > 0 ? 'saldo-deuda' : 'saldo-ok'}">
           ${Number(c.saldo_pendiente) > 0 ? '💰 Saldo: $' + Number(c.saldo_pendiente).toLocaleString('es-AR') + ' pendiente' : '✅ Sin deuda'}
         </div>
+        ${miniBarraObjetivo}
       </div>
       <div class="cliente-card-arrow">›</div>
-    </div>`).join('')
+    </div>`
+  }).join('')
 }
 function filtrarClientes() {
   const b = document.getElementById('buscador-clientes').value.toLowerCase()
@@ -5970,9 +5998,10 @@ async function calcularObjetivosDashboard(rol) {
   }))
 }
 
-// Renderiza la lista de "barritas" de objetivo para el dashboard
-// (con objetivo primero, ordenados de mayor a menor % completado; después el resto sin objetivo, por kg desc)
-function renderObjetivosDashboard(lista) {
+// Renderiza la sección de objetivos del dashboard.
+// Vendedor: lista completa de sus clientes (con objetivo primero, % desc; después sin objetivo, kg desc).
+// Empresa/admin: tarjeta resumen + top 3 destacados, con link al detalle completo en Clientes.
+function renderObjetivosDashboard(lista, rol) {
   if (!lista || lista.length === 0) return ''
 
   const conObjetivo = lista.filter(c => c.objetivo > 0)
@@ -5982,6 +6011,49 @@ function renderObjetivosDashboard(lista) {
 
   if (conObjetivo.length === 0 && sinObjetivo.length === 0) return ''
 
+  // ── Empresa / admin: resumen + top 3 ────────────
+  if (rol !== 'vendedor') {
+    const cumplidos   = conObjetivo.filter(c => c.pct >= 100).length
+    const pctGeneral  = conObjetivo.length > 0
+      ? Math.round(conObjetivo.reduce((s, c) => s + c.pct, 0) / conObjetivo.length)
+      : 0
+    const top3 = conObjetivo.slice(0, 3)
+
+    const filaTop3 = c => `
+      <div onclick="event.stopPropagation(); irAFichaDesdeDashboard('${c.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-top:0.5px solid var(--color-border-tertiary);cursor:pointer">
+        <div style="font-size:13px;color:var(--color-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-right:12px">${c.nombre}</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <span style="font-size:12px;font-weight:600;color:${c.pct >= 100 ? '#0f6e56' : 'var(--color-marca-oscuro)'}">${c.pct}%</span>
+          <i class="ti ti-chevron-right" style="color:var(--color-text-tertiary);font-size:16px" aria-hidden="true"></i>
+        </div>
+      </div>`
+
+    return `
+      <div onclick="mostrarSeccion('clientes')" style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px;margin-bottom:16px;cursor:pointer">
+        <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px;display:flex;align-items:center;gap:6px"><i class="ti ti-target-arrow" aria-hidden="true"></i> Objetivos del mes</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+          <div>
+            <div style="font-size:22px;font-weight:500;color:#0f6e56">${cumplidos} / ${conObjetivo.length}</div>
+            <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:2px">cumplieron su objetivo</div>
+          </div>
+          <div>
+            <div style="font-size:22px;font-weight:500;color:var(--color-text-primary)">${sinObjetivo.length}</div>
+            <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:2px">sin objetivo asignado</div>
+          </div>
+        </div>
+        ${conObjetivo.length > 0 ? `
+        <div style="background:var(--color-border-tertiary);border-radius:20px;height:6px;overflow:hidden;margin-bottom:${top3.length > 0 ? '4px' : '14px'}">
+          <div style="width:${pctGeneral}%;height:100%;background:#1d9e75;border-radius:20px"></div>
+        </div>` : ''}
+        ${top3.map(filaTop3).join('')}
+        <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#378add;font-weight:600;margin-top:${top3.length > 0 ? '12px' : '0'}">
+          Ver detalle por cliente
+          <i class="ti ti-chevron-right" style="font-size:16px" aria-hidden="true"></i>
+        </div>
+      </div>`
+  }
+
+  // ── Vendedor: lista completa de sus clientes ────
   const filaConObjetivo = c => `
     <div onclick="irAFichaDesdeDashboard('${c.id}')" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:0.5px solid var(--color-border-tertiary);cursor:pointer">
       <div style="flex:1;min-width:0;margin-right:12px">
