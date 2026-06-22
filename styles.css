@@ -886,3 +886,15 @@ body { background:#f0f2f5; color:#1a1a1a; }
 .ac-btn-ok:hover { background:#178a64; }
 .ac-btn-no { background:#fff; color:#e24b4a; border:0.5px solid #f0c4c4; border-radius:8px; padding:10px 14px; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
 .ac-btn-no:hover { background:#fcebeb; }
+
+/* ── Feedback de interacción ──────────────────────
+   Todo lo clickeable (cualquier elemento con onclick) se mueve al
+   tocarlo/clickear, no solo cambia de color. Esto es general y no
+   depende de ninguna clase puntual, así que aplica en toda la app
+   sin tener que tocar cada botón o tarjeta por separado. */
+[onclick] { transition: transform 0.12s ease; }
+[onclick]:active { transform: scale(0.96); }
+@media (hover:hover) {
+  [onclick]:hover { transform: translateY(-1px); }
+  [onclick]:hover:active { transform: scale(0.96); }
+}
