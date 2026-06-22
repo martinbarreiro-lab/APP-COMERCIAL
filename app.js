@@ -311,7 +311,7 @@ async function cargarDashboard() {
     medios[c.medio_pago] = (medios[c.medio_pago] || 0) + Number(c.monto)
   }
   const maxMedio = Math.max(...Object.values(medios), 1)
-  const mediosIconos = { efectivo:'💵', transferencia:'🏦', cheque:'📋', echeq:'📱' }
+  const mediosIconos = { efectivo:'<i class="ti ti-cash" aria-hidden="true"></i>', transferencia:'<i class="ti ti-building-bank" aria-hidden="true"></i>', cheque:'<i class="ti ti-receipt" aria-hidden="true"></i>', echeq:'<i class="ti ti-device-mobile" aria-hidden="true"></i>' }
 
   // ── Ranking vendedores ──────────────────────────
   let rankingHTML = ''
@@ -572,13 +572,13 @@ function renderTrackCliente(p) {
   const pasos = ['Pedido', 'Aceptado', 'En camino', 'Entregado']
   // El "Pendiente" se muestra distinto
   if (paso === 0) {
-    return `<div style="font-size:11px;color:#633806;background:#faeeda;border-radius:8px;padding:7px 10px">🕐 Pendiente — esperando que la empresa lo acepte</div>`
+    return `<div style="font-size:11px;color:#633806;background:#faeeda;border-radius:8px;padding:7px 10px"><i class="ti ti-clock" aria-hidden="true"></i> Pendiente — esperando que la empresa lo acepte</div>`
   }
   return `<div class="cli-track">
     ${pasos.map((label, i) => `
       <div class="cli-track-paso">
         ${i > 0 ? `<div class="cli-track-linea ${i <= paso ? 'ok' : ''}"></div>` : ''}
-        <div class="cli-track-dot ${i < paso ? 'ok' : (i === paso ? 'now' : '')}">${i < paso ? '✓' : (i+1)}</div>
+        <div class="cli-track-dot ${i < paso ? 'ok' : (i === paso ? 'now' : '')}">${i < paso ? '<i class="ti ti-check" aria-hidden="true"></i>' : (i+1)}</div>
         <div class="cli-track-label ${i === paso ? 'now' : ''}">${label}</div>
       </div>`).join('')}
   </div>`
@@ -729,7 +729,7 @@ function renderizarListaClientes(clientes) {
             <span style="font-size:12px;color:${cumplido ? '#3b6d11' : '#185fa5'}"> / ${obj.toLocaleString('es-AR')} kg</span>
           </div>
           ${cumplido
-            ? `<span style="font-size:11px;font-weight:500;color:#3b6d11">✓ Cumplido</span>`
+            ? `<span style="font-size:11px;font-weight:500;color:#3b6d11"><i class="ti ti-check" aria-hidden="true"></i> Cumplido</span>`
             : `<div style="display:flex;align-items:center;gap:6px">
                 <div style="background:rgba(255,255,255,0.6);border-radius:20px;height:5px;width:50px;overflow:hidden">
                   <div style="width:${pct}%;height:100%;background:#378add;border-radius:20px"></div>
@@ -757,7 +757,7 @@ function renderizarListaClientes(clientes) {
         </div>
         <div class="cliente-tel"><i class="ti ti-phone" aria-hidden="true"></i> ${c.telefono || 'Sin teléfono'}</div>
         <div class="cliente-saldo ${Number(c.deuda) > 0 ? 'saldo-deuda' : 'saldo-ok'}">
-          ${Number(c.deuda) > 0 ? '💰 Saldo: $' + Number(c.deuda).toLocaleString('es-AR') + ' pendiente' : '✅ Sin deuda'}
+          ${Number(c.deuda) > 0 ? '<i class="ti ti-coin" aria-hidden="true"></i> Saldo: $' + Number(c.deuda).toLocaleString('es-AR') + ' pendiente' : '<i class="ti ti-circle-check" aria-hidden="true"></i> Sin deuda'}
         </div>
         ${recuadroKg}
       </div>
@@ -1044,8 +1044,8 @@ function labelMedio(m) {
   return l[m] || m
 }
 function iconMedio(m) {
-  const i = { efectivo:'💵', transferencia:'🏦', cheque:'📋', echeq:'📱' }
-  return i[m] || '💰'
+  const i = { efectivo:'<i class="ti ti-cash" aria-hidden="true"></i>', transferencia:'<i class="ti ti-building-bank" aria-hidden="true"></i>', cheque:'<i class="ti ti-receipt" aria-hidden="true"></i>', echeq:'<i class="ti ti-device-mobile" aria-hidden="true"></i>' }
+  return i[m] || '<i class="ti ti-coin" aria-hidden="true"></i>'
 }
 function iconAccion(a) {
   const i = { pedido_creado:'📦', documento_subido:'📄', cobro_registrado:'💰', estado_cambiado:'🔄', pedido_cerrado:'✅', recepcion_ok:'✅', recepcion_problema:'⚠️' }
@@ -1058,7 +1058,7 @@ function renderDiferencias(d) {
 }
 function badgeVerificacion(v) {
   const c = { pendiente:'badge-gris', ok:'badge-verde', con_diferencias:'badge-amarillo', error:'badge-rojo' }
-  const l = { pendiente:'⏳ Pendiente', ok:'✅ Verificado', con_diferencias:'⚠️ Con diferencias', error:'❌ Error' }
+  const l = { pendiente:'<i class="ti ti-hourglass" aria-hidden="true"></i> Pendiente', ok:'<i class="ti ti-circle-check" aria-hidden="true"></i> Verificado', con_diferencias:'<i class="ti ti-alert-triangle" aria-hidden="true"></i> Con diferencias', error:'<i class="ti ti-circle-x" aria-hidden="true"></i> Error' }
   return `<span class="badge ${c[v]||'badge-gris'}">${l[v]||v}</span>`
 }
 function badgeEtapa(e) {
@@ -1372,7 +1372,7 @@ async function cargarHistorialPrecios() {
   el.innerHTML = historial.map(h => `
     <div class="historial-lista-item">
       <div class="historial-lista-info">
-        <div class="historial-lista-fecha">📅 Vigente desde: <b>${formatFecha(h.fecha_vigencia)}</b></div>
+        <div class="historial-lista-fecha"><i class="ti ti-calendar" aria-hidden="true"></i> Vigente desde: <b>${formatFecha(h.fecha_vigencia)}</b></div>
         <div class="historial-lista-detalle">
           ${h.productos_actualizados} precios actualizados •
           Subido por ${h.perfiles?.nombre_completo || '-'} •
@@ -1386,7 +1386,7 @@ async function cargarHistorialPrecios() {
           ${h.precios_confirmados.length > 3 ? `<span class="cambio-badge">+${h.precios_confirmados.length - 3} más</span>` : ''}
         </div>` : ''}
       </div>
-      ${h.imagen_url ? `<a href="${h.imagen_url}" target="_blank" class="btn-ver">📷 Ver lista</a>` : ''}
+      ${h.imagen_url ? `<a href="${h.imagen_url}" target="_blank" class="btn-ver"><i class="ti ti-camera" aria-hidden="true"></i> Ver lista</a>` : ''}
     </div>`).join('')
 }
 
@@ -1525,8 +1525,8 @@ async function abrirPedido(id) {
     botonesEl.innerHTML += `
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid #eee">
       ${puedeAprobar3 ? `
-        <button onclick="aprobarPedido('${id}')" class="btn-nuevo">✅ Aprobar</button>
-        <button onclick="rechazarPedido('${id}')" class="btn-cancelar" style="color:#c00">❌ Rechazar</button>
+        <button onclick="aprobarPedido('${id}')" class="btn-nuevo"><i class="ti ti-circle-check" aria-hidden="true"></i> Aprobar</button>
+        <button onclick="rechazarPedido('${id}')" class="btn-cancelar" style="color:#c00"><i class="ti ti-circle-x" aria-hidden="true"></i> Rechazar</button>
       ` : ''}
       ${etapaActual3 === 'facturado' && (esAdmin3 || esVendedor3) ? `
         <button onclick="marcarEnviado('${id}')" class="btn-enviado">
@@ -1538,10 +1538,10 @@ async function abrirPedido(id) {
           <i class="ti ti-file-download" aria-hidden="true"></i> Descargar PDF
         </button>` : ''}
       ${!['cobrado','cancelado'].includes(etapaActual3) && (esAdmin3 || esVendedor3) ? `
-        <button onclick="cancelarPedido('${id}')" class="btn-cancelar">🚫 Cancelar</button>
+        <button onclick="cancelarPedido('${id}')" class="btn-cancelar"><i class="ti ti-ban" aria-hidden="true"></i> Cancelar</button>
       ` : ''}
       ${esAdmin3 ? `
-        <button onclick="eliminarPedido('${id}')" class="btn-cancelar" style="color:#c00;border-color:#c00">🗑️ Eliminar</button>
+        <button onclick="eliminarPedido('${id}')" class="btn-cancelar" style="color:#c00;border-color:#c00"><i class="ti ti-trash" aria-hidden="true"></i> Eliminar</button>
       ` : ''}
     </div>`
   }
@@ -1564,11 +1564,11 @@ async function cargarDocumentosPedido(pedidoId) {
       <div class="doc-info">
         <span class="doc-tipo">${labelTipoDoc(d.tipo)}</span>
         ${badgeVerificacion(d.verificacion)}
-        ${d.nota ? `<span class="doc-nota">📝 ${d.nota}</span>` : ''}
+        ${d.nota ? `<span class="doc-nota"><i class="ti ti-note" aria-hidden="true"></i> ${d.nota}</span>` : ''}
         <span class="doc-quien">Subido por ${d.perfiles?.nombre_completo || '-'} — ${formatFechaHora(d.created_at)}</span>
       </div>
       <div class="doc-acciones">
-        <a href="${d.archivo_url}" target="_blank" class="btn-ver">👁️ Ver</a>
+        <a href="${d.archivo_url}" target="_blank" class="btn-ver"><i class="ti ti-eye" aria-hidden="true"></i> Ver</a>
       </div>
     </div>`).join('')
 }
@@ -1617,11 +1617,11 @@ async function cargarCobrosPedido(pedidoId) {
       <div class="cobro-item-info">
         <span class="cobro-medio">${iconMedio(c.medio_pago)} ${labelMedio(c.medio_pago)}</span>
         <span class="cobro-monto">$${Number(c.monto).toLocaleString('es-AR')}</span>
-        ${c.fecha_vencimiento_cheque ? `<span class="cobro-cheque-fecha">📅 Cheque vence: ${formatFecha(c.fecha_vencimiento_cheque)}</span>` : ''}
-        ${c.nota ? `<span class="cobro-nota">📝 ${c.nota}</span>` : ''}
+        ${c.fecha_vencimiento_cheque ? `<span class="cobro-cheque-fecha"><i class="ti ti-calendar" aria-hidden="true"></i> Cheque vence: ${formatFecha(c.fecha_vencimiento_cheque)}</span>` : ''}
+        ${c.nota ? `<span class="cobro-nota"><i class="ti ti-note" aria-hidden="true"></i> ${c.nota}</span>` : ''}
         <span class="cobro-fecha">${formatFechaHora(c.created_at)}</span>
       </div>
-      ${c.foto_url ? `<a href="${c.foto_url}" target="_blank" class="btn-ver">📷 Ver</a>` : ''}
+      ${c.foto_url ? `<a href="${c.foto_url}" target="_blank" class="btn-ver"><i class="ti ti-camera" aria-hidden="true"></i> Ver</a>` : ''}
     </div>`).join('')
 }
 
@@ -1829,7 +1829,7 @@ async function cargarPedidosPorAprobar() {
           <div class="aprobar-card-cli">${p.clientes?.razon_social || '-'}</div>
           <div class="aprobar-card-meta">Pedido #${p.numero} · ${formatFecha(p.fecha_pedido||p.created_at)}</div>
         </div>
-        <span class="aprobar-card-badge">🕐 Pendiente</span>
+        <span class="aprobar-card-badge"><i class="ti ti-clock" aria-hidden="true"></i> Pendiente</span>
       </div>
       <div class="aprobar-card-monto">${fmtM(Number(p.total))}</div>
       <div class="aprobar-card-btns">
@@ -1898,7 +1898,7 @@ function renderKanbanCard(p, etapa) {
         <i class="ti ti-calendar" style="font-size:10px" aria-hidden="true"></i>
         ${formatFechaHora(p.created_at)}
       </div>
-      ${p.alerta_vencimiento ? `<div class="kanban-alerta">⚠️ Vence pronto</div>` : ''}
+      ${p.alerta_vencimiento ? `<div class="kanban-alerta"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Vence pronto</div>` : ''}
       ${esCobrado ? `
         <button class="kanban-pdf-btn" onclick="event.stopPropagation(); descargarPDF('${p.id}')">
           <i class="ti ti-file-download" aria-hidden="true"></i> PDF
@@ -1965,7 +1965,7 @@ function renderListaClientesPedido(clientes) {
       <div>
         <div style="font-size:14px;font-weight:bold;color:#1a1a1a">${c.razon_social}</div>
         <div style="display:flex;gap:6px;margin-top:3px;flex-wrap:wrap">
-          ${c.bloqueado ? '<span style="background:#fee;color:#c00;font-size:11px;padding:1px 7px;border-radius:20px;font-weight:500">⚠️ Deuda</span>' : ''}
+          ${c.bloqueado ? '<span style="background:#fee;color:#c00;font-size:11px;padding:1px 7px;border-radius:20px;font-weight:500"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Deuda</span>' : ''}
           ${c.descuento_pct > 0 ? `<span style="background:#e8f5e9;color:#2d6a4f;font-size:11px;padding:1px 7px;border-radius:20px;font-weight:500">Desc. ${c.descuento_pct}%</span>` : ''}
           ${c.bonificacion_pct > 0 ? `<span style="background:#e3f2fd;color:#1565c0;font-size:11px;padding:1px 7px;border-radius:20px;font-weight:500">Bonif. ${c.bonificacion_pct}%</span>` : ''}
         </div>
@@ -2040,7 +2040,7 @@ function renderFiltroClientes(clientes) {
     `<div onclick="seleccionarFiltroCliente(null, 'Todos los clientes')"
       style="padding:10px 16px;cursor:pointer;font-size:13px;color:#888;border-bottom:1px solid #f0f0f0;"
       onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='white'">
-      🔍 Todos los clientes
+      <i class="ti ti-search" aria-hidden="true"></i> Todos los clientes
     </div>`,
     ...clientes.map(c => `
       <div onclick="seleccionarFiltroCliente('${c.id}', '${c.razon_social.replace(/'/g, "\'")}')"
@@ -2470,9 +2470,9 @@ function renderCondicionesCliente() {
       ${c.bonificacion_pct > 0 ? `<span class="badge badge-azul">Bonif. ${c.bonificacion_pct}%</span>` : ''}
       <span class="badge badge-gris">${labelFacturacion(c.condicion_factura, c.pct_remito, c.pct_factura)}</span>
       <span class="badge badge-gris">IVA ${c.alicuota_iva}%</span>
-      ${c.bloqueado ? `<span class="badge badge-rojo">⚠️ BLOQUEADO</span>` : ''}
+      ${c.bloqueado ? `<span class="badge badge-rojo"><i class="ti ti-alert-triangle" aria-hidden="true"></i> BLOQUEADO</span>` : ''}
     </div>
-    ${c.bloqueado ? `<div class="alerta-box">⚠️ Este cliente tiene deuda vencida de $${Number(c.saldo_pendiente).toLocaleString('es-AR')}. Podés continuar igual.</div>` : ''}
+    ${c.bloqueado ? `<div class="alerta-box"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Este cliente tiene deuda vencida de $${Number(c.saldo_pendiente).toLocaleString('es-AR')}. Podés continuar igual.</div>` : ''}
   `
 }
 
@@ -2494,7 +2494,7 @@ async function buscarClientePedido() {
   document.getElementById('resultados-cliente-pedido').innerHTML = clientesConDeuda.map(c => `
     <div class="resultado-cliente" onclick="seleccionarClientePedido('${c.id}')">
       <span>${c.razon_social}</span>
-      ${c.bloqueado ? '<span class="badge badge-rojo">⚠️</span>' : ''}
+      ${c.bloqueado ? '<span class="badge badge-rojo"><i class="ti ti-alert-triangle" aria-hidden="true"></i></span>' : ''}
       ${c.descuento_pct > 0 ? `<span class="badge badge-verde">${c.descuento_pct}%</span>` : ''}
     </div>`).join('') || '<p class="vacio">No encontrado</p>'
 }
@@ -2833,7 +2833,7 @@ function mostrarResumenPedido() {
         </div>
         ${t.bonifDetalle ? `
           <div class="bonif-box">
-            🎁 Bonificación: ${t.bonifDetalle}
+            <i class="ti ti-gift" aria-hidden="true"></i> Bonificación: ${t.bonifDetalle}
           </div>` : ''}
       </div>
 
@@ -2853,8 +2853,8 @@ function mostrarResumenPedido() {
       </div>
 
       <div class="form-botones" style="margin-top:20px">
-        <button class="btn-cancelar" onclick="guardarBorrador()">💾 Guardar borrador</button>
-        <button class="btn-guardar-inline" onclick="confirmarPedido()">✅ Confirmar pedido</button>
+        <button class="btn-cancelar" onclick="guardarBorrador()"><i class="ti ti-device-floppy" aria-hidden="true"></i> Guardar borrador</button>
+        <button class="btn-guardar-inline" onclick="confirmarPedido()"><i class="ti ti-circle-check" aria-hidden="true"></i> Confirmar pedido</button>
       </div>
     </div>
   `
@@ -3770,8 +3770,8 @@ async function abrirDetalleCob(pedidoId) {
           <div class="mdc-cobro-info">
             <span class="cobro-medio">${iconMedio(cb.medio_pago)} ${labelMedio(cb.medio_pago)}</span>
             <span class="cobro-monto">$${Number(cb.monto).toLocaleString('es-AR')}</span>
-            ${cb.fecha_vencimiento_cheque ? `<span style="font-size:12px;color:#633806">📅 Vence cheque: ${formatFecha(cb.fecha_vencimiento_cheque)}</span>` : ''}
-            ${cb.nota ? `<span style="font-size:12px;color:var(--color-text-secondary)">📝 ${cb.nota}</span>` : ''}
+            ${cb.fecha_vencimiento_cheque ? `<span style="font-size:12px;color:#633806"><i class="ti ti-calendar" aria-hidden="true"></i> Vence cheque: ${formatFecha(cb.fecha_vencimiento_cheque)}</span>` : ''}
+            ${cb.nota ? `<span style="font-size:12px;color:var(--color-text-secondary)"><i class="ti ti-note" aria-hidden="true"></i> ${cb.nota}</span>` : ''}
             <span style="font-size:12px;color:var(--color-text-tertiary)">${formatFechaHora(cb.created_at)}</span>
           </div>
           ${cb.foto_url ? `
@@ -4241,7 +4241,7 @@ function renderEnvioCard(envio, activo) {
             ${envio.total_pedidos ? `<span><i class="ti ti-package" style="font-size:12px" aria-hidden="true"></i> ${envio.total_pedidos} pedido${envio.total_pedidos !== 1 ? 's' : ''}</span>` : ''}
             ${envio.total_monto ? `<span><i class="ti ti-cash" style="font-size:12px" aria-hidden="true"></i> $${Number(envio.total_monto).toLocaleString('es-AR')}</span>` : ''}
           </div>
-          ${envio.observaciones ? `<div style="font-size:12px;color:var(--color-text-tertiary);margin-top:4px">📝 ${envio.observaciones}</div>` : ''}
+          ${envio.observaciones ? `<div style="font-size:12px;color:var(--color-text-tertiary);margin-top:4px"><i class="ti ti-note" aria-hidden="true"></i> ${envio.observaciones}</div>` : ''}
         </div>
         <div id="btn-detalle-${envio.id}"
           style="background:none;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:6px 12px;font-size:12px;color:var(--color-text-secondary);display:flex;align-items:center;gap:4px;pointer-events:none">
@@ -4482,7 +4482,7 @@ async function renderPanelAlertas() {
       <div id="alerta-${alertaId}" style="padding:14px;border-bottom:0.5px solid var(--color-border-tertiary)">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px">
           <div>
-            <div style="font-size:13px;font-weight:600;color:#633806">⚠️ Pedido #${pedidoNum}${cliente ? ' · ' + cliente : ''}</div>
+            <div style="font-size:13px;font-weight:600;color:#633806"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Pedido #${pedidoNum}${cliente ? ' · ' + cliente : ''}</div>
             <div style="font-size:12px;color:var(--color-text-secondary);margin-top:3px">${mensaje}</div>
             <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:3px">${formatFechaHora(a.created_at)}</div>
           </div>
@@ -4644,6 +4644,15 @@ const TIPO_RECLAMO = {
 function tipoReclamoInfo(tipo) {
   return TIPO_RECLAMO[tipo] || { label: 'Reclamo', icono: '📋', color: '#6b7280', bg: '#f3f4f6' }
 }
+// Solo para mostrar el badge en pantalla — el emoji de TIPO_RECLAMO.icono se sigue usando tal cual al guardar el reclamo en la base
+const TIPO_RECLAMO_ICONO_UI = {
+  problema_recepcion: 'ti-package',
+  problema_producto:  'ti-alert-triangle',
+  problema_cobranza:  'ti-coin'
+}
+function tipoReclamoIconoUI(tipo) {
+  return TIPO_RECLAMO_ICONO_UI[tipo] || 'ti-file-text'
+}
 
 // Trae todos los reclamos (pendientes o resueltos) filtrados por rol
 async function _traerReclamos(resueltos) {
@@ -4742,7 +4751,7 @@ async function cargarPendientes() {
         <div class="problema-header">
           <div>
             <div class="problema-titulo">
-              <span class="badge" style="font-size:11px;background:${info.bg};color:${info.color}">${info.icono} ${info.label}</span>
+              <span class="badge" style="font-size:11px;background:${info.bg};color:${info.color}"><i class="ti ${tipoReclamoIconoUI(n.tipo)}" aria-hidden="true"></i> ${info.label}</span>
               <span style="font-weight:600">Pedido #${pedido?.numero || '?'}</span>
               <span style="color:var(--color-text-secondary)">·</span>
               <span>${pedido?.clientes?.razon_social || '-'}</span>
@@ -4889,8 +4898,8 @@ async function cargarResueltos() {
         <div class="problema-header">
           <div>
             <div class="problema-titulo">
-              <span class="badge badge-verde" style="font-size:11px">✅ Resuelto</span>
-              <span class="badge" style="font-size:11px;background:${info.bg};color:${info.color}">${info.icono} ${info.label}</span>
+              <span class="badge badge-verde" style="font-size:11px"><i class="ti ti-circle-check" aria-hidden="true"></i> Resuelto</span>
+              <span class="badge" style="font-size:11px;background:${info.bg};color:${info.color}"><i class="ti ${tipoReclamoIconoUI(n.tipo)}" aria-hidden="true"></i> ${info.label}</span>
               <span style="font-weight:600">Pedido #${pedido?.numero || '?'}</span>
               <span style="color:var(--color-text-secondary)">·</span>
               <span>${pedido?.clientes?.razon_social || '-'}</span>
@@ -5374,7 +5383,7 @@ async function reporteCobranzas(desde, hasta) {
   const medios = {}
   for (const c of (cobros||[])) medios[c.medio_pago] = (medios[c.medio_pago]||0) + Number(c.monto)
   const maxMedio = Math.max(...Object.values(medios), 1)
-  const iconos = { efectivo:'💵', transferencia:'🏦', cheque:'📋', echeq:'📱' }
+  const iconos = { efectivo:'<i class="ti ti-cash" aria-hidden="true"></i>', transferencia:'<i class="ti ti-building-bank" aria-hidden="true"></i>', cheque:'<i class="ti ti-receipt" aria-hidden="true"></i>', echeq:'<i class="ti ti-device-mobile" aria-hidden="true"></i>' }
 
   _repData = Object.entries(medios).map(([m,v]) => ({ 'Medio de pago': labelMedio(m), Monto: v }))
   _repData.push({ 'Medio de pago':'TOTAL', Monto: total })
@@ -5844,7 +5853,7 @@ function renderUsuariosPendientes() {
           <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px">${u.telefono || 'Sin teléfono'}</div>
           <div style="font-size:10px;color:var(--color-text-tertiary);margin-top:2px">Registrado ${formatFechaHora(u.created_at)}</div>
         </div>
-        <span style="background:#faeeda;color:#633806;border-radius:6px;font-size:10px;padding:2px 8px;white-space:nowrap">🕐 Pendiente</span>
+        <span style="background:#faeeda;color:#633806;border-radius:6px;font-size:10px;padding:2px 8px;white-space:nowrap"><i class="ti ti-clock" aria-hidden="true"></i> Pendiente</span>
       </div>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <select id="usr-rol-${u.id}" onchange="usrToggleVinculoCliente('${u.id}')" style="flex:1;min-width:120px;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:8px;font-size:12px">
@@ -5854,14 +5863,14 @@ function renderUsuariosPendientes() {
           <option value="empresa">Empresa</option>
           <option value="admin">Admin</option>
         </select>
-        <button onclick="aprobarUsuario('${u.id}')" style="background:#1d9e75;color:white;border:none;border-radius:8px;padding:9px 16px;font-size:12px;font-weight:600;cursor:pointer">✓ Activar</button>
-        <button onclick="rechazarUsuario('${u.id}')" style="background:#fff;color:#e24b4a;border:0.5px solid #f0c4c4;border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer">✕</button>
+        <button onclick="aprobarUsuario('${u.id}')" style="background:#1d9e75;color:white;border:none;border-radius:8px;padding:9px 16px;font-size:12px;font-weight:600;cursor:pointer"><i class="ti ti-check" aria-hidden="true"></i> Activar</button>
+        <button onclick="rechazarUsuario('${u.id}')" style="background:#fff;color:#e24b4a;border:0.5px solid #f0c4c4;border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer"><i class="ti ti-x" aria-hidden="true"></i></button>
       </div>
       <div id="usr-vinculo-${u.id}" style="display:none;margin-top:10px">
         <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:6px">¿Cliente nuevo o ya existe?</div>
         <div style="display:flex;gap:8px;margin-bottom:12px">
-          <button type="button" id="usr-modo-nuevo-${u.id}" onclick="usrModoCliente('${u.id}','nuevo')" style="flex:1;border:2px solid var(--color-marca);background:#e6f4fb;color:var(--color-marca-oscuro);border-radius:8px;padding:9px;font-size:12px;font-weight:600;cursor:pointer">➕ Cliente nuevo</button>
-          <button type="button" id="usr-modo-existe-${u.id}" onclick="usrModoCliente('${u.id}','existe')" style="flex:1;border:0.5px solid var(--color-border-tertiary);background:#fff;color:var(--color-text-secondary);border-radius:8px;padding:9px;font-size:12px;cursor:pointer">🔗 Ya existe</button>
+          <button type="button" id="usr-modo-nuevo-${u.id}" onclick="usrModoCliente('${u.id}','nuevo')" style="flex:1;border:2px solid var(--color-marca);background:#e6f4fb;color:var(--color-marca-oscuro);border-radius:8px;padding:9px;font-size:12px;font-weight:600;cursor:pointer"><i class="ti ti-plus" aria-hidden="true"></i> Cliente nuevo</button>
+          <button type="button" id="usr-modo-existe-${u.id}" onclick="usrModoCliente('${u.id}','existe')" style="flex:1;border:0.5px solid var(--color-border-tertiary);background:#fff;color:var(--color-text-secondary);border-radius:8px;padding:9px;font-size:12px;cursor:pointer"><i class="ti ti-link" aria-hidden="true"></i> Ya existe</button>
         </div>
 
         <div id="usr-existe-wrap-${u.id}" style="display:none">
@@ -6003,7 +6012,7 @@ function renderUsuariosActivos() {
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <span style="background:${cr.bg};color:${cr.c};border-radius:6px;font-size:10px;padding:3px 9px">${cr.t}</span>
-        <button onclick="resetearPasswordUsuario('${u.id}','${u.nombre_completo||''}')" style="background:#fff;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:6px 10px;font-size:11px;cursor:pointer;color:var(--color-text-secondary)">🔑 Resetear</button>
+        <button onclick="resetearPasswordUsuario('${u.id}','${u.nombre_completo||''}')" style="background:#fff;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:6px 10px;font-size:11px;cursor:pointer;color:var(--color-text-secondary)"><i class="ti ti-key" aria-hidden="true"></i> Resetear</button>
         <button onclick="desactivarUsuario('${u.id}')" style="background:#fff;border:0.5px solid #f0c4c4;border-radius:8px;padding:6px 10px;font-size:11px;cursor:pointer;color:#e24b4a">Desactivar</button>
       </div>
     </div>`
@@ -6182,9 +6191,9 @@ function renderBarraObjetivo(clienteId, objetivoKg, kgMes, cantPedidos, modo) {
     return `
       <div style="background:#fff;border-radius:12px;padding:18px;margin-bottom:16px;border:0.5px solid var(--color-border-tertiary)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div style="font-size:13px;font-weight:600;color:var(--color-marca-oscuro)">🎯 Objetivo del mes</div>
+          <div style="font-size:13px;font-weight:600;color:var(--color-marca-oscuro)"><i class="ti ti-target-arrow" aria-hidden="true"></i> Objetivo del mes</div>
           ${cumplido
-            ? '<span style="background:#e8f6ef;color:#0f6b4d;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:600">✓ CUMPLIDO</span>'
+            ? '<span style="background:#e8f6ef;color:#0f6b4d;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:600"><i class="ti ti-check" aria-hidden="true"></i> CUMPLIDO</span>'
             : `<span style="font-size:11px;color:var(--color-text-tertiary);text-transform:capitalize">${mesNombre}</span>`}
         </div>
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
@@ -6197,22 +6206,22 @@ function renderBarraObjetivo(clienteId, objetivoKg, kgMes, cantPedidos, modo) {
         <div style="display:flex;justify-content:space-between;font-size:11px">
           <span style="color:#1d9e75;font-weight:600">${pct}% completado</span>
           ${cumplido
-            ? '<span style="color:#1d9e75;font-weight:600">¡Objetivo alcanzado! 🎉</span>'
+            ? '<span style="color:#1d9e75;font-weight:600"><i class="ti ti-trophy" aria-hidden="true"></i> ¡Objetivo alcanzado!</span>'
             : `<span style="color:var(--color-text-tertiary)">Faltan ${falta.toLocaleString('es-AR')} kg</span>`}
         </div>
-        ${puedeEditar ? `<button onclick="abrirEditarObjetivo('${clienteId}', ${obj})" style="margin-top:12px;width:100%;background:#fff;border:1px solid var(--color-border-tertiary);border-radius:8px;padding:8px;font-size:12px;color:var(--color-text-secondary);cursor:pointer">✏️ Editar objetivo</button>` : ''}
+        ${puedeEditar ? `<button onclick="abrirEditarObjetivo('${clienteId}', ${obj})" style="margin-top:12px;width:100%;background:#fff;border:1px solid var(--color-border-tertiary);border-radius:8px;padding:8px;font-size:12px;color:var(--color-text-secondary);cursor:pointer"><i class="ti ti-edit" aria-hidden="true"></i> Editar objetivo</button>` : ''}
       </div>`
   } else {
     // Sin objetivo: solo acumulado
     return `
       <div style="background:#fff;border-radius:12px;padding:18px;margin-bottom:16px;border:0.5px solid var(--color-border-tertiary)">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div style="font-size:13px;font-weight:600;color:var(--color-marca-oscuro)">📦 Comprado este mes</div>
+          <div style="font-size:13px;font-weight:600;color:var(--color-marca-oscuro)"><i class="ti ti-package" aria-hidden="true"></i> Comprado este mes</div>
           <span style="font-size:11px;color:var(--color-text-tertiary);text-transform:capitalize">${mesNombre}</span>
         </div>
         <div style="font-size:22px;font-weight:700;color:var(--color-marca-oscuro);margin-bottom:4px">${kg.toLocaleString('es-AR')} kg</div>
         <div style="font-size:12px;color:var(--color-text-tertiary);margin-bottom:${puedeEditar ? '12px' : '0'}">en ${cantPedidos} pedido${cantPedidos !== 1 ? 's' : ''} recibido${cantPedidos !== 1 ? 's' : ''}</div>
-        ${puedeEditar ? `<button onclick="abrirEditarObjetivo('${clienteId}', 0)" style="width:100%;background:#eef7fc;border:1px solid #b3ddf2;border-radius:8px;padding:8px;font-size:12px;color:var(--color-marca-oscuro);cursor:pointer;font-weight:600">🎯 Asignar objetivo mensual</button>` : ''}
+        ${puedeEditar ? `<button onclick="abrirEditarObjetivo('${clienteId}', 0)" style="width:100%;background:#eef7fc;border:1px solid #b3ddf2;border-radius:8px;padding:8px;font-size:12px;color:var(--color-marca-oscuro);cursor:pointer;font-weight:600"><i class="ti ti-target-arrow" aria-hidden="true"></i> Asignar objetivo mensual</button>` : ''}
       </div>`
   }
 }
