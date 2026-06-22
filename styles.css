@@ -61,6 +61,7 @@ body { background:#f0f2f5; color:#1a1a1a; }
 .layout { display:flex; margin-top:56px; min-height:calc(100vh - 56px); }
 .sidebar { width:200px; background:white; border-right:1px solid #e0e0e0; padding:16px 0; position:fixed; top:56px; bottom:0; overflow-y:auto; }
 .nav-btn { width:100%; text-align:left; padding:12px 20px; border:none; background:none; font-size:14px; cursor:pointer; color:#444; transition:all 0.2s; }
+.nav-btn i { margin-right:10px; font-size:16px; vertical-align:-2px; }
 .nav-btn:hover { background:#e6f4fb; color:#0a6ca0; }
 .nav-btn.activo { background:#e6f4fb; color:#0a6ca0; font-weight:bold; border-left:3px solid #0d8fd1; }
 #contenido-principal { margin-left:200px; padding:28px; flex:1; }
