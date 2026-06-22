@@ -670,14 +670,14 @@ async function cargarClientes() {
   mostrarVistaClientes('lista')
   const rol = await cargarRolUsuario()
 
-  let query = db.from('clientes').select('id, razon_social, telefono, saldo_pendiente, activo, objetivo_kg_mensual').order('razon_social')
+  let query = db.from('clientes').select('id, razon_social, telefono, email, saldo_pendiente, activo, objetivo_kg_mensual').order('razon_social')
   // El vendedor solo ve sus clientes
   if (rol === 'vendedor') query = query.eq('vendedor_id', usuarioActual.id)
 
   const { data, error } = await query
   if (error) { console.error(error); return }
 
-  // Kg comprados este mes (recibido/cobrado) para la mini-barra de cada tarjeta
+  // Kg comprados este mes (recibido/cobrado) para el recuadro de cada tarjeta
   const ahora = new Date()
   const primerDia = new Date(ahora.getFullYear(), ahora.getMonth(), 1).toISOString().split('T')[0]
   const { data: pedidosMes } = await db.from('pedidos').select('cliente_id, total_kg')
@@ -695,30 +695,46 @@ function renderizarListaClientes(clientes) {
     const obj = Number(c.objetivo_kg_mensual) || 0
     const kg  = Number(c.kgMes) || 0
     const pct = obj > 0 ? Math.min(100, Math.round((kg / obj) * 100)) : 0
-    const miniBarraObjetivo = obj > 0 ? `
-        <div style="margin-top:10px">
-          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px">
-            <span style="color:var(--color-text-secondary)">Objetivo del mes</span>
-            <span style="color:${pct >= 100 ? '#0f6e56' : 'var(--color-marca-oscuro)'};font-weight:600">${kg.toLocaleString('es-AR')} / ${obj.toLocaleString('es-AR')} kg</span>
+    const cumplido = obj > 0 && pct >= 100
+
+    const recuadroKg = obj > 0 ? `
+        <div style="background:${cumplido ? '#eaf3de' : '#e6f1fb'};border-radius:8px;padding:8px 10px;margin-top:10px;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <span style="font-size:15px;font-weight:500;color:${cumplido ? '#27500a' : '#0c447c'}">${kg.toLocaleString('es-AR')}</span>
+            <span style="font-size:12px;color:${cumplido ? '#3b6d11' : '#185fa5'}"> / ${obj.toLocaleString('es-AR')} kg</span>
           </div>
-          <div style="background:var(--color-border-tertiary);border-radius:20px;height:7px;overflow:hidden">
-            <div style="width:${pct}%;height:100%;background:${pct >= 100 ? '#1d9e75' : '#378add'};border-radius:20px"></div>
-          </div>
+          ${cumplido
+            ? `<span style="font-size:11px;font-weight:500;color:#3b6d11">✓ Cumplido</span>`
+            : `<div style="display:flex;align-items:center;gap:6px">
+                <div style="background:rgba(255,255,255,0.6);border-radius:20px;height:5px;width:50px;overflow:hidden">
+                  <div style="width:${pct}%;height:100%;background:#378add;border-radius:20px"></div>
+                </div>
+                <span style="font-size:11px;font-weight:500;color:#185fa5">${pct}%</span>
+              </div>`}
         </div>` : `
-        <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:10px">
-          <i class="ti ti-package" style="font-size:13px;vertical-align:-1px" aria-hidden="true"></i> ${kg.toLocaleString('es-AR')} kg este mes · sin objetivo asignado
+        <div style="background:var(--color-background-tertiary);border-radius:8px;padding:8px 10px;margin-top:10px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:15px;font-weight:500;color:var(--color-text-primary)">${kg.toLocaleString('es-AR')} kg <span style="font-size:11px;font-weight:400;color:var(--color-text-tertiary)">este mes</span></span>
+          <span style="font-size:11px;color:var(--color-text-tertiary)">Sin objetivo</span>
         </div>`
+
+    const iconosContacto = `
+        <div style="display:flex;gap:6px;flex-shrink:0;margin-left:8px">
+          ${waLink(c.telefono) ? `<a href="${waLink(c.telefono)}" onclick="event.stopPropagation()" target="_blank" style="width:30px;height:30px;border-radius:8px;background:#e1f5ee;color:#085041;display:flex;align-items:center;justify-content:center;font-size:15px"><i class="ti ti-brand-whatsapp" aria-hidden="true"></i></a>` : ''}
+          ${c.email ? `<a href="mailto:${c.email}" onclick="event.stopPropagation()" style="width:30px;height:30px;border-radius:8px;background:#e3f2fd;color:#185fa5;display:flex;align-items:center;justify-content:center;font-size:15px"><i class="ti ti-mail" aria-hidden="true"></i></a>` : ''}
+        </div>`
+
     return `
     <div class="cliente-card" onclick="abrirFichaCliente('${c.id}')">
       <div class="cliente-card-info">
-        <div class="cliente-nombre">${c.razon_social}</div>
-        <div class="cliente-tel"><i class="ti ti-phone" aria-hidden="true"></i> ${c.telefono || 'Sin teléfono'}
-          ${waLink(c.telefono) ? `<a href="${waLink(c.telefono)}" onclick="event.stopPropagation()" target="_blank" class="btn-whatsapp-texto"><i class="ti ti-brand-whatsapp" aria-hidden="true"></i> WhatsApp</a>` : ''}
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+          <div class="cliente-nombre" style="margin-bottom:0">${c.razon_social}</div>
+          ${iconosContacto}
         </div>
+        <div class="cliente-tel"><i class="ti ti-phone" aria-hidden="true"></i> ${c.telefono || 'Sin teléfono'}</div>
         <div class="cliente-saldo ${Number(c.saldo_pendiente) > 0 ? 'saldo-deuda' : 'saldo-ok'}">
           ${Number(c.saldo_pendiente) > 0 ? '💰 Saldo: $' + Number(c.saldo_pendiente).toLocaleString('es-AR') + ' pendiente' : '✅ Sin deuda'}
         </div>
-        ${miniBarraObjetivo}
+        ${recuadroKg}
       </div>
       <div class="cliente-card-arrow">›</div>
     </div>`
