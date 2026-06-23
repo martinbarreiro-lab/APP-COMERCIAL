@@ -228,6 +228,9 @@ async function configurarInterfazPorRol() {
     if (navConfig) navConfig.style.display = 'none'
     const navUsr = document.getElementById('nav-usuarios')
     if (navUsr) navUsr.style.display = 'none'
+    // El vendedor no ve el reporte de Vendedor (es info de todo el equipo)
+    const repTabVend = document.getElementById('rep-tab-vendedor')
+    if (repTabVend) repTabVend.style.display = 'none'
     document.querySelectorAll('.mobile-more-item').forEach(item => {
       const t = item.textContent.toLowerCase()
       if (t.includes('configuraci') || t.includes('usuario')) {
@@ -5286,6 +5289,9 @@ async function reporteClienteIndividual(desde, hasta) {
 
 // ── REPORTE VENDEDOR ──
 async function reporteVendedor(desde, hasta) {
+  // Seguridad: un vendedor no puede ver el reporte de todo el equipo
+  const rolRep = await cargarRolUsuario()
+  if (rolRep === 'vendedor') { setRepTipo('cliente'); return }
   if (_repSelId) return reporteVendedorIndividual(desde, hasta)
 
   const [{ data: pedidos }, { data: cobros }, { data: vendedores }] = await Promise.all([
