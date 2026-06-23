@@ -17,6 +17,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   else mostrarLogin()
 })
 
+// Cerrar cualquier modal abierto con la tecla Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return
+  const modales = [
+    ['modal-recibido', cerrarModalRecibido],
+    ['modal-cobro', cerrarModalCobro],
+    ['modal-detalle-cob', cerrarDetalleCob],
+    ['modal-envio-obs', cerrarModalEnvioObs],
+    ['modal-informar-pago', cerrarInformarPago],
+    ['modal-reclamo', cerrarModalReclamo]
+  ]
+  modales.forEach(([id, fn]) => {
+    const el = document.getElementById(id)
+    if (el && el.style.display && el.style.display !== 'none') {
+      try { fn() } catch (err) {}
+    }
+  })
+})
+
 // ── AUTH ─────────────────────────────────────────
 async function iniciarSesion() {
   const email    = document.getElementById('login-email').value.trim()
@@ -3680,8 +3699,10 @@ async function exportarCobranza() {
 
 // ── DETALLE PEDIDO EN COBRANZA ───────────────────
 let _detalleCobPedidoId = null
+let _detalleCobRequestId = 0
 
 async function abrirDetalleCob(pedidoId) {
+  const requestId = ++_detalleCobRequestId
   _detalleCobPedidoId = pedidoId
   const modal = document.getElementById('modal-detalle-cob')
   if (!modal) return
@@ -3719,6 +3740,8 @@ async function abrirDetalleCob(pedidoId) {
   ])
 
   if (!p) return
+  // Si mientras cargaba se cerró el modal o se abrió otro pedido, no seguir pisando el contenido
+  if (requestId !== _detalleCobRequestId) return
 
   document.getElementById('mdc-titulo').textContent = `Pedido #${p.numero}`
 
@@ -3842,6 +3865,7 @@ async function abrirDetalleCob(pedidoId) {
 }
 
 function cerrarDetalleCob() {
+  _detalleCobRequestId++  // invalida cualquier carga en curso de este modal
   const modal = document.getElementById('modal-detalle-cob')
   if (modal) modal.style.display = 'none'
   _detalleCobPedidoId = null
