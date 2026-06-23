@@ -705,6 +705,23 @@
 
 
           <!-- Modal CARGAR RECLAMO (3 pasos) -->
+          <div id="modal-clientes-usuario" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box" onclick="if(event.target===this)cerrarClientesUsuario()">
+            <div style="background:#fff;border-radius:14px;width:460px;max-width:100%;max-height:85vh;overflow-y:auto;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,0.35)" onclick="event.stopPropagation()">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+                <h3 style="font-size:16px;font-weight:600;margin:0;color:var(--color-marca-oscuro)" id="clie-usr-titulo">Clientes</h3>
+                <button onclick="cerrarClientesUsuario()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--color-text-secondary)">✕</button>
+              </div>
+              <div id="clie-usr-lista"></div>
+              <div id="clie-usr-acciones" style="display:none;margin-top:16px;border-top:0.5px solid var(--color-border-tertiary);padding-top:14px">
+                <label style="font-size:12px;color:var(--color-text-secondary);display:block;margin-bottom:6px">Reasignar seleccionados a:</label>
+                <select id="clie-usr-destino" style="width:100%;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:9px;font-size:13px;margin-bottom:12px"></select>
+                <button onclick="reasignarClientesSeleccionados()" class="btn-guardar-inline" style="width:100%">
+                  <i class="ti ti-arrows-exchange" aria-hidden="true"></i> Reasignar seleccionados
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div id="modal-reclamo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;overflow-y:auto">
             <div style="background:#fff;border-radius:14px;width:460px;max-width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,0.2)" onclick="event.stopPropagation()">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
