@@ -26,7 +26,8 @@ document.addEventListener('keydown', (e) => {
     ['modal-detalle-cob', cerrarDetalleCob],
     ['modal-envio-obs', cerrarModalEnvioObs],
     ['modal-informar-pago', cerrarInformarPago],
-    ['modal-reclamo', cerrarModalReclamo]
+    ['modal-reclamo', cerrarModalReclamo],
+    ['modal-clientes-usuario', cerrarClientesUsuario]
   ]
   modales.forEach(([id, fn]) => {
     const el = document.getElementById(id)
@@ -6039,16 +6040,18 @@ function renderUsuariosActivos() {
   }
   el.innerHTML = _usrActivos.map(u => {
     const cr = colorRol[u.rol] || { bg:'#f3f4f6', c:'#555', t:u.rol }
+    const verClientes = (u.rol === 'vendedor' || u.rol === 'empresa')
     return `
-    <div class="problema-card" style="display:flex;justify-content:space-between;align-items:center">
+    <div class="problema-card" style="display:flex;justify-content:space-between;align-items:center${verClientes ? ';cursor:pointer' : ''}"${verClientes ? ` onclick="abrirClientesUsuario('${u.id}','${u.rol}','${(u.nombre_completo||'').replace(/'/g,"\\'")}')"` : ''}>
       <div>
         <div style="font-size:14px;font-weight:600">${u.nombre_completo || 'Sin nombre'}</div>
         <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px">${u.telefono || ''}</div>
+        ${verClientes ? `<div style="font-size:11px;color:var(--color-text-info);margin-top:4px"><i class="ti ti-users" aria-hidden="true"></i> Ver clientes asignados</div>` : ''}
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <span style="background:${cr.bg};color:${cr.c};border-radius:6px;font-size:10px;padding:3px 9px">${cr.t}</span>
-        <button onclick="resetearPasswordUsuario('${u.id}','${u.nombre_completo||''}')" style="background:#fff;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:6px 10px;font-size:11px;cursor:pointer;color:var(--color-text-secondary)"><i class="ti ti-key" aria-hidden="true"></i> Resetear</button>
-        <button onclick="desactivarUsuario('${u.id}')" style="background:#fff;border:0.5px solid #f0c4c4;border-radius:8px;padding:6px 10px;font-size:11px;cursor:pointer;color:#e24b4a">Desactivar</button>
+        <button onclick="event.stopPropagation();resetearPasswordUsuario('${u.id}','${u.nombre_completo||''}')" style="background:#fff;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:6px 10px;font-size:11px;cursor:pointer;color:var(--color-text-secondary)"><i class="ti ti-key" aria-hidden="true"></i> Resetear</button>
+        <button onclick="event.stopPropagation();desactivarUsuario('${u.id}')" style="background:#fff;border:0.5px solid #f0c4c4;border-radius:8px;padding:6px 10px;font-size:11px;cursor:pointer;color:#e24b4a">Desactivar</button>
       </div>
     </div>`
   }).join('')
@@ -6069,6 +6072,75 @@ async function desactivarUsuario(userId) {
   const { error } = await db.from('perfiles').update({ activo: false }).eq('id', userId)
   if (error) { alert('Error: ' + error.message); return }
   await cargarUsuarios()
+}
+
+// ── VER / REASIGNAR CLIENTES DE UN VENDEDOR O EMPRESA ──
+let _clieUsrRol = null
+
+async function abrirClientesUsuario(userId, rol, nombre) {
+  document.getElementById('modal-clientes-usuario').style.display = 'flex'
+  document.getElementById('clie-usr-titulo').textContent = rol === 'empresa'
+    ? 'Clientes atendidos directamente por la empresa'
+    : `Clientes de ${nombre}`
+  _clieUsrRol = rol
+  document.getElementById('clie-usr-lista').innerHTML = '<p class="vacio">Cargando...</p>'
+
+  let q = db.from('clientes').select('id, razon_social').eq('activo', true).order('razon_social')
+  q = rol === 'empresa' ? q.is('vendedor_id', null) : q.eq('vendedor_id', userId)
+  const { data: clientes } = await q
+
+  // Vendedores activos para el desplegable de reasignación
+  const { data: vendedores } = await db.from('perfiles').select('id, nombre_completo').eq('rol', 'vendedor').eq('activo', true).order('nombre_completo')
+  const opcionesVendedor = (vendedores || [])
+    .filter(v => v.id !== userId)
+    .map(v => `<option value="${v.id}">${v.nombre_completo || 'Sin nombre'}</option>`).join('')
+
+  document.getElementById('clie-usr-destino').innerHTML = `
+    <option value="empresa">Atendido directamente por la empresa</option>
+    ${opcionesVendedor}`
+
+  if (!clientes || clientes.length === 0) {
+    document.getElementById('clie-usr-lista').innerHTML = '<p class="vacio">No tiene clientes asignados</p>'
+    document.getElementById('clie-usr-acciones').style.display = 'none'
+    return
+  }
+
+  document.getElementById('clie-usr-acciones').style.display = 'block'
+  document.getElementById('clie-usr-lista').innerHTML = `
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:6px">
+      <input type="checkbox" id="clie-usr-todos" onclick="document.querySelectorAll('.clie-usr-check').forEach(c=>c.checked=this.checked)">
+      <b>Seleccionar todos</b>
+    </label>
+    ${clientes.map(c => `
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 0">
+        <input type="checkbox" class="clie-usr-check" value="${c.id}">
+        ${c.razon_social}
+      </label>`).join('')}`
+}
+
+function cerrarClientesUsuario() {
+  document.getElementById('modal-clientes-usuario').style.display = 'none'
+}
+
+async function reasignarClientesSeleccionados() {
+  const ids = Array.from(document.querySelectorAll('.clie-usr-check:checked')).map(c => c.value)
+  if (ids.length === 0) { alert('Seleccioná al menos un cliente'); return }
+  const destino = document.getElementById('clie-usr-destino').value
+  const nuevoVendedorId = destino === 'empresa' ? null : destino
+
+  if (!confirm(`¿Reasignar ${ids.length} cliente(s)?`)) return
+
+  const { error } = await db.from('clientes').update({ vendedor_id: nuevoVendedorId }).in('id', ids)
+  if (error) { alert('Error: ' + error.message); return }
+
+  alert('✅ Clientes reasignados correctamente')
+  // Recargar la misma vista (si era de un vendedor, esos clientes ya no le pertenecen y desaparecen de la lista)
+  const titulo = document.getElementById('clie-usr-titulo').textContent
+  if (_clieUsrRol === 'empresa') {
+    abrirClientesUsuario(null, 'empresa', '')
+  } else {
+    cerrarClientesUsuario()
+  }
 }
 
 
