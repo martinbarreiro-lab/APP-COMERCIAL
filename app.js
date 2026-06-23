@@ -5081,6 +5081,10 @@ let _repSelectorCache = []
 
 async function cargarReportes() {
   _repPeriodo = 'mes'; _repTipo = 'cliente'; _repSelId = null; _repSelNombre = 'Todos'
+  // El vendedor no ve el reporte de Vendedor (info de todo el equipo)
+  const rolRep = await cargarRolUsuario()
+  const repTabVend = document.getElementById('rep-tab-vendedor')
+  if (repTabVend) repTabVend.style.display = (rolRep === 'vendedor') ? 'none' : ''
   // reset chips
   document.querySelectorAll('.rep-per-chip').forEach(c => c.classList.toggle('activo', c.dataset.per === 'mes'))
   document.querySelectorAll('.rep-tab-btn').forEach(c => c.classList.toggle('activo', c.dataset.rep === 'cliente'))
