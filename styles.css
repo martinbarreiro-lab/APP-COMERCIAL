@@ -899,6 +899,13 @@ body { background:#f0f2f5; color:#1a1a1a; }
   [onclick]:hover:active { transform: scale(0.96); }
 }
 
+/* Las ventanas modales (el fondo y el panel) no se mueven ni se hunden — solo los
+   botones/tarjetas de adentro mantienen el efecto de feedback al tocar. */
+[id^="modal-"][onclick],
+[id^="modal-"] > div[onclick] {
+  transform: none !important;
+}
+
 /* ── Modal de detalle de pedido (Cobranza) en escritorio ──
    En móvil esto no aplica: el bloque de #modal-detalle-cob de más arriba
    fuerza sus propios estilos con !important (hoja desde abajo). */
