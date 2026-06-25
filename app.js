@@ -5477,7 +5477,9 @@ function exportarReportePDF() {
   if (!_repData || _repData.length === 0) { alert('No hay datos para exportar'); return }
   const cols = Object.keys(_repData[0])
   const w = window.open('', '_blank')
-  const fmt = (v) => typeof v === 'number' ? '$' + v.toLocaleString('es-AR') : v
+  // Columnas que son montos de dinero (llevan $). El resto (#, Pedidos, Fecha, etc.) va tal cual.
+  const colMonto = ['Facturado', 'Cobrado', 'Pendiente', 'Total']
+  const fmt = (v, col) => (colMonto.includes(col) && typeof v === 'number') ? '$' + v.toLocaleString('es-AR') : v
   w.document.write(`
     <html><head><title>${_repTitulo}</title>
     <style>
@@ -5493,7 +5495,7 @@ function exportarReportePDF() {
     <div class="sub">Cooperativa de Trabajo · Generado el ${new Date().toLocaleDateString('es-AR')}</div>
     <table>
       <thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
-      <tbody>${_repData.map(r => `<tr>${cols.map(c => `<td>${fmt(r[c])}</td>`).join('')}</tr>`).join('')}</tbody>
+      <tbody>${_repData.map(r => `<tr>${cols.map(c => `<td>${fmt(r[c], c)}</td>`).join('')}</tr>`).join('')}</tbody>
     </table>
     </body></html>`)
   w.document.close()
