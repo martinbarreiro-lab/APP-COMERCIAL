@@ -5456,13 +5456,16 @@ async function reporteCobranzas(desde, hasta) {
 function exportarReporteExcel() {
   if (!_repData || _repData.length === 0) { alert('No hay datos para exportar'); return }
   const cols = Object.keys(_repData[0])
-  let csv = cols.join(',') + '\n'
+  const sep = ';'  // Excel en español usa ; como separador de columnas
+  const celda = (v) => {
+    if (typeof v === 'number') return String(v).replace('.', ',')  // decimal con coma (formato es-AR)
+    let s = String(v ?? '')
+    if (s.includes(sep) || s.includes('"') || s.includes('\n')) s = '"' + s.replace(/"/g,'""') + '"'
+    return s
+  }
+  let csv = cols.join(sep) + '\n'
   for (const row of _repData) {
-    csv += cols.map(c => {
-      let v = row[c]
-      if (typeof v === 'string' && (v.includes(',') || v.includes('"'))) v = '"' + v.replace(/"/g,'""') + '"'
-      return v
-    }).join(',') + '\n'
+    csv += cols.map(c => celda(row[c])).join(sep) + '\n'
   }
   const blob = new Blob(['\ufeff' + csv], { type:'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
