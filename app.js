@@ -868,7 +868,6 @@ async function abrirFichaCliente(id) {
   if (!c) return
   clienteEditandoId = id
   const formasPago = [c.pago_efectivo ? 'Efectivo' : null, c.pago_cheque ? 'Cheque' : null, c.pago_transferencia ? 'Transferencia' : null].filter(Boolean).join(', ') || 'No especificado'
-  const { data: pedidos } = await db.from('pedidos').select('numero, total, estado_cobro, etapa, fecha_pedido').eq('cliente_id', id).order('created_at', { ascending: false }).limit(5)
   // Botón para asignar/editar el objetivo mensual (solo empresa/vendedor; el cliente nunca llega a esta vista)
   const objetivoActualFicha = Number(c.objetivo_kg_mensual) || 0
   const botonObjetivoFicha = rolUsuarioActual !== 'cliente' ? `
@@ -878,33 +877,109 @@ async function abrirFichaCliente(id) {
     </button>` : ''
   document.getElementById('contenido-ficha-cliente').innerHTML = `
     ${botonObjetivoFicha}
-    <div class="form-card">
-      <div class="ficha-nombre">${c.razon_social}</div>
-      ${c.activo ? '<span class="badge badge-verde">Activo</span>' : '<span class="badge badge-rojo">Inactivo</span>'}
-      <div class="form-seccion">DATOS BÁSICOS</div>
-      <div class="ficha-fila"><span>CUIT</span><span>${c.cuit || '-'}</span></div>
-      <div class="ficha-fila"><span>Teléfono</span><span>${c.telefono || '-'} ${waLink(c.telefono) ? `<a href="${waLink(c.telefono)}" target="_blank" class="btn-whatsapp"><i class="ti ti-brand-whatsapp" aria-hidden="true"></i></a>` : ''}</span></div>
-      <div class="ficha-fila"><span>Email</span><span>${c.email || '-'}</span></div>
-      <div class="ficha-fila"><span>Dirección</span><span>${c.direccion || '-'}</span></div>
-      <div class="ficha-fila"><span>Localidad</span><span>${c.localidad || '-'}, ${c.provincia || '-'}</span></div>
-      <div class="form-seccion">CONDICIÓN FISCAL</div>
-      <div class="ficha-fila"><span>Condición IVA</span><span>${c.condicion_iva?.replace(/_/g,' ') || '-'}</span></div>
-      <div class="ficha-fila"><span>Facturación</span><span>${labelFacturacion(c.condicion_factura, c.pct_remito, c.pct_factura)}</span></div>
-      <div class="ficha-fila"><span>Alícuota IVA</span><span>${c.alicuota_iva}%</span></div>
-      <div class="form-seccion">BENEFICIO COMERCIAL</div>
-      <div class="ficha-fila"><span>Descuento precio</span><span>${c.descuento_pct}%</span></div>
-      <div class="ficha-fila"><span>Bonificación producto</span><span>${c.bonificacion_pct}%</span></div>
-      <div class="form-seccion">CONDICIONES DE PAGO</div>
-      <div class="ficha-fila"><span>Vencimiento</span><span>${c.dias_vencimiento} días desde entrega</span></div>
-      <div class="ficha-fila"><span>Formas de pago</span><span>${formasPago}</span></div>
-      ${c.observaciones ? `<div class="form-seccion">OBSERVACIONES</div><div class="ficha-obs">${c.observaciones}</div>` : ''}
-      <div class="form-seccion">ÚLTIMOS PEDIDOS</div>
-      ${pedidos && pedidos.length > 0 ? pedidos.map(p => `
-        <div class="ficha-pedido-item">
-          <span><b>#${p.numero}</b> — ${formatFecha(p.fecha_pedido)}</span>
-          <span>$${Number(p.total).toLocaleString('es-AR')} ${badgeCobro(p.estado_cobro)}</span>
-        </div>`).join('') : '<p class="vacio">Sin pedidos</p>'}
+    <div style="display:flex;gap:6px;margin-bottom:14px">
+      <button id="ficha-tab-datos" class="ficha-tab activo" onclick="cambiarTabFicha('datos')"><i class="ti ti-user" aria-hidden="true"></i> Datos</button>
+      <button id="ficha-tab-historial" class="ficha-tab" onclick="cambiarTabFicha('historial')"><i class="ti ti-history" aria-hidden="true"></i> Historial</button>
+    </div>
+
+    <div id="ficha-panel-datos">
+      <div class="form-card">
+        <div class="ficha-nombre">${c.razon_social}</div>
+        ${c.activo ? '<span class="badge badge-verde">Activo</span>' : '<span class="badge badge-rojo">Inactivo</span>'}
+        <div class="form-seccion">DATOS BÁSICOS</div>
+        <div class="ficha-fila"><span>CUIT</span><span>${c.cuit || '-'}</span></div>
+        <div class="ficha-fila"><span>Teléfono</span><span>${c.telefono || '-'} ${waLink(c.telefono) ? `<a href="${waLink(c.telefono)}" target="_blank" class="btn-whatsapp"><i class="ti ti-brand-whatsapp" aria-hidden="true"></i></a>` : ''}</span></div>
+        <div class="ficha-fila"><span>Email</span><span>${c.email || '-'}</span></div>
+        <div class="ficha-fila"><span>Dirección</span><span>${c.direccion || '-'}</span></div>
+        <div class="ficha-fila"><span>Localidad</span><span>${c.localidad || '-'}, ${c.provincia || '-'}</span></div>
+        <div class="form-seccion">CONDICIÓN FISCAL</div>
+        <div class="ficha-fila"><span>Condición IVA</span><span>${c.condicion_iva?.replace(/_/g,' ') || '-'}</span></div>
+        <div class="ficha-fila"><span>Facturación</span><span>${labelFacturacion(c.condicion_factura, c.pct_remito, c.pct_factura)}</span></div>
+        <div class="ficha-fila"><span>Alícuota IVA</span><span>${c.alicuota_iva}%</span></div>
+        <div class="form-seccion">BENEFICIO COMERCIAL</div>
+        <div class="ficha-fila"><span>Descuento precio</span><span>${c.descuento_pct}%</span></div>
+        <div class="ficha-fila"><span>Bonificación producto</span><span>${c.bonificacion_pct}%</span></div>
+        <div class="form-seccion">CONDICIONES DE PAGO</div>
+        <div class="ficha-fila"><span>Vencimiento</span><span>${c.dias_vencimiento} días desde entrega</span></div>
+        <div class="ficha-fila"><span>Formas de pago</span><span>${formasPago}</span></div>
+        ${c.observaciones ? `<div class="form-seccion">OBSERVACIONES</div><div class="ficha-obs">${c.observaciones}</div>` : ''}
+      </div>
+    </div>
+
+    <div id="ficha-panel-historial" style="display:none">
+      <div class="form-card">
+        <div id="ficha-historial-contenido"><p class="vacio">Cargando...</p></div>
+      </div>
     </div>`
+}
+
+// Cambiar entre las solapas Datos / Historial de la ficha del cliente
+function cambiarTabFicha(tab) {
+  const esDatos = tab === 'datos'
+  document.getElementById('ficha-panel-datos').style.display = esDatos ? 'block' : 'none'
+  document.getElementById('ficha-panel-historial').style.display = esDatos ? 'none' : 'block'
+  document.getElementById('ficha-tab-datos').classList.toggle('activo', esDatos)
+  document.getElementById('ficha-tab-historial').classList.toggle('activo', !esDatos)
+  if (!esDatos) cargarHistorialCliente()
+}
+
+// Carga el historial completo del cliente: todos sus pedidos, cada uno con su mini-timeline
+async function cargarHistorialCliente() {
+  const cont = document.getElementById('ficha-historial-contenido')
+  if (!cont || !clienteEditandoId) return
+  cont.innerHTML = '<p class="vacio">Cargando...</p>'
+
+  const { data: pedidos } = await db.from('pedidos')
+    .select('id, numero, total, etapa, estado_cobro, fecha_pedido, created_at')
+    .eq('cliente_id', clienteEditandoId).neq('estado','cancelado')
+    .order('created_at', { ascending: false })
+
+  if (!pedidos || pedidos.length === 0) {
+    cont.innerHTML = '<p class="vacio">Este cliente todavía no tiene pedidos</p>'
+    return
+  }
+
+  // Traer el historial de todos sus pedidos de una
+  const ids = pedidos.map(p => p.id)
+  const { data: hist } = await db.from('historial_pedido')
+    .select('pedido_id, accion, detalle, created_at, perfiles(nombre_completo)')
+    .in('pedido_id', ids).order('created_at', { ascending: false })
+
+  const histPorPedido = {}
+  ;(hist||[]).forEach(h => {
+    if (!histPorPedido[h.pedido_id]) histPorPedido[h.pedido_id] = []
+    histPorPedido[h.pedido_id].push(h)
+  })
+
+  const etapaBadge = { pendiente_aprobacion:['Pendiente','#faeeda','#633806'], confirmado:['Confirmado','#e6f1fb','#0c447c'], facturado:['Facturado','#e6f1fb','#0c447c'], enviado:['En camino','#e6f1fb','#0c447c'], recibido:['Entregado','#e6f6ee','#0f6b4d'], cobrado:['Cobrado','#e6f6ee','#0f6b4d'] }
+
+  cont.innerHTML = pedidos.map(p => {
+    const badge = etapaBadge[p.etapa] || ['—','#f3f4f6','#555']
+    const eventos = histPorPedido[p.id] || []
+    return `
+    <div onclick="abrirPedido('${p.id}')" style="border:0.5px solid var(--color-border-tertiary);border-radius:12px;margin-bottom:12px;overflow:hidden;cursor:pointer">
+      <div style="background:var(--color-background-tertiary);padding:11px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <div style="display:flex;align-items:center;gap:8px">
+          <i class="ti ti-package" style="color:var(--color-marca);font-size:17px"></i>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--color-marca-oscuro)">Pedido #${p.numero}</div>
+            <div style="font-size:11px;color:var(--color-text-tertiary)">${formatFecha(p.fecha_pedido || p.created_at)} · $${Number(p.total).toLocaleString('es-AR')}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="background:${badge[1]};color:${badge[2]};font-size:10px;padding:2px 8px;border-radius:6px;font-weight:600">${badge[0]}</span>
+          <i class="ti ti-chevron-right" style="color:var(--color-text-tertiary)"></i>
+        </div>
+      </div>
+      <div style="padding:8px 14px">
+        ${eventos.length > 0 ? eventos.map(h => `
+          <div style="display:flex;gap:8px;padding:4px 0;font-size:12px">
+            <div class="historial-icono" style="font-size:14px;margin-top:1px">${iconAccion(h.accion)}</div>
+            <div><span style="color:var(--color-text-primary)">${h.detalle || h.accion}</span> <span style="color:var(--color-text-tertiary)">— ${h.perfiles?.nombre_completo || 'Sistema'}, ${formatFechaHora(h.created_at)}</span></div>
+          </div>`).join('') : '<div style="font-size:12px;color:var(--color-text-tertiary);padding:4px 0">Sin eventos registrados</div>'}
+      </div>
+    </div>`
+  }).join('')
 }
 function editarClienteActual() { if (clienteEditandoId) abrirFormCliente(clienteEditandoId) }
 async function abrirFormCliente(id = null) {
