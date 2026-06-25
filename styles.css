@@ -926,3 +926,11 @@ body { background:#f0f2f5; color:#1a1a1a; }
   background:var(--color-marca); color:#fff; border-color:var(--color-marca); font-weight:600;
 }
 .ficha-tab i { font-size:15px; }
+
+/* ── Historial del cliente: lista + detalle en dos columnas ── */
+.hist-layout { display:block; }
+@media (min-width:769px) {
+  .hist-layout { display:grid; grid-template-columns:0.85fr 1.15fr; gap:14px; align-items:start; }
+  .hist-lista-col { max-height:70vh; overflow-y:auto; }
+}
+.hist-lista-col { margin-bottom:14px; }
