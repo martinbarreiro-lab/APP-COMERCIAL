@@ -914,3 +914,15 @@ body { background:#f0f2f5; color:#1a1a1a; }
   .mdc-panel { width:920px !important; }
   .mdc-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
 }
+
+/* ── Solapas Datos / Historial en la ficha del cliente ── */
+.ficha-tab {
+  flex:1; background:#fff; border:0.5px solid var(--color-border-tertiary);
+  border-radius:9px; padding:10px; font-size:13px; cursor:pointer;
+  color:var(--color-text-secondary); display:flex; align-items:center;
+  justify-content:center; gap:6px; font-family:'Inter',sans-serif;
+}
+.ficha-tab.activo {
+  background:var(--color-marca); color:#fff; border-color:var(--color-marca); font-weight:600;
+}
+.ficha-tab i { font-size:15px; }
