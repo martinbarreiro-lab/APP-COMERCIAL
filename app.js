@@ -10,6 +10,65 @@ let _activandoUsuario = null
 let _usrModoCliente = {}
 let pedidoActualId    = null
 
+// ════════════════════════════════════════════════
+// CARTELES DE AVISO / CONFIRMACIÓN (estilo del sistema)
+// Reemplazan a alert() y confirm() nativos del navegador.
+// ════════════════════════════════════════════════
+const _AVISO_ESTILOS = {
+  info:    { bg:'#fef3e2', color:'#d68910', icono:'ti-info-circle' },
+  ok:      { bg:'#e6f6ee', color:'#1d9e75', icono:'ti-check' },
+  error:   { bg:'#fdecec', color:'#e24b4a', icono:'ti-alert-triangle' }
+}
+
+// Detecta el tono del mensaje por su contenido (✅ = ok, ⚠️/error = error, resto = info)
+function _avisoTipo(msg) {
+  const m = String(msg)
+  if (m.includes('✅') || /correctamente|guardado|exitos|enviad|actualizado/i.test(m)) return 'ok'
+  if (m.includes('⚠️') || m.includes('❌') || /error|no se pudo|fall|inválid|no podés/i.test(m)) return 'error'
+  return 'info'
+}
+
+function _avisoLimpiarTexto(msg) {
+  return String(msg).replace(/[✅⚠️❌🎉]/g, '').trim()
+}
+
+// Reemplazo de alert() — muestra un cartel con un solo botón "Aceptar"
+function avisar(mensaje, tipo) {
+  return new Promise(resolve => {
+    const t = tipo || _avisoTipo(mensaje)
+    const est = _AVISO_ESTILOS[t] || _AVISO_ESTILOS.info
+    document.getElementById('aviso-icono-wrap').style.background = est.bg
+    const ic = document.getElementById('aviso-icono')
+    ic.className = 'ti ' + est.icono
+    ic.style.color = est.color
+    document.getElementById('aviso-mensaje').textContent = _avisoLimpiarTexto(mensaje)
+    document.getElementById('aviso-botones').innerHTML =
+      '<button id="aviso-ok" style="width:100%;background:#0d8fd1;color:#fff;border:none;border-radius:9px;padding:11px;font-size:14px;font-weight:600;cursor:pointer">Aceptar</button>'
+    const modal = document.getElementById('modal-aviso')
+    modal.style.display = 'flex'
+    document.getElementById('aviso-ok').onclick = () => { modal.style.display = 'none'; resolve(true) }
+  })
+}
+
+// Reemplazo de confirm() — muestra Cancelar + botón de acción. Devuelve true/false.
+function confirmar(mensaje, textoConfirmar) {
+  return new Promise(resolve => {
+    const est = _AVISO_ESTILOS.error
+    document.getElementById('aviso-icono-wrap').style.background = est.bg
+    const ic = document.getElementById('aviso-icono')
+    ic.className = 'ti ' + est.icono
+    ic.style.color = est.color
+    document.getElementById('aviso-mensaje').textContent = _avisoLimpiarTexto(mensaje)
+    document.getElementById('aviso-botones').innerHTML =
+      '<button id="aviso-no" style="flex:1;background:#fff;color:var(--color-text-secondary);border:1px solid var(--color-border-tertiary);border-radius:9px;padding:11px;font-size:14px;cursor:pointer">Cancelar</button>' +
+      `<button id="aviso-si" style="flex:1;background:#e24b4a;color:#fff;border:none;border-radius:9px;padding:11px;font-size:14px;font-weight:600;cursor:pointer">${textoConfirmar || 'Confirmar'}</button>`
+    const modal = document.getElementById('modal-aviso')
+    modal.style.display = 'flex'
+    document.getElementById('aviso-no').onclick = () => { modal.style.display = 'none'; resolve(false) }
+    document.getElementById('aviso-si').onclick = () => { modal.style.display = 'none'; resolve(true) }
+  })
+}
+
 // ── AL CARGAR ────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   const { data: { session } } = await db.auth.getSession()
@@ -163,7 +222,7 @@ async function olvidoPassword() {
   const email = document.getElementById('login-email').value.trim()
   if (!email) { mostrarErrorLogin('Escribí tu email primero'); return }
   await db.auth.resetPasswordForEmail(email)
-  alert('✅ Te mandamos un email para restablecer tu contraseña')
+  avisar('✅ Te mandamos un email para restablecer tu contraseña')
 }
 async function cerrarSesion() { await db.auth.signOut(); mostrarLogin() }
 function mostrarLogin() {
@@ -986,13 +1045,13 @@ async function guardarCliente() {
       _activandoUsuario = null
       await cargarUsuarios()
       mostrarSeccion('usuarios')
-      alert('✅ Cliente creado y acceso activado correctamente')
+      avisar('✅ Cliente creado y acceso activado correctamente')
       return
     }
   }
   if (error) { document.getElementById('form-error').textContent = 'Error: ' + error.message; document.getElementById('form-error').style.display = 'block'; return }
   await cargarClientes()
-  alert('✅ Cliente guardado correctamente')
+  avisar('✅ Cliente guardado correctamente')
 }
 function volverAClientes() { _activandoUsuario = null; cargarClientes() }
 function mostrarVistaClientes(vista) {
@@ -1042,8 +1101,8 @@ async function cargarProductos() {
 }
 
 // ── STUBS ────────────────────────────────────────
-function nuevoEnvio()    { alert('🚧 Próximamente') }
-function nuevoProducto() { alert('🚧 Próximamente') }
+function nuevoEnvio()    { avisar('🚧 Próximamente') }
+function nuevoProducto() { avisar('🚧 Próximamente') }
 
 // ── HELPERS ──────────────────────────────────────
 function formatFecha(f) { if (!f) return '-'; return new Date(f).toLocaleDateString('es-AR') }
@@ -1334,7 +1393,7 @@ async function guardarNuevosPrecios() {
   })
 
   if (cambios.length === 0) {
-    alert('No ingresaste ningún precio nuevo.')
+    avisar('No ingresaste ningún precio nuevo.')
     return
   }
 
@@ -1387,7 +1446,7 @@ async function guardarNuevosPrecios() {
     productos_actualizados: actualizados
   })
 
-  alert(`✅ Lista actualizada correctamente.\n${actualizados} precios actualizados.`)
+  avisar(`✅ Lista actualizada correctamente.\n${actualizados} precios actualizados.`)
   mostrarVistaProductos('catalogo')
   cargarProductos()
 }
@@ -1471,7 +1530,7 @@ function actualizarBarraProgreso(etapa) {
 }
 
 async function cerrarPedido(pedidoId) {
-  const ok = confirm('¿Cerrar este pedido definitivamente?')
+  const ok = await confirmar('¿Cerrar este pedido definitivamente?', 'Cerrar pedido')
   if (!ok) return
   await db.from('pedidos').update({ etapa: 'cobrado' }).eq('id', pedidoId)
   await registrarHistorial(pedidoId, 'pedido_cerrado', 'Pedido cerrado manualmente')
@@ -1479,16 +1538,16 @@ async function cerrarPedido(pedidoId) {
 }
 
 async function cancelarPedido(pedidoId) {
-  const confirmar = confirm('¿Cancelar este pedido?')
-  if (!confirmar) return
+  const _ok = await confirmar('¿Cancelar este pedido?', 'Cancelar pedido')
+  if (!_ok) return
   await db.from('pedidos').update({ estado: 'cancelado', etapa: 'pedido' }).eq('id', pedidoId)
   await registrarHistorial(pedidoId, 'estado_cambiado', 'Pedido cancelado')
   volverAPedidos()
 }
 
 async function eliminarPedido(pedidoId) {
-  const confirmar = confirm('¿Eliminar este pedido definitivamente?')
-  if (!confirmar) return
+  const _ok = await confirmar('¿Eliminar este pedido definitivamente?', 'Eliminar')
+  if (!_ok) return
   await db.from('pedido_items').delete().eq('pedido_id', pedidoId)
   await db.from('historial_pedido').delete().eq('pedido_id', pedidoId)
   await db.from('documentos_pedido').delete().eq('pedido_id', pedidoId)
@@ -1686,11 +1745,11 @@ async function subirDocumento() {
   const tipo    = document.getElementById('tipo-documento').value
   const archivo = document.getElementById('archivo-documento').files[0]
   const nota    = document.getElementById('nota-documento').value.trim()
-  if (!archivo) { alert('Seleccioná un archivo'); return }
+  if (!archivo) { avisar('Seleccioná un archivo'); return }
   const ext = archivo.name.split('.').pop()
   const nombre = `${pedidoActualId}/${tipo}_${Date.now()}.${ext}`
   const { error: uploadError } = await db.storage.from('documentos').upload(nombre, archivo, { upsert: true })
-  if (uploadError) { alert('Error al subir: ' + uploadError.message); return }
+  if (uploadError) { avisar('Error al subir: ' + uploadError.message); return }
   const { data: urlData } = db.storage.from('documentos').getPublicUrl(nombre)
   await db.from('documentos_pedido').insert({
     pedido_id: pedidoActualId, tipo, archivo_url: urlData.publicUrl,
@@ -1717,10 +1776,10 @@ async function guardarCobro() {
   const nota   = document.getElementById('cobro-nota').value.trim()
   const foto   = document.getElementById('cobro-foto').files[0]
   const fechaCheque = document.getElementById('cobro-fecha-cheque').value
-  if (!monto || monto <= 0) { alert('Ingresá un monto válido'); return }
+  if (!monto || monto <= 0) { avisar('Ingresá un monto válido'); return }
   const { data: pedido } = await db.from('pedidos').select('total, monto_cobrado').eq('id', pedidoActualId).single()
   const pendiente = Number(pedido.total) - Number(pedido.monto_cobrado)
-  if (monto > pendiente + 0.01) { alert('El monto supera el saldo pendiente'); return }
+  if (monto > pendiente + 0.01) { avisar('El monto supera el saldo pendiente'); return }
   let fotoUrl = null
   if (foto) {
     const ext = foto.name.split('.').pop()
@@ -1741,7 +1800,7 @@ async function guardarCobro() {
     foto_url: fotoUrl, nota: nota || null,
     fecha_vencimiento_cheque: fechaCheque || null
   })
-  if (error) { alert('Error: ' + error.message); return }
+  if (error) { avisar('Error: ' + error.message); return }
   const updateData = { monto_cobrado: nuevoMonto, estado_cobro: nuevoEstado }
   if (pagoCompleto) updateData.etapa = 'cobrado'
   await db.from('pedidos').update(updateData).eq('id', pedidoActualId)
@@ -2113,7 +2172,7 @@ function limpiarFiltrosPedidos() {
 
 // ── MARCAR ENVIADO ───────────────────────────────
 async function marcarEnviado(pedidoId) {
-  const ok = confirm('¿Confirmás que la mercadería fue enviada?')
+  const ok = await confirmar('¿Confirmás que la mercadería fue enviada?', 'Confirmar')
   if (!ok) return
   const { error } = await db.from('pedidos').update({
     etapa:         'enviado',
@@ -2121,7 +2180,7 @@ async function marcarEnviado(pedidoId) {
     enviado_por:   usuarioActual.id,
     updated_at:    new Date().toISOString()
   }).eq('id', pedidoId)
-  if (error) { alert('Error: ' + error.message); return }
+  if (error) { avisar('Error: ' + error.message); return }
   await registrarHistorial(pedidoId, 'estado_cambiado', 'Pedido marcado como enviado')
   await abrirPedido(pedidoId)
 }
@@ -2133,7 +2192,7 @@ let _recibidoEstado   = null
 function marcarRecibido(pedidoId) {
   // Solo el cliente puede confirmar la recepción
   if (rolUsuarioActual !== 'cliente') {
-    alert('Solo el cliente puede confirmar la recepción del pedido.')
+    avisar('Solo el cliente puede confirmar la recepción del pedido.')
     return
   }
   _recibidoPedidoId = pedidoId
@@ -2186,11 +2245,11 @@ function cerrarModalRecibido() {
 
 async function confirmarRecepcion() {
   if (!_recibidoPedidoId) {
-    alert('Error: no hay pedido seleccionado. Cerrá y reintentá.')
+    avisar('Error: no hay pedido seleccionado. Cerrá y reintentá.')
     return
   }
   if (!_recibidoEstado) {
-    alert('Seleccioná si llegó todo en orden o si hubo un problema.')
+    avisar('Seleccioná si llegó todo en orden o si hubo un problema.')
     return
   }
 
@@ -2229,12 +2288,12 @@ async function confirmarRecepcion() {
 
   if (updErr) {
     console.error('Error update pedido:', updErr)
-    alert('Error al guardar: ' + (updErr.message || JSON.stringify(updErr)))
+    avisar('Error al guardar: ' + (updErr.message || JSON.stringify(updErr)))
     return
   }
   // Si no devolvió filas, el update no se aplicó (probablemente por permisos)
   if (!updData || updData.length === 0) {
-    alert('No se pudo confirmar la recepción (permisos). Avisá a la empresa.')
+    avisar('No se pudo confirmar la recepción (permisos). Avisá a la empresa.')
     console.error('Update de pedido no afectó filas — revisar RLS de pedidos para cliente')
     return
   }
@@ -2440,7 +2499,7 @@ async function nuevoPedido() {
       if (cli) pedidoActual.cliente = cli
     }
     if (!pedidoActual.cliente) {
-      alert('No se encontró tu cuenta de cliente. Avisá a la empresa para que la configure.')
+      avisar('No se encontró tu cuenta de cliente. Avisá a la empresa para que la configure.')
       return
     }
   }
@@ -2823,7 +2882,7 @@ function calcularTotales() {
 
 // ── RESUMEN DEL PEDIDO ───────────────────────────
 function mostrarResumenPedido() {
-  if (!pedidoActual.cliente) { alert('Seleccioná un cliente primero'); return }
+  if (!pedidoActual.cliente) { avisar('Seleccioná un cliente primero'); return }
   const t  = calcularTotales()
   const el = document.getElementById('contenido-resumen-pedido')
 
@@ -2913,7 +2972,7 @@ async function confirmarPedido() {
     : new Date(fechaPedidoStr + 'T12:00:00').toISOString()
 
   if (Object.keys(pedidoActual.items).length === 0) {
-    alert('No hay productos en el pedido'); return
+    avisar('No hay productos en el pedido'); return
   }
 
   // Estado según quién crea
@@ -2981,7 +3040,7 @@ async function confirmarPedido() {
       creado_por_rol:          rol,
       etapa:                   'pedido'
     }).select().single()
-    if (r2.error) { alert('Error al guardar: ' + r2.error.message); return }
+    if (r2.error) { avisar('Error al guardar: ' + r2.error.message); return }
     pedidoFinal = r2.data
   }
   const pedido_ok = pedidoFinal
@@ -3054,9 +3113,9 @@ async function confirmarPedido() {
   pedidoActual = { cliente: null, items: {}, borrador_id: null }
 
   if (rol === 'cliente' || rol === 'vendedor') {
-    alert('✅ Pedido cargado. Quedó pendiente de aprobación.')
+    avisar('✅ Pedido cargado. Quedó pendiente de aprobación.')
   } else {
-    alert('✅ Pedido confirmado correctamente.')
+    avisar('✅ Pedido confirmado correctamente.')
   }
 
   mostrarVistaPedidos('lista')
@@ -3065,7 +3124,7 @@ async function confirmarPedido() {
 
 // ── GUARDAR BORRADOR ─────────────────────────────
 async function guardarBorrador() {
-  if (!pedidoActual.cliente) { alert('Seleccioná un cliente primero'); return }
+  if (!pedidoActual.cliente) { avisar('Seleccioná un cliente primero'); return }
   const t = calcularTotales()
 
   const { data: pedido, error } = await db.from('pedidos').insert({
@@ -3080,7 +3139,7 @@ async function guardarBorrador() {
     observaciones: document.getElementById('pedido-observaciones')?.value || null
   }).select().single()
 
-  if (error) { alert('Error al guardar borrador'); return }
+  if (error) { avisar('Error al guardar borrador'); return }
 
   const itemsParaInsertar = []
   Object.values(pedidoActual.items).forEach(item => {
@@ -3109,7 +3168,7 @@ async function guardarBorrador() {
   if (itemsParaInsertar.length > 0) await db.from('pedido_items').insert(itemsParaInsertar)
   await db.from('pedidos').update({ total_kg: t.totalKg }).eq('id', pedido.id).then(r=>r,()=>{})
 
-  alert('💾 Borrador guardado correctamente')
+  avisar('💾 Borrador guardado correctamente')
   mostrarVistaPedidos('lista')
   cargarPedidos()
 }
@@ -3122,7 +3181,7 @@ async function aprobarPedidoSilencioso(pedidoId) {
     aprobado_por:     usuarioActual.id,
     fecha_aprobacion: new Date().toISOString()
   }).eq('id', pedidoId)
-  if (error) { alert('Error al aprobar: ' + error.message); return }
+  if (error) { avisar('Error al aprobar: ' + error.message); return }
   await registrarHistorial(pedidoId, 'estado_cambiado', 'Pedido aprobado')
 
   const { data: p } = await db.from('pedidos').select('cliente_id, numero').eq('id', pedidoId).single()
@@ -3144,7 +3203,7 @@ async function aprobarPedido(pedidoId) {
     fecha_aprobacion: new Date().toISOString()
   }).eq('id', pedidoId)
 
-  if (error) { alert('Error al aprobar'); return }
+  if (error) { avisar('Error al aprobar'); return }
   await registrarHistorial(pedidoId, 'estado_cambiado', 'Pedido aprobado por el vendedor')
 
   // Notificar al cliente que su pedido fue aceptado
@@ -3405,9 +3464,9 @@ function renderPagoPorVerificar(pg) {
 
 // Rechazar un pago informado
 async function rechazarPagoInformado(pagoId) {
-  if (!confirm('¿Rechazar este pago informado? El cliente deberá volver a informarlo.')) return
+  if (!await confirmar('¿Rechazar este pago informado? El cliente deberá volver a informarlo.', 'Rechazar')) return
   const { error } = await db.from('pagos_informados').update({ estado: 'rechazado', verificado_por: usuarioActual.id }).eq('id', pagoId)
-  if (error) { alert('Error: ' + error.message); return }
+  if (error) { avisar('Error: ' + error.message); return }
   await cargarPagosPorVerificar()
   cambiarPestanaCobranza('verificar')
 }
@@ -4047,7 +4106,7 @@ function limpiarEnvioActual() {
 
 async function confirmarNuevoEnvio() {
   if (_envioActual.pedidos.length === 0) {
-    alert('Agregá al menos un pedido al envío')
+    avisar('Agregá al menos un pedido al envío')
     return
   }
   // Abrir modal de observaciones en vez del prompt
@@ -4092,10 +4151,10 @@ async function _crearEnvio(obs) {
 
   if (error) {
     console.error('Error envio:', error)
-    alert('Error al crear envío: ' + error.message + '\n\nCódigo: ' + error.code)
+    avisar('Error al crear envío: ' + error.message + '\n\nCódigo: ' + error.code)
     return
   }
-  if (!envio) { alert('No se pudo crear el envío. Verificá que el SQL fue ejecutado.'); return }
+  if (!envio) { avisar('No se pudo crear el envío. Verificá que el SQL fue ejecutado.'); return }
 
   // Asociar pedidos al envío
   const items = _envioActual.pedidos.map(pid => ({
@@ -4106,7 +4165,7 @@ async function _crearEnvio(obs) {
   const { error: itemsErr } = await db.from('envio_pedidos').insert(items)
   if (itemsErr) {
     console.error('Error envio_pedidos:', itemsErr)
-    alert('Error al asociar pedidos: ' + itemsErr.message)
+    avisar('Error al asociar pedidos: ' + itemsErr.message)
     return
   }
 
@@ -4126,7 +4185,7 @@ async function _crearEnvio(obs) {
   }
 
   _envioActual = { pedidos: [] }
-  alert(`✅ Envío confirmado. Se notificó a ${items.length} cliente${items.length !== 1 ? 's' : ''}.`)
+  avisar(`✅ Envío confirmado. Se notificó a ${items.length} cliente${items.length !== 1 ? 's' : ''}.`)
   await cargarLogistica()
 }
 
@@ -4421,7 +4480,7 @@ async function cargarPedidosDeEnvio(envioId) {
 }
 
 async function cerrarEnvio(envioId) {
-  const ok = confirm('¿Cerrar este envío? Se marcará como completado.')
+  const ok = await confirmar('¿Cerrar este envío? Se marcará como completado.', 'Cerrar envío')
   if (!ok) return
   await marcarEnvioCompletado(envioId)
   await cargarLogistica()
@@ -4880,12 +4939,12 @@ function _accionesReclamo(n, puedeResolver, yaRespondido, rol) {
 async function responderReclamo(notifId) {
   const input = document.getElementById(`resp-${notifId}`)
   const texto = input?.value.trim()
-  if (!texto) { alert('Escribí la solución'); return }
+  if (!texto) { avisar('Escribí la solución'); return }
 
   const { error } = await db.from('notificaciones_admin')
     .update({ respuesta_solucion: texto, respondido_por: usuarioActual.id })
     .eq('id', notifId)
-  if (error) { alert('Error al responder: ' + error.message); return }
+  if (error) { avisar('Error al responder: ' + error.message); return }
 
   // Notificar al que reportó (si fue el cliente)
   const { data: n } = await db.from('notificaciones_admin')
@@ -4901,18 +4960,18 @@ async function responderReclamo(notifId) {
     })
   }
 
-  alert('✅ Respuesta enviada')
+  avisar('✅ Respuesta enviada')
   await Promise.all([cargarPendientes(), cargarResueltos()])
 }
 
 // El que reportó marca el reclamo como resuelto
 async function marcarReclamoResuelto(notifId) {
-  if (!confirm('¿Confirmás que el reclamo está resuelto?')) return
+  if (!await confirmar('¿Confirmás que el reclamo está resuelto?', 'Sí, resuelto')) return
 
   const { error } = await db.from('notificaciones_admin')
     .update({ estado_problema: 'resuelto', leida: true })
     .eq('id', notifId)
-  if (error) { alert('Error: ' + error.message); return }
+  if (error) { avisar('Error: ' + error.message); return }
 
   await Promise.all([cargarPendientes(), cargarResueltos(), cargarAlertas()])
 }
@@ -5454,7 +5513,7 @@ async function reporteCobranzas(desde, hasta) {
 
 // ── EXPORTAR ──
 function exportarReporteExcel() {
-  if (!_repData || _repData.length === 0) { alert('No hay datos para exportar'); return }
+  if (!_repData || _repData.length === 0) { avisar('No hay datos para exportar'); return }
   const cols = Object.keys(_repData[0])
   const sep = ';'  // Excel en español usa ; como separador de columnas
   const celda = (v) => {
@@ -5477,7 +5536,7 @@ function exportarReporteExcel() {
 }
 
 function exportarReportePDF() {
-  if (!_repData || _repData.length === 0) { alert('No hay datos para exportar'); return }
+  if (!_repData || _repData.length === 0) { avisar('No hay datos para exportar'); return }
   const cols = Object.keys(_repData[0])
   const w = window.open('', '_blank')
   // Columnas que son montos de dinero (llevan $). El resto (#, Pedidos, Fecha, etc.) va tal cual.
@@ -5551,7 +5610,7 @@ async function confirmarInformarPago() {
   const orden  = document.getElementById('ip-orden').value
   const archivoFile = document.getElementById('ip-archivo').files[0]
 
-  if (!monto || monto <= 0) { alert('Ingresá el monto del pago'); return }
+  if (!monto || monto <= 0) { avisar('Ingresá el monto del pago'); return }
 
   const btn = document.getElementById('ip-btn-confirmar')
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando...' }
@@ -5583,7 +5642,7 @@ async function confirmarInformarPago() {
   if (error) {
     // Si la tabla no existe o falla, avisar claramente
     if (btn) { btn.disabled = false; btn.textContent = '✅ Informar pago' }
-    alert('Error al informar el pago: ' + error.message + '\n\nVerificá que la tabla "pagos_informados" exista en la base.')
+    avisar('Error al informar el pago: ' + error.message + '\n\nVerificá que la tabla "pagos_informados" exista en la base.')
     return
   }
 
@@ -5603,7 +5662,7 @@ async function confirmarInformarPago() {
 
   if (btn) { btn.disabled = false; btn.textContent = '✅ Informar pago' }
   cerrarInformarPago()
-  alert('✅ Pago informado. La empresa lo va a verificar pronto.')
+  avisar('✅ Pago informado. La empresa lo va a verificar pronto.')
   cargarCobranza()
 }
 
@@ -5611,7 +5670,7 @@ async function confirmarInformarPago() {
 async function verificarPagoInformado(pagoId) {
   const { data: pago } = await db.from('pagos_informados').select('*').eq('id', pagoId).single()
   if (!pago) return
-  if (!confirm(`¿Verificar el pago de $${Number(pago.monto).toLocaleString('es-AR')}? Se registrará como cobrado.`)) return
+  if (!await confirmar(`¿Verificar el pago de $${Number(pago.monto).toLocaleString('es-AR')}? Se registrará como cobrado.`, 'Verificar')) return
 
   // Registrar el cobro real
   await db.from('cobros').insert({
@@ -5643,7 +5702,7 @@ async function verificarPagoInformado(pagoId) {
     })
   }
 
-  alert('✅ Pago verificado y registrado.')
+  avisar('✅ Pago verificado y registrado.')
   cargarCobranza()
 }
 
@@ -5679,7 +5738,7 @@ const MOTIVOS_RECLAMO = {
 
 function abrirModalReclamo() {
   const modal = document.getElementById('modal-reclamo')
-  if (!modal) { alert('Actualizá la página (Ctrl+Shift+R) para cargar la última versión.'); return }
+  if (!modal) { avisar('Actualizá la página (Ctrl+Shift+R) para cargar la última versión.'); return }
   _reclamoPedidoId = null
   _reclamoTipo = null
   _reclamoMotivo = null
@@ -5776,12 +5835,12 @@ async function reclamoElegirMotivo(motivo) {
 }
 
 async function confirmarReclamo() {
-  if (!_reclamoPedidoId) { alert('Elegí un pedido'); return }
+  if (!_reclamoPedidoId) { avisar('Elegí un pedido'); return }
   const desc = document.getElementById('reclamo-desc').value.trim()
   const fotoFile = document.getElementById('reclamo-foto').files[0]
 
-  if (!desc) { alert('Describí el problema'); return }
-  if (!fotoFile) { alert('La foto/adjunto es obligatoria'); return }
+  if (!desc) { avisar('Describí el problema'); return }
+  if (!fotoFile) { avisar('La foto/adjunto es obligatoria'); return }
 
   const btn = document.getElementById('reclamo-btn')
   if (btn) { btn.disabled = true; btn.textContent = 'Enviando...' }
@@ -5792,7 +5851,7 @@ async function confirmarReclamo() {
   const { error: upErr } = await db.storage.from('comprobantes').upload(path, fotoFile, { upsert: true })
   if (upErr) {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-send"></i> Enviar reclamo' }
-    alert('Error al subir la foto: ' + upErr.message)
+    avisar('Error al subir la foto: ' + upErr.message)
     return
   }
   const { data: ud } = db.storage.from('comprobantes').getPublicUrl(path)
@@ -5817,7 +5876,7 @@ async function confirmarReclamo() {
 
   if (error) {
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-send"></i> Enviar reclamo' }
-    alert('Error al enviar el reclamo: ' + error.message)
+    avisar('Error al enviar el reclamo: ' + error.message)
     return
   }
 
@@ -5844,7 +5903,7 @@ async function confirmarReclamo() {
 
   if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-send"></i> Enviar reclamo' }
   cerrarModalReclamo()
-  alert('✅ Reclamo enviado correctamente.')
+  avisar('✅ Reclamo enviado correctamente.')
   try { await cargarPendientes() } catch(e) {}
 }
 
@@ -5979,13 +6038,13 @@ async function usrToggleVinculoCliente(userId) {
 
 async function aprobarUsuario(userId) {
   const rol = document.getElementById('usr-rol-' + userId).value
-  if (!rol) { alert('Elegí un rol para el usuario'); return }
+  if (!rol) { avisar('Elegí un rol para el usuario'); return }
 
   // Roles que no son cliente: activar directo
   if (rol !== 'cliente') {
     const { error } = await db.from('perfiles').update({ rol: rol, activo: true }).eq('id', userId)
-    if (error) { alert('Error al activar: ' + error.message); return }
-    alert('✅ Usuario activado correctamente')
+    if (error) { avisar('Error al activar: ' + error.message); return }
+    avisar('✅ Usuario activado correctamente')
     await cargarUsuarios()
     return
   }
@@ -5999,12 +6058,12 @@ async function aprobarUsuario(userId) {
   if (modo === 'existe') {
     // Vincular a ficha existente
     const clienteId = document.getElementById('usr-cliente-' + userId).value
-    if (!clienteId) { alert('Elegí a qué cliente vincular este usuario'); return }
+    if (!clienteId) { avisar('Elegí a qué cliente vincular este usuario'); return }
     const { error: errCli } = await db.from('clientes').update({ vendedor_id: nuevoVendedor }).eq('id', clienteId)
-    if (errCli) { alert('Error al asignar vendedor: ' + errCli.message); return }
+    if (errCli) { avisar('Error al asignar vendedor: ' + errCli.message); return }
     const { error } = await db.from('perfiles').update({ rol: 'cliente', activo: true, cliente_id: clienteId }).eq('id', userId)
-    if (error) { alert('Error al activar: ' + error.message); return }
-    alert('✅ Cliente activado y vinculado correctamente')
+    if (error) { avisar('Error al activar: ' + error.message); return }
+    avisar('✅ Cliente activado y vinculado correctamente')
     await cargarUsuarios()
   } else {
     // Cliente nuevo: abrir formulario de ficha precargado
@@ -6033,10 +6092,10 @@ async function abrirFichaNuevoCliente(userId, perfil, vendedorId) {
 }
 
 async function rechazarUsuario(userId) {
-  if (!confirm('¿Rechazar este registro? El usuario no podrá acceder.')) return
+  if (!await confirmar('¿Rechazar este registro? El usuario no podrá acceder.', 'Rechazar')) return
   // Marcar como inactivo (no se puede borrar de auth desde el cliente)
   const { error } = await db.from('perfiles').update({ activo: false }).eq('id', userId)
-  if (error) { alert('Error: ' + error.message); return }
+  if (error) { avisar('Error: ' + error.message); return }
   await cargarUsuarios()
 }
 
@@ -6077,15 +6136,15 @@ async function resetearPasswordUsuario(userId, nombre) {
   const email = prompt(`Para resetear la contraseña de ${nombre}, ingresá su email:`)
   if (!email) return
   const { error } = await db.auth.resetPasswordForEmail(email.trim())
-  if (error) { alert('Error: ' + error.message); return }
-  alert(`✅ Se envió un email a ${email} para restablecer la contraseña.`)
+  if (error) { avisar('Error: ' + error.message); return }
+  avisar(`✅ Se envió un email a ${email} para restablecer la contraseña.`)
 }
 
 async function desactivarUsuario(userId) {
-  if (userId === usuarioActual.id) { alert('No podés desactivar tu propia cuenta'); return }
-  if (!confirm('¿Desactivar este usuario? No podrá acceder hasta que lo reactives.')) return
+  if (userId === usuarioActual.id) { avisar('No podés desactivar tu propia cuenta'); return }
+  if (!await confirmar('¿Desactivar este usuario? No podrá acceder hasta que lo reactives.', 'Desactivar')) return
   const { error } = await db.from('perfiles').update({ activo: false }).eq('id', userId)
-  if (error) { alert('Error: ' + error.message); return }
+  if (error) { avisar('Error: ' + error.message); return }
   await cargarUsuarios()
 }
 
@@ -6139,16 +6198,16 @@ function cerrarClientesUsuario() {
 
 async function reasignarClientesSeleccionados() {
   const ids = Array.from(document.querySelectorAll('.clie-usr-check:checked')).map(c => c.value)
-  if (ids.length === 0) { alert('Seleccioná al menos un cliente'); return }
+  if (ids.length === 0) { avisar('Seleccioná al menos un cliente'); return }
   const destino = document.getElementById('clie-usr-destino').value
   const nuevoVendedorId = destino === 'empresa' ? null : destino
 
-  if (!confirm(`¿Reasignar ${ids.length} cliente(s)?`)) return
+  if (!await confirmar(`¿Reasignar ${ids.length} cliente(s)?`, 'Reasignar')) return
 
   const { error } = await db.from('clientes').update({ vendedor_id: nuevoVendedorId }).in('id', ids)
-  if (error) { alert('Error: ' + error.message); return }
+  if (error) { avisar('Error: ' + error.message); return }
 
-  alert('✅ Clientes reasignados correctamente')
+  avisar('✅ Clientes reasignados correctamente')
   // Recargar la misma vista (si era de un vendedor, esos clientes ya no le pertenecen y desaparecen de la lista)
   const titulo = document.getElementById('clie-usr-titulo').textContent
   if (_clieUsrRol === 'empresa') {
@@ -6353,10 +6412,10 @@ async function abrirEditarObjetivo(clienteId, objetivoActual) {
   const valor = prompt('Objetivo mensual en kg para este cliente (poné 0 para quitar el objetivo):', objetivoActual || '')
   if (valor === null) return
   const num = parseFloat(valor)
-  if (isNaN(num) || num < 0) { alert('Ingresá un número válido'); return }
+  if (isNaN(num) || num < 0) { avisar('Ingresá un número válido'); return }
   const { error } = await db.from('clientes').update({ objetivo_kg_mensual: num }).eq('id', clienteId)
-  if (error) { alert('Error al guardar el objetivo: ' + error.message); return }
-  alert(num > 0 ? `✅ Objetivo de ${num.toLocaleString('es-AR')} kg guardado.` : '✅ Objetivo quitado.')
+  if (error) { avisar('Error al guardar el objetivo: ' + error.message); return }
+  avisar(num > 0 ? `✅ Objetivo de ${num.toLocaleString('es-AR')} kg guardado.` : '✅ Objetivo quitado.')
   // Refrescar la vista actual
   if (rolUsuarioActual === 'cliente') { cargarInicioCliente() }
   else if (clienteEditandoId === clienteId) { abrirFichaCliente(clienteId) }
