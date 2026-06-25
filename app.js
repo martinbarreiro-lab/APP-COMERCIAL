@@ -913,6 +913,12 @@ async function abrirFichaCliente(id) {
     </div>`
 }
 
+// Abre un pedido desde el historial del cliente: primero va a la sección Pedidos
+function abrirPedidoDesdeCliente(id) {
+  mostrarSeccion('pedidos')
+  setTimeout(() => abrirPedido(id), 150)
+}
+
 // Cambiar entre las solapas Datos / Historial de la ficha del cliente
 function cambiarTabFicha(tab) {
   const esDatos = tab === 'datos'
@@ -957,7 +963,7 @@ async function cargarHistorialCliente() {
     const badge = etapaBadge[p.etapa] || ['—','#f3f4f6','#555']
     const eventos = histPorPedido[p.id] || []
     return `
-    <div onclick="abrirPedido('${p.id}')" style="border:0.5px solid var(--color-border-tertiary);border-radius:12px;margin-bottom:12px;overflow:hidden;cursor:pointer">
+    <div onclick="abrirPedidoDesdeCliente('${p.id}')" style="border:0.5px solid var(--color-border-tertiary);border-radius:12px;margin-bottom:12px;overflow:hidden;cursor:pointer">
       <div style="background:var(--color-background-tertiary);padding:11px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:0.5px solid var(--color-border-tertiary)">
         <div style="display:flex;align-items:center;gap:8px">
           <i class="ti ti-package" style="color:var(--color-marca);font-size:17px"></i>
