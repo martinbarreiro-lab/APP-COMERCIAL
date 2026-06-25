@@ -5238,7 +5238,6 @@ async function cargarReporte() {
     else if (_repTipo === 'vendedor')  await reporteVendedor(desde, hasta)
     else if (_repTipo === 'productos') await reporteProductos(desde, hasta)
     else if (_repTipo === 'cobranzas') await reporteCobranzas(desde, hasta)
-    else if (_repTipo === 'kg')        await reporteKgPorProducto(desde, hasta)
     else if (_repTipo === 'evolucion') await reporteEvolucion(desde, hasta)
     else if (_repTipo === 'deuda')     await reporteDeudaAntiguedad(desde, hasta)
     else if (_repTipo === 'inactivos') await reporteClientesInactivos(desde, hasta)
@@ -5447,39 +5446,96 @@ async function reporteProductos(desde, hasta) {
   const ids = (pedidos||[]).map(p => p.id)
   if (ids.length === 0) {
     document.getElementById('rep-contenido').innerHTML = '<p class="vacio">Sin ventas en el período</p>'
-    _repData = []; _repTitulo = 'Productos más vendidos'
+    _repData = []; _repTitulo = 'Productos'
     return
   }
   const { data: items } = await db.from('pedido_items')
-    .select('cantidad, subtotal, productos(descripcion, unidad)').in('pedido_id', ids)
+    .select('cantidad, subtotal, kg, productos(descripcion, unidad, tipo_precio, unidades_por_caja)').in('pedido_id', ids)
+
+  // Determina cómo nombrar la unidad física de un producto y cuántas trae cada caja
+  function unidadFisica(p) {
+    const desc = (p?.descripcion || '').toLowerCase()
+    const tipo = p?.tipo_precio
+    const uxc  = Number(p?.unidades_por_caja) || 1
+    // Manteca (Inty / L.C.Ros): vienen en caja. Pilones si son de 2,5kg o 5kg, paquetes el resto
+    if (tipo === 'por_kg') {
+      const esPilon = /2,5\s*kg|x\s*5\s*kg/i.test(desc)  // "x 2,5 Kg" o "x 5 Kg"
+      return { porCaja: uxc, label: esPilon ? 'pilones' : 'paquetes' }
+    }
+    // Crema en pote por caja (200/350cc): potes
+    if (tipo === 'por_unidad_caja') return { porCaja: uxc, label: 'potes' }
+    // Sueltos (por_unidad): no van por caja
+    if (desc.includes('pote')) return { porCaja: 0, label: 'potes' }
+    return { porCaja: 0, label: 'unidades' }
+  }
 
   const map = {}
   for (const it of (items||[])) {
-    const k = it.productos?.descripcion || '-'
-    if (!map[k]) map[k] = { nombre:k, unidad:it.productos?.unidad||'', cant:0, monto:0, veces:0 }
-    map[k].cant += Number(it.cantidad); map[k].monto += Number(it.subtotal); map[k].veces += 1
+    const p = it.productos
+    const k = p?.descripcion || '-'
+    if (!map[k]) {
+      const uf = unidadFisica(p)
+      map[k] = { nombre:k, cajas:0, fisica:0, fisicaLabel:uf.label, porCaja:uf.porCaja, kg:0, monto:0 }
+    }
+    const cant = Number(it.cantidad) || 0
+    const r = map[k]
+    if (r.porCaja > 0) { r.cajas += cant; r.fisica += cant * r.porCaja }   // se pidió en cajas
+    else { r.fisica += cant }                                              // se pidió suelto (sin cajas)
+    r.kg += Number(it.kg) || 0
+    r.monto += Number(it.subtotal) || 0
   }
+
   const ranking = Object.values(map).sort((a,b)=>b.monto-a.monto)
-  const totalMonto = ranking.reduce((s,r)=>s+r.monto,0)
-  const maxMonto = ranking[0]?.monto || 1
-  _repData = ranking.map((r,i) => ({ '#':i+1, Producto:r.nombre, Cantidad:r.cant, Unidad:r.unidad, 'Veces pedido':r.veces, Monto:r.monto }))
-  _repTitulo = 'Productos más vendidos'
+  const totMonto = ranking.reduce((s,r)=>s+r.monto,0)
+  const totKg    = ranking.reduce((s,r)=>s+r.kg,0)
+  const totCajas = ranking.reduce((s,r)=>s+r.cajas,0)
+
+  _repTitulo = 'Productos'
+  _repData = ranking.map(r => ({
+    Producto: r.nombre,
+    Cajas: r.porCaja > 0 ? r.cajas : '—',
+    Cantidad: `${Math.round(r.fisica)} ${r.fisicaLabel}`,
+    Kg: Math.round(r.kg*10)/10,
+    Facturado: r.monto
+  }))
+  _repData.push({ Producto:'TOTAL', Cajas: totCajas, Cantidad:'—', Kg: Math.round(totKg*10)/10, Facturado: totMonto })
 
   document.getElementById('rep-contenido').innerHTML = `
     <div class="rep-resumen">
-      <div><div class="rep-resumen-l">Más vendido</div><div class="rep-resumen-v" style="font-size:14px">${ranking[0]?.nombre||'-'}</div></div>
-      <div style="text-align:right"><div class="rep-resumen-l">Total</div><div class="rep-resumen-v" style="font-size:15px">${fmtM(totalMonto)}</div></div>
+      <div><div class="rep-resumen-l">Total facturado</div><div class="rep-resumen-v">${fmtM(totMonto)}</div></div>
+      <div style="text-align:right"><div class="rep-resumen-l">Total kg</div><div class="rep-resumen-v" style="font-size:15px">${totKg.toLocaleString('es-AR',{maximumFractionDigits:1})} kg</div></div>
     </div>
-    ${ranking.map((r,i) => `
-      <div class="rep-fila">
-        <div class="rep-rank">${i+1}</div>
-        <div class="rep-fila-info">
-          <div class="rep-fila-nombre">${r.nombre}</div>
-          <div class="rep-fila-detalle">${r.cant.toLocaleString('es-AR')} ${r.unidad} · ${r.veces} pedido${r.veces!==1?'s':''}</div>
-          <div class="rep-fila-bar"><div class="rep-fila-bar-fill" style="width:${Math.round((r.monto/maxMonto)*100)}%"></div></div>
-        </div>
-        <div class="rep-fila-monto">${fmtM(r.monto)}</div>
-      </div>`).join('')}`
+    ${ranking.length === 0 ? '<p class="vacio">Sin ventas en el período</p>' : `
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px">
+      <thead>
+        <tr style="background:var(--color-marca);color:#fff;text-align:left">
+          <th style="padding:9px 10px">Producto</th>
+          <th style="padding:9px 10px;text-align:right">Cajas</th>
+          <th style="padding:9px 10px;text-align:right">Cantidad</th>
+          <th style="padding:9px 10px;text-align:right">Kg</th>
+          <th style="padding:9px 10px;text-align:right">Facturado</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${ranking.map((r,i) => `
+          <tr style="border-bottom:0.5px solid var(--color-border-tertiary);${i%2?'background:var(--color-background-tertiary)':''}">
+            <td style="padding:9px 10px">${r.nombre}</td>
+            <td style="padding:9px 10px;text-align:right">${r.porCaja > 0 ? r.cajas.toLocaleString('es-AR') : '—'}</td>
+            <td style="padding:9px 10px;text-align:right">${Math.round(r.fisica).toLocaleString('es-AR')} ${r.fisicaLabel}</td>
+            <td style="padding:9px 10px;text-align:right">${r.kg.toLocaleString('es-AR',{maximumFractionDigits:1})}</td>
+            <td style="padding:9px 10px;text-align:right;font-weight:600">${fmtM(r.monto)}</td>
+          </tr>`).join('')}
+        <tr style="background:var(--color-marca-oscuro);color:#fff;font-weight:600">
+          <td style="padding:10px">TOTAL</td>
+          <td style="padding:10px;text-align:right">${totCajas.toLocaleString('es-AR')}</td>
+          <td style="padding:10px;text-align:right">—</td>
+          <td style="padding:10px;text-align:right">${totKg.toLocaleString('es-AR',{maximumFractionDigits:1})}</td>
+          <td style="padding:10px;text-align:right">${fmtM(totMonto)}</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>`}`
 }
 
 // ── REPORTE COBRANZAS ──
@@ -5549,48 +5605,6 @@ async function reportePedidosPorEstado(desde, hasta) {
           <div class="rep-fila-bar"><div class="rep-fila-bar-fill" style="width:${Math.round((grupos[e].cant/maxCant)*100)}%"></div></div>
         </div>
         <div class="rep-fila-monto">${grupos[e].cant} · ${fmtM(grupos[e].monto)}</div>
-      </div>`).join('')}`
-}
-
-// ── REPORTE KG POR PRODUCTO ──
-async function reporteKgPorProducto(desde, hasta) {
-  let qp = db.from('pedidos').select('id, vendedor_id').gte('created_at', desde).lte('created_at', hasta).neq('estado','cancelado')
-  qp = await aplicarFiltroVendedorReporte(qp)
-  const { data: peds } = await qp
-  const pedIds = (peds||[]).map(p=>p.id)
-  if (pedIds.length === 0) {
-    _repData = []; _repTitulo = 'Kg vendidos por producto'
-    document.getElementById('rep-contenido').innerHTML = '<p class="vacio">Sin ventas en el período</p>'
-    return
-  }
-  const { data: items } = await db.from('pedido_items').select('producto_id, kg, subtotal, productos(descripcion)').in('pedido_id', pedIds)
-
-  const prod = {}
-  for (const it of (items||[])) {
-    const n = it.productos?.descripcion || 'Sin nombre'
-    if (!prod[n]) prod[n] = { kg:0, monto:0 }
-    prod[n].kg += Number(it.kg)||0
-    prod[n].monto += Number(it.subtotal)||0
-  }
-  const lista = Object.entries(prod).map(([n,v])=>({nombre:n, ...v})).sort((a,b)=>b.kg-a.kg)
-  const totalKg = lista.reduce((s,p)=>s+p.kg,0)
-  const maxKg = Math.max(...lista.map(p=>p.kg), 1)
-
-  _repData = lista.map(p => ({ Producto: p.nombre, Kg: Math.round(p.kg*10)/10, Facturado: p.monto }))
-  _repTitulo = 'Kg vendidos por producto'
-
-  document.getElementById('rep-contenido').innerHTML = `
-    <div class="rep-resumen">
-      <div><div class="rep-resumen-l">Total kg vendidos</div><div class="rep-resumen-v">${totalKg.toLocaleString('es-AR',{maximumFractionDigits:1})} kg</div></div>
-    </div>
-    ${lista.length === 0 ? '<p class="vacio">Sin ventas en el período</p>' :
-      lista.map(p => `
-      <div class="rep-fila">
-        <div class="rep-fila-info">
-          <div class="rep-fila-nombre">${p.nombre}</div>
-          <div class="rep-fila-bar"><div class="rep-fila-bar-fill" style="width:${Math.round((p.kg/maxKg)*100)}%"></div></div>
-        </div>
-        <div class="rep-fila-monto">${p.kg.toLocaleString('es-AR',{maximumFractionDigits:1})} kg</div>
       </div>`).join('')}`
 }
 
