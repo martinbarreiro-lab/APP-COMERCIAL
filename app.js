@@ -959,33 +959,56 @@ async function cargarHistorialCliente() {
 
   const etapaBadge = { pendiente_aprobacion:['Pendiente','#faeeda','#633806'], confirmado:['Confirmado','#e6f1fb','#0c447c'], facturado:['Facturado','#e6f1fb','#0c447c'], enviado:['En camino','#e6f1fb','#0c447c'], recibido:['Entregado','#e6f6ee','#0f6b4d'], cobrado:['Cobrado','#e6f6ee','#0f6b4d'] }
 
-  cont.innerHTML = pedidos.map(p => {
+  cont.innerHTML = pedidos.map((p, idx) => {
     const badge = etapaBadge[p.etapa] || ['—','#f3f4f6','#555']
     const eventos = histPorPedido[p.id] || []
+    const abierto = idx === 0  // el más reciente arranca expandido
     return `
-    <div onclick="abrirPedidoDesdeCliente('${p.id}')" style="border:0.5px solid var(--color-border-tertiary);border-radius:12px;margin-bottom:12px;overflow:hidden;cursor:pointer">
-      <div style="background:var(--color-background-tertiary);padding:11px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:0.5px solid var(--color-border-tertiary)">
+    <div class="hist-ped" data-abierto="${abierto}" style="border:${abierto?'1px solid var(--color-marca)':'0.5px solid var(--color-border-tertiary)'};border-radius:10px;margin-bottom:10px;overflow:hidden">
+      <div onclick="toggleHistPedido(this)" style="padding:11px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;${abierto?'border-bottom:0.5px solid var(--color-background-secondary)':''}">
         <div style="display:flex;align-items:center;gap:8px">
-          <i class="ti ti-package" style="color:var(--color-marca);font-size:17px"></i>
+          <i class="ti ti-package" style="color:var(--color-marca);font-size:16px"></i>
           <div>
             <div style="font-size:13px;font-weight:600;color:var(--color-marca-oscuro)">Pedido #${p.numero}</div>
             <div style="font-size:11px;color:var(--color-text-tertiary)">${formatFecha(p.fecha_pedido || p.created_at)} · $${Number(p.total).toLocaleString('es-AR')}</div>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:6px">
+        <div style="display:flex;align-items:center;gap:8px">
           <span style="background:${badge[1]};color:${badge[2]};font-size:10px;padding:2px 8px;border-radius:6px;font-weight:600">${badge[0]}</span>
-          <i class="ti ti-chevron-right" style="color:var(--color-text-tertiary)"></i>
+          <i class="ti hist-chevron ti-chevron-${abierto?'up':'down'}" style="color:${abierto?'var(--color-marca)':'var(--color-text-tertiary)'}"></i>
         </div>
       </div>
-      <div style="padding:8px 14px">
+      <div class="hist-detalle" style="padding:10px 14px;display:${abierto?'block':'none'}">
         ${eventos.length > 0 ? eventos.map(h => `
           <div style="display:flex;gap:8px;padding:4px 0;font-size:12px">
             <div class="historial-icono" style="font-size:14px;margin-top:1px">${iconAccion(h.accion)}</div>
             <div><span style="color:var(--color-text-primary)">${h.detalle || h.accion}</span> <span style="color:var(--color-text-tertiary)">— ${h.perfiles?.nombre_completo || 'Sistema'}, ${formatFechaHora(h.created_at)}</span></div>
           </div>`).join('') : '<div style="font-size:12px;color:var(--color-text-tertiary);padding:4px 0">Sin eventos registrados</div>'}
+        <button onclick="abrirPedidoDesdeCliente('${p.id}')" style="width:100%;margin-top:10px;background:var(--color-marca);color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px"><i class="ti ti-external-link" aria-hidden="true"></i> Ir al pedido</button>
       </div>
     </div>`
   }).join('')
+}
+
+// Expandir / colapsar un pedido del historial
+function toggleHistPedido(header) {
+  const card = header.closest('.hist-ped')
+  const detalle = card.querySelector('.hist-detalle')
+  const chevron = card.querySelector('.hist-chevron')
+  const abierto = detalle.style.display !== 'none'
+  if (abierto) {
+    detalle.style.display = 'none'
+    card.style.border = '0.5px solid var(--color-border-tertiary)'
+    header.style.borderBottom = ''
+    chevron.className = 'ti hist-chevron ti-chevron-down'
+    chevron.style.color = 'var(--color-text-tertiary)'
+  } else {
+    detalle.style.display = 'block'
+    card.style.border = '1px solid var(--color-marca)'
+    header.style.borderBottom = '0.5px solid var(--color-background-secondary)'
+    chevron.className = 'ti hist-chevron ti-chevron-up'
+    chevron.style.color = 'var(--color-marca)'
+  }
 }
 function editarClienteActual() { if (clienteEditandoId) abrirFormCliente(clienteEditandoId) }
 async function abrirFormCliente(id = null) {
