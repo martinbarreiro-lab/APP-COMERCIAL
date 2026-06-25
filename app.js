@@ -907,8 +907,15 @@ async function abrirFichaCliente(id) {
     </div>
 
     <div id="ficha-panel-historial" style="display:none">
-      <div class="form-card">
-        <div id="ficha-historial-contenido"><p class="vacio">Cargando...</p></div>
+      <div class="hist-layout">
+        <div class="hist-lista-col">
+          <div id="ficha-historial-lista"><p class="vacio">Cargando...</p></div>
+        </div>
+        <div class="hist-detalle-col">
+          <div id="ficha-historial-detalle" class="form-card" style="min-height:200px;display:flex;align-items:center;justify-content:center;color:var(--color-text-tertiary);font-size:13px;text-align:center">
+            <div><i class="ti ti-arrow-left" style="font-size:22px;display:block;margin-bottom:8px;opacity:0.5"></i>Elegí un pedido de la lista<br>para ver su detalle</div>
+          </div>
+        </div>
       </div>
     </div>`
 }
@@ -929,9 +936,12 @@ function cambiarTabFicha(tab) {
   if (!esDatos) cargarHistorialCliente()
 }
 
-// Carga el historial completo del cliente: todos sus pedidos, cada uno con su mini-timeline
+let _histPedidosCache = []
+let _histHistCache = {}
+
+// Carga la lista de pedidos del cliente (columna izquierda)
 async function cargarHistorialCliente() {
-  const cont = document.getElementById('ficha-historial-contenido')
+  const cont = document.getElementById('ficha-historial-lista')
   if (!cont || !clienteEditandoId) return
   cont.innerHTML = '<p class="vacio">Cargando...</p>'
 
@@ -944,71 +954,97 @@ async function cargarHistorialCliente() {
     cont.innerHTML = '<p class="vacio">Este cliente todavía no tiene pedidos</p>'
     return
   }
+  _histPedidosCache = pedidos
 
-  // Traer el historial de todos sus pedidos de una
+  // Traer el historial de todos sus pedidos de una (para mostrarlo en el detalle)
   const ids = pedidos.map(p => p.id)
   const { data: hist } = await db.from('historial_pedido')
     .select('pedido_id, accion, detalle, created_at, perfiles(nombre_completo)')
     .in('pedido_id', ids).order('created_at', { ascending: false })
-
-  const histPorPedido = {}
+  _histHistCache = {}
   ;(hist||[]).forEach(h => {
-    if (!histPorPedido[h.pedido_id]) histPorPedido[h.pedido_id] = []
-    histPorPedido[h.pedido_id].push(h)
+    if (!_histHistCache[h.pedido_id]) _histHistCache[h.pedido_id] = []
+    _histHistCache[h.pedido_id].push(h)
   })
 
   const etapaBadge = { pendiente_aprobacion:['Pendiente','#faeeda','#633806'], confirmado:['Confirmado','#e6f1fb','#0c447c'], facturado:['Facturado','#e6f1fb','#0c447c'], enviado:['En camino','#e6f1fb','#0c447c'], recibido:['Entregado','#e6f6ee','#0f6b4d'], cobrado:['Cobrado','#e6f6ee','#0f6b4d'] }
 
-  cont.innerHTML = pedidos.map((p, idx) => {
-    const badge = etapaBadge[p.etapa] || ['—','#f3f4f6','#555']
-    const eventos = histPorPedido[p.id] || []
-    const abierto = idx === 0  // el más reciente arranca expandido
-    return `
-    <div class="hist-ped" data-abierto="${abierto}" style="border:${abierto?'1px solid var(--color-marca)':'0.5px solid var(--color-border-tertiary)'};border-radius:10px;margin-bottom:10px;overflow:hidden">
-      <div onclick="toggleHistPedido(this)" style="padding:11px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;${abierto?'border-bottom:0.5px solid var(--color-background-secondary)':''}">
-        <div style="display:flex;align-items:center;gap:8px">
-          <i class="ti ti-package" style="color:var(--color-marca);font-size:16px"></i>
-          <div>
-            <div style="font-size:13px;font-weight:600;color:var(--color-marca-oscuro)">Pedido #${p.numero}</div>
-            <div style="font-size:11px;color:var(--color-text-tertiary)">${formatFecha(p.fecha_pedido || p.created_at)} · $${Number(p.total).toLocaleString('es-AR')}</div>
-          </div>
+  cont.innerHTML = '<div style="font-size:10px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Pedidos del cliente</div>' +
+    pedidos.map(p => {
+      const badge = etapaBadge[p.etapa] || ['—','#f3f4f6','#555']
+      return `
+      <div class="hist-ped-item" data-id="${p.id}" onclick="verDetalleHistPedido('${p.id}')" style="background:#fff;border:0.5px solid var(--color-border-tertiary);border-radius:10px;padding:11px 13px;margin-bottom:8px;cursor:pointer">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:13px;font-weight:600;color:var(--color-marca-oscuro)">Pedido #${p.numero}</div>
+          <span style="background:${badge[1]};color:${badge[2]};font-size:9px;padding:2px 7px;border-radius:5px;font-weight:600">${badge[0]}</span>
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="background:${badge[1]};color:${badge[2]};font-size:10px;padding:2px 8px;border-radius:6px;font-weight:600">${badge[0]}</span>
-          <i class="ti hist-chevron ti-chevron-${abierto?'up':'down'}" style="color:${abierto?'var(--color-marca)':'var(--color-text-tertiary)'}"></i>
-        </div>
-      </div>
-      <div class="hist-detalle" style="padding:10px 14px;display:${abierto?'block':'none'}">
-        ${eventos.length > 0 ? eventos.map(h => `
-          <div style="display:flex;gap:8px;padding:4px 0;font-size:12px">
-            <div class="historial-icono" style="font-size:14px;margin-top:1px">${iconAccion(h.accion)}</div>
-            <div><span style="color:var(--color-text-primary)">${h.detalle || h.accion}</span> <span style="color:var(--color-text-tertiary)">— ${h.perfiles?.nombre_completo || 'Sistema'}, ${formatFechaHora(h.created_at)}</span></div>
-          </div>`).join('') : '<div style="font-size:12px;color:var(--color-text-tertiary);padding:4px 0">Sin eventos registrados</div>'}
-        <button onclick="abrirPedidoDesdeCliente('${p.id}')" style="width:100%;margin-top:10px;background:var(--color-marca);color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px"><i class="ti ti-external-link" aria-hidden="true"></i> Ir al pedido</button>
-      </div>
-    </div>`
-  }).join('')
+        <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:3px">${formatFecha(p.fecha_pedido || p.created_at)} · $${Number(p.total).toLocaleString('es-AR')}</div>
+      </div>`
+    }).join('')
+
+  // Abrir automáticamente el primero (más reciente)
+  if (pedidos.length > 0) verDetalleHistPedido(pedidos[0].id)
 }
 
-// Expandir / colapsar un pedido del historial
-function toggleHistPedido(header) {
-  const card = header.closest('.hist-ped')
-  const detalle = card.querySelector('.hist-detalle')
-  const chevron = card.querySelector('.hist-chevron')
-  const abierto = detalle.style.display !== 'none'
-  if (abierto) {
-    detalle.style.display = 'none'
-    card.style.border = '0.5px solid var(--color-border-tertiary)'
-    header.style.borderBottom = ''
-    chevron.className = 'ti hist-chevron ti-chevron-down'
-    chevron.style.color = 'var(--color-text-tertiary)'
-  } else {
-    detalle.style.display = 'block'
-    card.style.border = '1px solid var(--color-marca)'
-    header.style.borderBottom = '0.5px solid var(--color-background-secondary)'
-    chevron.className = 'ti hist-chevron ti-chevron-up'
-    chevron.style.color = 'var(--color-marca)'
-  }
+// Muestra el detalle (solo lectura) de un pedido en la columna derecha
+async function verDetalleHistPedido(id) {
+  // Resaltar el seleccionado en la lista
+  document.querySelectorAll('.hist-ped-item').forEach(el => {
+    const sel = el.dataset.id === id
+    el.style.border = sel ? '1px solid var(--color-marca)' : '0.5px solid var(--color-border-tertiary)'
+    el.style.background = sel ? '#e6f1fb' : '#fff'
+  })
+
+  const det = document.getElementById('ficha-historial-detalle')
+  det.style.display = 'block'; det.style.alignItems = ''; det.style.justifyContent = ''; det.style.textAlign = ''
+  det.innerHTML = '<p class="vacio">Cargando...</p>'
+
+  const { data: p } = await db.from('pedidos').select('*').eq('id', id).single()
+  if (!p) { det.innerHTML = '<p class="vacio">No se pudo cargar el pedido</p>'; return }
+
+  const [{ data: items }, { data: docs }, { data: cobros }] = await Promise.all([
+    db.from('pedido_items').select('cantidad, subtotal, productos(descripcion)').eq('pedido_id', id),
+    db.from('documentos_pedido').select('tipo, archivo_url, nota').eq('pedido_id', id),
+    db.from('cobros').select('medio_pago, monto, created_at').eq('pedido_id', id).order('created_at')
+  ])
+
+  const etapaBadge = { pendiente_aprobacion:['Pendiente','#faeeda','#633806'], confirmado:['Confirmado','#e6f1fb','#0c447c'], facturado:['Facturado','#e6f1fb','#0c447c'], enviado:['En camino','#e6f1fb','#0c447c'], recibido:['Entregado','#e6f6ee','#0f6b4d'], cobrado:['Cobrado','#e6f6ee','#0f6b4d'] }
+  const badge = etapaBadge[p.etapa] || ['—','#f3f4f6','#555']
+  const cobrado = (cobros||[]).reduce((s,c)=>s+Number(c.monto),0)
+  const eventos = _histHistCache[id] || []
+
+  det.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:0.5px solid var(--color-border-tertiary)">
+      <div style="font-size:15px;font-weight:600;color:var(--color-marca-oscuro)">Pedido #${p.numero}</div>
+      <span style="background:${badge[1]};color:${badge[2]};font-size:10px;padding:2px 8px;border-radius:6px;font-weight:600">${badge[0]}</span>
+    </div>
+
+    <div class="form-seccion">RESUMEN</div>
+    <div class="ficha-fila"><span>Fecha</span><span>${formatFecha(p.fecha_pedido || p.created_at)}</span></div>
+    <div class="ficha-fila"><span>Total</span><span><b>$${Number(p.total).toLocaleString('es-AR')}</b></span></div>
+    <div class="ficha-fila"><span>Cobrado</span><span style="color:#0f6b4d"><b>$${cobrado.toLocaleString('es-AR')}</b></span></div>
+    ${Number(p.total)-cobrado > 0 ? `<div class="ficha-fila"><span>Pendiente</span><span style="color:#c0392b"><b>$${(Number(p.total)-cobrado).toLocaleString('es-AR')}</b></span></div>` : ''}
+
+    <div class="form-seccion">PRODUCTOS</div>
+    ${(items||[]).length > 0 ? items.map(it => `
+      <div class="ficha-fila"><span>${it.productos?.descripcion||'-'} · ${Number(it.cantidad)}</span><span>$${Number(it.subtotal).toLocaleString('es-AR')}</span></div>`).join('') : '<p class="vacio">Sin productos</p>'}
+
+    <div class="form-seccion">ADJUNTOS</div>
+    ${(docs||[]).length > 0 ? docs.map(d => `
+      <a href="${d.archivo_url}" target="_blank" style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--color-marca);padding:6px 0;text-decoration:none"><i class="ti ti-file-text"></i> ${labelTipoDoc ? labelTipoDoc(d.tipo) : d.tipo}${d.nota?' — '+d.nota:''} <span style="color:var(--color-text-tertiary)">(ver)</span></a>`).join('') : '<p class="vacio">Sin documentos subidos</p>'}
+
+    <div class="form-seccion">COBROS</div>
+    ${(cobros||[]).length > 0 ? cobros.map(c => `
+      <div class="ficha-fila"><span>${labelMedio ? labelMedio(c.medio_pago) : c.medio_pago} · ${formatFecha(c.created_at)}</span><span>$${Number(c.monto).toLocaleString('es-AR')}</span></div>`).join('') : '<p class="vacio">Sin cobros registrados</p>'}
+
+    <div class="form-seccion">LÍNEA DE TIEMPO</div>
+    ${eventos.length > 0 ? eventos.map(h => `
+      <div style="display:flex;gap:8px;padding:4px 0;font-size:12px">
+        <div class="historial-icono" style="font-size:14px;margin-top:1px">${iconAccion(h.accion)}</div>
+        <div><span style="color:var(--color-text-primary)">${h.detalle || h.accion}</span> <span style="color:var(--color-text-tertiary)">— ${h.perfiles?.nombre_completo || 'Sistema'}, ${formatFechaHora(h.created_at)}</span></div>
+      </div>`).join('') : '<p class="vacio">Sin eventos</p>'}
+
+    <button onclick="abrirPedidoDesdeCliente('${p.id}')" style="width:100%;margin-top:14px;background:var(--color-marca);color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px"><i class="ti ti-external-link" aria-hidden="true"></i> Ir al pedido completo</button>`
 }
 function editarClienteActual() { if (clienteEditandoId) abrirFormCliente(clienteEditandoId) }
 async function abrirFormCliente(id = null) {
