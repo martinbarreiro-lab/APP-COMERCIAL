@@ -5238,6 +5238,11 @@ async function cargarReporte() {
     else if (_repTipo === 'vendedor')  await reporteVendedor(desde, hasta)
     else if (_repTipo === 'productos') await reporteProductos(desde, hasta)
     else if (_repTipo === 'cobranzas') await reporteCobranzas(desde, hasta)
+    else if (_repTipo === 'kg')        await reporteKgPorProducto(desde, hasta)
+    else if (_repTipo === 'evolucion') await reporteEvolucion(desde, hasta)
+    else if (_repTipo === 'deuda')     await reporteDeudaAntiguedad(desde, hasta)
+    else if (_repTipo === 'inactivos') await reporteClientesInactivos(desde, hasta)
+    else if (_repTipo === 'estados')   await reportePedidosPorEstado(desde, hasta)
   } catch (e) {
     console.error('Error en reporte:', e)
     el.innerHTML = '<p style="color:#e24b4a;font-size:13px;padding:20px;text-align:center">Error al generar el reporte</p>'
@@ -5508,6 +5513,207 @@ async function reporteCobranzas(desde, hasta) {
           <div class="rep-fila-bar"><div class="rep-fila-bar-fill" style="width:${Math.round((v/maxMedio)*100)}%"></div></div>
         </div>
         <div class="rep-fila-monto">${fmtM(v)}</div>
+      </div>`).join('')}`
+}
+
+// ── REPORTE PEDIDOS POR ESTADO ──
+async function reportePedidosPorEstado(desde, hasta) {
+  let q = db.from('pedidos').select('etapa, total, vendedor_id').gte('created_at', desde).lte('created_at', hasta).neq('estado','cancelado')
+  q = await aplicarFiltroVendedorReporte(q)
+  const { data: pedidos } = await q
+
+  const etapaLabel = { pendiente_aprobacion:'Pendiente de aprobación', confirmado:'Confirmado', facturado:'Facturado', enviado:'En camino', recibido:'Entregado', cobrado:'Cobrado' }
+  const orden = ['pendiente_aprobacion','confirmado','facturado','enviado','recibido','cobrado']
+
+  const grupos = {}
+  for (const p of (pedidos||[])) {
+    const e = p.etapa || 'confirmado'
+    if (!grupos[e]) grupos[e] = { cant:0, monto:0 }
+    grupos[e].cant++; grupos[e].monto += Number(p.total)||0
+  }
+  const totalPed = (pedidos||[]).length
+  const maxCant = Math.max(...Object.values(grupos).map(g=>g.cant), 1)
+
+  _repData = orden.filter(e=>grupos[e]).map(e => ({ Estado: etapaLabel[e]||e, Pedidos: grupos[e].cant, Monto: grupos[e].monto }))
+  _repTitulo = 'Pedidos por estado'
+
+  document.getElementById('rep-contenido').innerHTML = `
+    <div class="rep-resumen">
+      <div><div class="rep-resumen-l">Total de pedidos</div><div class="rep-resumen-v" style="font-size:18px">${totalPed}</div></div>
+    </div>
+    ${totalPed === 0 ? '<p class="vacio">Sin pedidos en el período</p>' :
+      orden.filter(e=>grupos[e]).map(e => `
+      <div class="rep-fila">
+        <div class="rep-fila-info">
+          <div class="rep-fila-nombre">${etapaLabel[e]||e}</div>
+          <div class="rep-fila-bar"><div class="rep-fila-bar-fill" style="width:${Math.round((grupos[e].cant/maxCant)*100)}%"></div></div>
+        </div>
+        <div class="rep-fila-monto">${grupos[e].cant} · ${fmtM(grupos[e].monto)}</div>
+      </div>`).join('')}`
+}
+
+// ── REPORTE KG POR PRODUCTO ──
+async function reporteKgPorProducto(desde, hasta) {
+  let qp = db.from('pedidos').select('id, vendedor_id').gte('created_at', desde).lte('created_at', hasta).neq('estado','cancelado')
+  qp = await aplicarFiltroVendedorReporte(qp)
+  const { data: peds } = await qp
+  const pedIds = (peds||[]).map(p=>p.id)
+  if (pedIds.length === 0) {
+    _repData = []; _repTitulo = 'Kg vendidos por producto'
+    document.getElementById('rep-contenido').innerHTML = '<p class="vacio">Sin ventas en el período</p>'
+    return
+  }
+  const { data: items } = await db.from('pedido_items').select('producto_id, kg, subtotal, productos(descripcion)').in('pedido_id', pedIds)
+
+  const prod = {}
+  for (const it of (items||[])) {
+    const n = it.productos?.descripcion || 'Sin nombre'
+    if (!prod[n]) prod[n] = { kg:0, monto:0 }
+    prod[n].kg += Number(it.kg)||0
+    prod[n].monto += Number(it.subtotal)||0
+  }
+  const lista = Object.entries(prod).map(([n,v])=>({nombre:n, ...v})).sort((a,b)=>b.kg-a.kg)
+  const totalKg = lista.reduce((s,p)=>s+p.kg,0)
+  const maxKg = Math.max(...lista.map(p=>p.kg), 1)
+
+  _repData = lista.map(p => ({ Producto: p.nombre, Kg: Math.round(p.kg*10)/10, Facturado: p.monto }))
+  _repTitulo = 'Kg vendidos por producto'
+
+  document.getElementById('rep-contenido').innerHTML = `
+    <div class="rep-resumen">
+      <div><div class="rep-resumen-l">Total kg vendidos</div><div class="rep-resumen-v">${totalKg.toLocaleString('es-AR',{maximumFractionDigits:1})} kg</div></div>
+    </div>
+    ${lista.length === 0 ? '<p class="vacio">Sin ventas en el período</p>' :
+      lista.map(p => `
+      <div class="rep-fila">
+        <div class="rep-fila-info">
+          <div class="rep-fila-nombre">${p.nombre}</div>
+          <div class="rep-fila-bar"><div class="rep-fila-bar-fill" style="width:${Math.round((p.kg/maxKg)*100)}%"></div></div>
+        </div>
+        <div class="rep-fila-monto">${p.kg.toLocaleString('es-AR',{maximumFractionDigits:1})} kg</div>
+      </div>`).join('')}`
+}
+
+// ── REPORTE EVOLUCIÓN MENSUAL ──
+async function reporteEvolucion(desde, hasta) {
+  const meses = []
+  const hoy = new Date()
+  for (let i=5; i>=0; i--) {
+    const d = new Date(hoy.getFullYear(), hoy.getMonth()-i, 1)
+    meses.push({ y:d.getFullYear(), m:d.getMonth(), label:d.toLocaleDateString('es-AR',{month:'short',year:'2-digit'}), monto:0 })
+  }
+  const desde6 = new Date(hoy.getFullYear(), hoy.getMonth()-5, 1).toISOString()
+
+  let q = db.from('pedidos').select('total, created_at, vendedor_id').gte('created_at', desde6).neq('estado','cancelado')
+  q = await aplicarFiltroVendedorReporte(q)
+  const { data: pedidos } = await q
+
+  for (const p of (pedidos||[])) {
+    const d = new Date(p.created_at)
+    const mes = meses.find(x => x.y===d.getFullYear() && x.m===d.getMonth())
+    if (mes) mes.monto += Number(p.total)||0
+  }
+  const maxMonto = Math.max(...meses.map(m=>m.monto), 1)
+
+  _repData = meses.map(m => ({ Mes: m.label, Facturado: m.monto }))
+  _repTitulo = 'Evolución mensual (últimos 6 meses)'
+
+  document.getElementById('rep-contenido').innerHTML = `
+    <div class="rep-subtitulo">FACTURACIÓN — ÚLTIMOS 6 MESES</div>
+    <div style="display:flex;align-items:flex-end;gap:8px;height:180px;padding:10px 0 0">
+      ${meses.map(m => `
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end">
+          <div style="font-size:10px;color:var(--color-text-tertiary);margin-bottom:4px">${m.monto>0?'$'+Math.round(m.monto/1000)+'k':''}</div>
+          <div style="width:100%;background:#0d8fd1;border-radius:6px 6px 0 0;height:${Math.round((m.monto/maxMonto)*100)}%;min-height:${m.monto>0?'4px':'0'}"></div>
+          <div style="font-size:11px;color:var(--color-text-secondary);margin-top:6px;text-transform:capitalize">${m.label}</div>
+        </div>`).join('')}
+    </div>`
+}
+
+// ── REPORTE DEUDA POR ANTIGÜEDAD ──
+async function reporteDeudaAntiguedad(desde, hasta) {
+  let q = db.from('pedidos').select('total, monto_cobrado, fecha_vencimiento_cobro, created_at, cliente_id, vendedor_id, clientes(razon_social)')
+    .eq('estado_cobro','pendiente').neq('etapa','cancelado')
+  q = await aplicarFiltroVendedorReporte(q)
+  const { data: pedidos } = await q
+
+  const hoy = new Date()
+  const tramos = { '0-30':0, '31-60':0, '61-90':0, '90+':0 }
+  let totalDeuda = 0
+  for (const p of (pedidos||[])) {
+    const saldo = Number(p.total) - Number(p.monto_cobrado||0)
+    if (saldo <= 0) continue
+    totalDeuda += saldo
+    const ref = p.fecha_vencimiento_cobro ? new Date(p.fecha_vencimiento_cobro) : new Date(p.created_at)
+    const dias = Math.floor((hoy - ref) / (1000*60*60*24))
+    if (dias <= 30) tramos['0-30'] += saldo
+    else if (dias <= 60) tramos['31-60'] += saldo
+    else if (dias <= 90) tramos['61-90'] += saldo
+    else tramos['90+'] += saldo
+  }
+  const maxTramo = Math.max(...Object.values(tramos), 1)
+  const tramoLabel = { '0-30':'Al día / hasta 30 días', '31-60':'31 a 60 días', '61-90':'61 a 90 días', '90+':'Más de 90 días' }
+  const tramoColor = { '0-30':'#1d9e75', '31-60':'#d68910', '61-90':'#e07b39', '90+':'#e24b4a' }
+
+  _repData = Object.entries(tramos).map(([t,v]) => ({ Antigüedad: tramoLabel[t], Deuda: v }))
+  _repData.push({ Antigüedad:'TOTAL', Deuda: totalDeuda })
+  _repTitulo = 'Deuda por antigüedad'
+
+  document.getElementById('rep-contenido').innerHTML = `
+    <div class="rep-resumen">
+      <div><div class="rep-resumen-l">Deuda total pendiente</div><div class="rep-resumen-v" style="color:#e24b4a">${fmtM(totalDeuda)}</div></div>
+    </div>
+    ${totalDeuda === 0 ? '<p class="vacio">No hay deuda pendiente</p>' :
+      Object.entries(tramos).map(([t,v]) => `
+      <div class="rep-fila">
+        <div class="rep-fila-info">
+          <div class="rep-fila-nombre">${tramoLabel[t]}</div>
+          <div class="rep-fila-bar"><div class="rep-fila-bar-fill" style="width:${Math.round((v/maxTramo)*100)}%;background:${tramoColor[t]}"></div></div>
+        </div>
+        <div class="rep-fila-monto">${fmtM(v)}</div>
+      </div>`).join('')}`
+}
+
+// ── REPORTE CLIENTES INACTIVOS ──
+async function reporteClientesInactivos(desde, hasta) {
+  const hoy = new Date()
+  const corte = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()-60).toISOString()
+
+  let qc = db.from('clientes').select('id, razon_social, telefono, vendedor_id').eq('activo', true)
+  if (await cargarRolUsuario() === 'vendedor') qc = qc.eq('vendedor_id', usuarioActual.id)
+  const { data: clientes } = await qc
+
+  let qp = db.from('pedidos').select('cliente_id, created_at').neq('estado','cancelado').order('created_at',{ascending:false})
+  qp = await aplicarFiltroVendedorReporte(qp)
+  const { data: pedidos } = await qp
+
+  const ultimoPedido = {}
+  for (const p of (pedidos||[])) {
+    if (!ultimoPedido[p.cliente_id]) ultimoPedido[p.cliente_id] = p.created_at
+  }
+
+  const inactivos = (clientes||[]).map(c => ({
+    nombre: c.razon_social,
+    telefono: c.telefono,
+    ultimo: ultimoPedido[c.id] || null
+  })).filter(c => !c.ultimo || c.ultimo < corte)
+    .sort((a,b) => (a.ultimo||'') < (b.ultimo||'') ? -1 : 1)
+
+  _repData = inactivos.map(c => ({ Cliente: c.nombre, 'Último pedido': c.ultimo ? formatFecha(c.ultimo) : 'Nunca' }))
+  _repTitulo = 'Clientes inactivos (+60 días sin comprar)'
+
+  document.getElementById('rep-contenido').innerHTML = `
+    <div class="rep-resumen">
+      <div><div class="rep-resumen-l">Clientes inactivos</div><div class="rep-resumen-v" style="font-size:18px">${inactivos.length}</div></div>
+    </div>
+    ${inactivos.length === 0 ? '<p class="vacio">Todos tus clientes compraron recientemente</p>' :
+      inactivos.map(c => `
+      <div class="rep-fila">
+        <div class="rep-fila-info">
+          <div class="rep-fila-nombre">${c.nombre}</div>
+          <div style="font-size:11px;color:var(--color-text-tertiary)">${c.telefono || 'Sin teléfono'}</div>
+        </div>
+        <div class="rep-fila-monto" style="font-size:12px;color:var(--color-text-secondary)">${c.ultimo ? 'Últ: '+formatFecha(c.ultimo) : 'Nunca compró'}</div>
       </div>`).join('')}`
 }
 
