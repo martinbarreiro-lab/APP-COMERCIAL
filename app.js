@@ -2314,6 +2314,25 @@ function limpiarFiltrosPedidos() {
 async function marcarEnviado(pedidoId) {
   const ok = await confirmar('¿Confirmás que la mercadería fue enviada?', 'Confirmar')
   if (!ok) return
+
+  // Verificar si el pedido ya está en algún envío (para no duplicar)
+  const { data: yaEnviado } = await db.from('envio_pedidos').select('id').eq('pedido_id', pedidoId).limit(1)
+
+  if (!yaEnviado || yaEnviado.length === 0) {
+    // Crear un envío para este pedido (cada pedido enviado = un envío)
+    const { data: ped } = await db.from('pedidos').select('total').eq('id', pedidoId).single()
+    const { data: envio, error: envErr } = await db.from('envios').insert({
+      estado:        'en_camino',
+      fecha_salida:  new Date().toISOString(),
+      observaciones: null,
+      creado_por:    usuarioActual.id,
+      total_pedidos: 1,
+      total_monto:   Number(ped?.total) || 0
+    }).select().single()
+    if (envErr) { avisar('Error al crear envío: ' + envErr.message); return }
+    await db.from('envio_pedidos').insert({ envio_id: envio.id, pedido_id: pedidoId, estado: 'pendiente' })
+  }
+
   const { error } = await db.from('pedidos').update({
     etapa:         'enviado',
     fecha_enviado: new Date().toISOString(),
