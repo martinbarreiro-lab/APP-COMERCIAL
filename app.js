@@ -4398,6 +4398,9 @@ async function renderEnviosPorEstado() {
   const enviados  = envios.filter(e => e.estado === 'en_camino')
   const recibidos = envios.filter(e => e.estado !== 'en_camino')
 
+  const rolLog = await cargarRolUsuario()
+  const esClienteLog = rolLog === 'cliente'
+
   // Badges
   const bEnv = document.getElementById('log-badge-enviado')
   const bRec = document.getElementById('log-badge-recibido')
@@ -4407,23 +4410,70 @@ async function renderEnviosPorEstado() {
   // Render pestaña Enviado
   const elEnv = document.getElementById('log-envios-enviado')
   if (elEnv) {
-    elEnv.innerHTML = enviados.length === 0
-      ? '<p class="vacio" style="padding:40px 20px;text-align:center">No hay envíos en camino</p>'
-      : enviados.map(e => renderEnvioCard(e, true)).join('')
+    if (enviados.length === 0) {
+      elEnv.innerHTML = '<p class="vacio" style="padding:40px 20px;text-align:center">No hay envíos en camino</p>'
+    } else if (esClienteLog) {
+      elEnv.innerHTML = (await Promise.all(enviados.map(e => renderEnvioCardCliente(e, true)))).join('')
+    } else {
+      elEnv.innerHTML = enviados.map(e => renderEnvioCard(e, true)).join('')
+    }
   }
 
   // Render pestaña Recibido
   const elRec = document.getElementById('log-envios-recibido')
   if (elRec) {
-    elRec.innerHTML = recibidos.length === 0
-      ? '<p class="vacio" style="padding:40px 20px;text-align:center">No hay envíos recibidos aún</p>'
-      : recibidos.map(e => renderEnvioCard(e, false)).join('')
+    if (recibidos.length === 0) {
+      elRec.innerHTML = '<p class="vacio" style="padding:40px 20px;text-align:center">No hay envíos recibidos aún</p>'
+    } else if (esClienteLog) {
+      elRec.innerHTML = (await Promise.all(recibidos.map(e => renderEnvioCardCliente(e, false)))).join('')
+    } else {
+      elRec.innerHTML = recibidos.map(e => renderEnvioCard(e, false)).join('')
+    }
   }
 
-  // Cargar preview de pedidos
-  for (const e of envios) {
-    cargarPedidosPreview(e.id)
+  // Cargar preview de pedidos (solo en la vista de empresa/vendedor)
+  if (!esClienteLog) {
+    for (const e of envios) {
+      cargarPedidosPreview(e.id)
+    }
   }
+}
+
+// Tarjeta compacta para el CLIENTE: muestra "Pedido #X" en vez de "Envío", con fecha/hora
+async function renderEnvioCardCliente(envio, enCamino) {
+  // Traer el/los pedido(s) del envío (para el cliente suele ser uno)
+  const { data: items } = await db.from('envio_pedidos')
+    .select('pedidos(id, numero, total, etapa, fecha_enviado, updated_at)')
+    .eq('envio_id', envio.id)
+
+  const peds = (items || []).map(i => i.pedidos).filter(Boolean)
+  if (peds.length === 0) return ''
+
+  return peds.map(p => {
+    const recibido = p.etapa === 'recibido'
+    const salida = envio.fecha_salida || p.fecha_enviado
+    const colorBorde = enCamino ? '#0d8fd1' : '#1d9e75'
+    const badge = recibido
+      ? '<span style="background:#e6f6ee;color:#0f6b4d;font-size:10px;padding:2px 7px;border-radius:5px;font-weight:600">Entregado</span>'
+      : '<span style="background:#e6f1fb;color:#0c447c;font-size:10px;padding:2px 7px;border-radius:5px;font-weight:600">En camino</span>'
+
+    return `
+    <div style="background:#fff;border:0.5px solid var(--color-border-tertiary);border-left:3px solid ${colorBorde};border-radius:10px;padding:12px 14px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;align-items:center;gap:7px">
+          <i class="ti ti-package" style="color:var(--color-marca);font-size:16px" aria-hidden="true"></i>
+          <span style="font-size:13px;font-weight:600;color:var(--color-marca-oscuro)">Pedido #${p.numero}</span>
+          ${badge}
+        </div>
+        <span style="font-size:13px;font-weight:600;color:var(--color-marca-oscuro)">$${Number(p.total).toLocaleString('es-AR')}</span>
+      </div>
+      <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:5px;display:flex;gap:14px;flex-wrap:wrap">
+        ${salida ? `<span><i class="ti ti-truck" style="font-size:12px" aria-hidden="true"></i> Salió: ${formatFechaHora(salida)}</span>` : ''}
+        ${recibido && p.updated_at ? `<span><i class="ti ti-circle-check" style="font-size:12px" aria-hidden="true"></i> Recibido: ${formatFechaHora(p.updated_at)}</span>` : ''}
+      </div>
+      ${enCamino ? `<button onclick="marcarRecibido('${p.id}')" style="width:100%;margin-top:10px;background:var(--color-marca);color:#fff;border:none;border-radius:7px;padding:8px;font-size:12px;font-weight:600;cursor:pointer"><i class="ti ti-circle-check" aria-hidden="true"></i> Confirmar recepción</button>` : ''}
+    </div>`
+  }).join('')
 }
 
 async function marcarEnvioCompletado(envioId) {
