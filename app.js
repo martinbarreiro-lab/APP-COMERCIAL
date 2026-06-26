@@ -627,7 +627,7 @@ async function cargarInicioCliente() {
       ${porRecibir.map(p => `
         <div class="cli-alert-recibir">
           <div class="cli-alert-top"><i class="ti ti-truck" aria-hidden="true"></i> Pedido #${p.numero} llegó — confirmá la recepción</div>
-          <button onclick="navMovil('logistica')" class="cli-btn-confirmar"><i class="ti ti-circle-check" aria-hidden="true"></i> Ir a confirmar recepción</button>
+          <button onclick="marcarRecibido('${p.id}')" class="cli-btn-confirmar"><i class="ti ti-circle-check" aria-hidden="true"></i> Ir a confirmar recepción</button>
         </div>`).join('')}` : ''}
 
     <div class="cli-bloque-t">MI CUENTA</div>
