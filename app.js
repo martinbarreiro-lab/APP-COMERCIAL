@@ -147,10 +147,96 @@ function mostrarLoginForm() {
 }
 
 // Registro de un usuario nuevo (queda pendiente)
+// ── SELECTOR GEOGRÁFICO (API Georef del gobierno) ──
+let _provinciasCache = null
+let _municipiosCache = {}  // por provincia_id
+let _provinciaSelId = null
+
+async function _cargarProvincias() {
+  if (_provinciasCache) return _provinciasCache
+  try {
+    const r = await fetch('https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre&max=30', { cache:'no-store' })
+    const j = await r.json()
+    _provinciasCache = (j.provincias || []).sort((a,b) => a.nombre.localeCompare(b.nombre))
+  } catch (e) { _provinciasCache = [] }
+  return _provinciasCache
+}
+
+async function buscarProvincia(texto) {
+  const lista = document.getElementById('reg-provincia-lista')
+  const provincias = await _cargarProvincias()
+  const t = (texto || '').toLowerCase().trim()
+  const filtradas = t ? provincias.filter(p => p.nombre.toLowerCase().includes(t)) : provincias
+  if (filtradas.length === 0) {
+    lista.innerHTML = '<div class="geo-vacio">Sin resultados</div>'
+  } else {
+    lista.innerHTML = filtradas.map(p =>
+      `<div class="geo-item" onclick="elegirProvincia('${p.id}','${p.nombre.replace(/'/g,"\\'")}')">${p.nombre}</div>`).join('')
+  }
+  lista.style.display = 'block'
+}
+
+function elegirProvincia(id, nombre) {
+  document.getElementById('reg-provincia').value = nombre
+  document.getElementById('reg-provincia-id').value = id
+  document.getElementById('reg-provincia-lista').style.display = 'none'
+  _provinciaSelId = id
+  // Habilitar localidad y limpiar la anterior
+  const loc = document.getElementById('reg-localidad')
+  loc.disabled = false
+  loc.value = ''
+  loc.placeholder = 'Escribí para buscar...'
+}
+
+async function _cargarMunicipios(provId) {
+  if (_municipiosCache[provId]) return _municipiosCache[provId]
+  try {
+    const r = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${provId}&campos=id,nombre&max=600`, { cache:'no-store' })
+    const j = await r.json()
+    _municipiosCache[provId] = (j.municipios || []).sort((a,b) => a.nombre.localeCompare(b.nombre))
+  } catch (e) { _municipiosCache[provId] = [] }
+  return _municipiosCache[provId]
+}
+
+async function buscarMunicipio(texto) {
+  if (!_provinciaSelId) return
+  const lista = document.getElementById('reg-localidad-lista')
+  const munis = await _cargarMunicipios(_provinciaSelId)
+  const t = (texto || '').toLowerCase().trim()
+  const filtrados = t ? munis.filter(m => m.nombre.toLowerCase().includes(t)) : munis
+  if (filtrados.length === 0) {
+    lista.innerHTML = '<div class="geo-vacio">Sin resultados</div>'
+  } else {
+    lista.innerHTML = filtrados.slice(0, 50).map(m =>
+      `<div class="geo-item" onclick="elegirMunicipio('${m.nombre.replace(/'/g,"\\'")}')">${m.nombre}</div>`).join('')
+  }
+  lista.style.display = 'block'
+}
+
+function elegirMunicipio(nombre) {
+  document.getElementById('reg-localidad').value = nombre
+  document.getElementById('reg-localidad-lista').style.display = 'none'
+}
+
+// Cerrar las listas geográficas al hacer clic afuera
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#reg-provincia') && !e.target.closest('#reg-provincia-lista')) {
+    const l = document.getElementById('reg-provincia-lista'); if (l) l.style.display = 'none'
+  }
+  if (!e.target.closest('#reg-localidad') && !e.target.closest('#reg-localidad-lista')) {
+    const l = document.getElementById('reg-localidad-lista'); if (l) l.style.display = 'none'
+  }
+})
+
 async function registrarUsuario() {
-  const nombre = document.getElementById('reg-nombre').value.trim()
-  const email  = document.getElementById('reg-email').value.trim()
-  const tel    = document.getElementById('reg-telefono').value.trim()
+  const nombre    = document.getElementById('reg-nombre').value.trim()
+  const cuit      = document.getElementById('reg-cuit').value.trim()
+  const iva       = document.getElementById('reg-iva').value
+  const email     = document.getElementById('reg-email').value.trim()
+  const tel       = document.getElementById('reg-telefono').value.trim()
+  const direccion = document.getElementById('reg-direccion').value.trim()
+  const provincia = document.getElementById('reg-provincia').value.trim()
+  const localidad = document.getElementById('reg-localidad').value.trim()
   const pass   = document.getElementById('reg-password').value
   const pass2  = document.getElementById('reg-password2').value
 
@@ -159,19 +245,32 @@ async function registrarUsuario() {
   errEl.style.display = 'none'; okEl.style.display = 'none'
   const err = (m) => { errEl.textContent = m; errEl.style.display = 'block' }
 
-  if (!nombre || !email || !pass) { err('Completá nombre, email y contraseña'); return }
+  // Todos los campos son obligatorios
+  if (!nombre)    { err('Completá la razón social / nombre'); return }
+  if (!cuit)      { err('Completá el CUIT'); return }
+  if (!iva)       { err('Elegí la condición de IVA'); return }
+  if (!email)     { err('Completá el email'); return }
+  if (!tel)       { err('Completá el teléfono'); return }
+  if (!direccion) { err('Completá la dirección'); return }
+  if (!provincia) { err('Elegí la provincia'); return }
+  if (!localidad) { err('Elegí la localidad'); return }
+  if (!pass)      { err('Completá la contraseña'); return }
   if (pass.length < 6) { err('La contraseña debe tener al menos 6 caracteres'); return }
   if (pass !== pass2) { err('Las contraseñas no coinciden'); return }
 
   const btn = document.getElementById('btn-registrar')
   if (btn) { btn.disabled = true; btn.textContent = 'Creando...' }
 
-  // Crear usuario en auth. El trigger crea el perfil; lo dejamos INACTIVO (pendiente)
-  // No mandamos rol 'pendiente' en metadata porque no es un valor válido del enum.
+  // Crear usuario en auth. Guardamos TODOS los datos del cliente en el metadata,
+  // para precargarlos cuando la empresa apruebe el registro y cree la ficha.
   const { data, error } = await db.auth.signUp({
     email,
     password: pass,
-    options: { data: { nombre_completo: nombre } }
+    options: { data: {
+      nombre_completo: nombre,
+      cuit, condicion_iva: iva, telefono: tel,
+      direccion, provincia, localidad
+    } }
   })
 
   if (error) {
@@ -191,11 +290,18 @@ async function registrarUsuario() {
     return
   }
 
-  // Marcar el perfil como pendiente: activo = false (el rol real lo asigna la empresa al aprobar)
+  // Guardar el perfil como pendiente (activo=false) con TODOS los datos del registro,
+  // para que la empresa los vea precargados al aprobar.
   if (data.user) {
     await db.from('perfiles').update({
       nombre_completo: nombre,
       telefono: tel || null,
+      reg_cuit: cuit || null,
+      reg_condicion_iva: iva || null,
+      reg_email: email || null,
+      reg_direccion: direccion || null,
+      reg_provincia: provincia || null,
+      reg_localidad: localidad || null,
       activo: false
     }).eq('id', data.user.id)
   }
@@ -205,9 +311,12 @@ async function registrarUsuario() {
 
   if (btn) { btn.disabled = false; btn.textContent = 'Crear cuenta' }
   // Limpiar campos del formulario de registro
-  ;['reg-nombre','reg-email','reg-telefono','reg-password','reg-password2'].forEach(id => {
+  ;['reg-nombre','reg-cuit','reg-email','reg-telefono','reg-direccion','reg-provincia','reg-provincia-id','reg-localidad','reg-password','reg-password2'].forEach(id => {
     const e = document.getElementById(id); if (e) e.value = ''
   })
+  const ivaSel = document.getElementById('reg-iva'); if (ivaSel) ivaSel.value = ''
+  const locInp = document.getElementById('reg-localidad'); if (locInp) { locInp.disabled = true; locInp.placeholder = 'Primero elegí provincia' }
+  _provinciaSelId = null
   okEl.style.display = 'none'
 
   // Volver a la pantalla de login y mostrar ahí el mensaje de éxito
@@ -6345,7 +6454,7 @@ let _usrPendientes = [], _usrActivos = []
 async function cargarUsuarios() {
   // Traer todos los perfiles
   const { data: perfiles, error } = await db.from('perfiles')
-    .select('id, nombre_completo, rol, telefono, activo, cliente_id, created_at')
+    .select('id, nombre_completo, rol, telefono, activo, cliente_id, created_at, reg_cuit, reg_condicion_iva, reg_email, reg_direccion, reg_provincia, reg_localidad')
     .order('created_at', { ascending: false })
 
   if (error) { console.error('Error usuarios:', error); return }
@@ -6504,20 +6613,34 @@ async function aprobarUsuario(userId) {
 // Abrir el formulario de cliente para crear la ficha del usuario nuevo
 async function abrirFichaNuevoCliente(userId, perfil, vendedorId) {
   _activandoUsuario = { userId, vendedorId }
-  // Traer el email del usuario desde auth (lo pedimos al admin si no está)
+
   mostrarSeccion('clientes')
   abrirFormCliente(null)  // formulario en blanco para nuevo cliente
+  await cargarProvincias()
 
-  // Precargar nombre y teléfono del registro
-  setTimeout(() => {
-    const rs = document.getElementById('f-razon-social')
-    const tel = document.getElementById('f-telefono')
-    if (rs && perfil) rs.value = perfil.nombre_completo || ''
-    if (tel && perfil) tel.value = perfil.telefono || ''
-    // Aviso de que se está activando un usuario
+  // Precargar todos los datos que la persona cargó al registrarse
+  setTimeout(async () => {
+    const set = (id, val) => { const e = document.getElementById(id); if (e && val) e.value = val }
+    set('f-razon-social', perfil?.nombre_completo)
+    set('f-cuit', perfil?.reg_cuit)
+    set('f-telefono', perfil?.telefono)
+    set('f-email', perfil?.reg_email)
+    set('f-direccion', perfil?.reg_direccion)
+    const ivaSel = document.getElementById('f-condicion-iva')
+    if (ivaSel && perfil?.reg_condicion_iva) ivaSel.value = perfil.reg_condicion_iva
+    // Provincia y localidad (la localidad necesita que primero se carguen las de esa provincia)
+    if (perfil?.reg_provincia) {
+      const provSel = document.getElementById('f-provincia')
+      if (provSel) {
+        provSel.value = perfil.reg_provincia
+        await cargarLocalidades()
+        const locSel = document.getElementById('f-localidad')
+        if (locSel && perfil?.reg_localidad) locSel.value = perfil.reg_localidad
+      }
+    }
     const titulo = document.getElementById('titulo-form-cliente')
     if (titulo) titulo.textContent = 'Nuevo cliente (activar acceso)'
-  }, 150)
+  }, 200)
 }
 
 async function rechazarUsuario(userId) {
