@@ -1934,12 +1934,40 @@ async function cargarProductosPedido(pedidoId) {
 }
 
 async function cargarCobrosPedido(pedidoId) {
-  const { data: pedido } = await db.from('pedidos').select('total, monto_cobrado, estado_cobro').eq('id', pedidoId).single()
+  const { data: pedido } = await db.from('pedidos').select('subtotal, descuento, iva_total, iva_rg, total, monto_cobrado, estado_cobro').eq('id', pedidoId).single()
   const { data: cobros } = await db.from('cobros').select('*').eq('pedido_id', pedidoId).order('created_at')
   const total = Number(pedido?.total || 0)
   const cobrado = Number(pedido?.monto_cobrado || 0)
   const pendiente = total - cobrado
   const pct = total > 0 ? Math.min((cobrado / total) * 100, 100) : 0
+
+  // Reconstruir el desglose fiscal a partir de lo guardado
+  const subtotal = Number(pedido?.subtotal || 0)
+  const descuento = Number(pedido?.descuento || 0)
+  const ivaTotal = Number(pedido?.iva_total || 0)
+  const ivaRG = Number(pedido?.iva_rg || 0)
+  const neto = subtotal - descuento
+  // La parte facturada sale del IVA: parteFacturada = iva_total / 0.21
+  const parteFacturada = ivaTotal > 0 ? ivaTotal / 0.21 : 0
+  const parteRemito = Math.max(neto - parteFacturada, 0)
+
+  const desgloseEl = document.getElementById('desglose-fiscal-pedido')
+  if (desgloseEl) {
+    desgloseEl.innerHTML = `
+      <div class="resumen-fiscal">
+        <div class="fiscal-fila"><span>Subtotal:</span><span>$${subtotal.toLocaleString('es-AR')}</span></div>
+        ${descuento > 0 ? `<div class="fiscal-fila"><span>Descuento:</span><span>- $${descuento.toLocaleString('es-AR')}</span></div>` : ''}
+        <div class="fiscal-fila"><span>Neto:</span><span>$${neto.toLocaleString('es-AR')}</span></div>
+        <div class="fiscal-separador"></div>
+        ${parteRemito > 0 ? `<div class="fiscal-fila"><span>Parte Remito:</span><span>$${Math.round(parteRemito).toLocaleString('es-AR')}</span></div>` : ''}
+        ${parteFacturada > 0 ? `<div class="fiscal-fila"><span>Parte Factura:</span><span>$${Math.round(parteFacturada).toLocaleString('es-AR')}</span></div>` : ''}
+        ${ivaTotal > 0 ? `<div class="fiscal-fila"><span>IVA 21% s/factura:</span><span>$${ivaTotal.toLocaleString('es-AR')}</span></div>` : ''}
+        ${ivaRG > 0 ? `<div class="fiscal-fila"><span>IVA RG-5329 3% s/factura:</span><span>$${ivaRG.toLocaleString('es-AR')}</span></div>` : ''}
+        ${ivaTotal === 0 && parteRemito > 0 ? `<div class="fiscal-fila"><span>Todo Remito (sin IVA)</span><span></span></div>` : ''}
+        <div class="fiscal-fila total-fila"><span>TOTAL:</span><span>$${total.toLocaleString('es-AR')}</span></div>
+      </div>`
+  }
+
   document.getElementById('resumen-cobro').innerHTML = `
     <div class="cobro-resumen">
       <div class="cobro-barra-wrap">
@@ -3128,24 +3156,27 @@ function calcularTotales() {
   let montoRemito  = 0
   let montoFactura = 0
   let ivaTotal     = 0
+  let ivaRG        = 0   // IVA RG-5329: 3% sobre la parte facturada
 
   if (factura === 'todo_remito') {
     montoRemito = neto
   } else if (factura === 'todo_factura') {
     montoFactura = neto
     ivaTotal     = neto * (iva / 100)
+    ivaRG        = neto * 0.03
   } else if (factura === 'mixto') {
     montoRemito  = neto * (pctRemito / 100)
     montoFactura = neto * (pctFact / 100)
     ivaTotal     = montoFactura * (iva / 100)
+    ivaRG        = montoFactura * 0.03
   }
 
-  const total = neto + ivaTotal
+  const total = neto + ivaTotal + ivaRG
 
   let bonifDetalle = ''
   if (bonif > 0) bonifDetalle = `${bonif}% de mercadería extra`
 
-  return { subtotal, descuentoMonto, neto, montoRemito, montoFactura, ivaTotal, total, totalKg, lineas, bonifDetalle, iva, factura, pctRemito, pctFact }
+  return { subtotal, descuentoMonto, neto, montoRemito, montoFactura, ivaTotal, ivaRG, total, totalKg, lineas, bonifDetalle, iva, factura, pctRemito, pctFact }
 }
 
 // ── RESUMEN DEL PEDIDO ───────────────────────────
@@ -3183,8 +3214,10 @@ function mostrarResumenPedido() {
           <div class="fiscal-fila"><span>Remito (${t.pctRemito}%):</span><span>$${Number(t.montoRemito).toLocaleString('es-AR')}</span></div>
           <div class="fiscal-fila"><span>Factura (${t.pctFact}%):</span><span>$${Number(t.montoFactura).toLocaleString('es-AR')}</span></div>
           <div class="fiscal-fila"><span>IVA ${t.iva}% s/factura:</span><span>$${Number(t.ivaTotal).toLocaleString('es-AR')}</span></div>
+          <div class="fiscal-fila"><span>IVA RG-5329 3% s/factura:</span><span>$${Number(t.ivaRG).toLocaleString('es-AR')}</span></div>
         ` : t.factura === 'todo_factura' ? `
           <div class="fiscal-fila"><span>IVA ${t.iva}%:</span><span>$${Number(t.ivaTotal).toLocaleString('es-AR')}</span></div>
+          <div class="fiscal-fila"><span>IVA RG-5329 3%:</span><span>$${Number(t.ivaRG).toLocaleString('es-AR')}</span></div>
         ` : `
           <div class="fiscal-fila"><span>Todo Remito (sin IVA)</span><span></span></div>
         `}
@@ -3280,6 +3313,7 @@ async function confirmarPedido() {
     subtotal:                t.subtotal,
     descuento:               t.descuentoMonto,
     iva_total:               t.ivaTotal,
+    iva_rg:                  t.ivaRG,
     total:                   t.total,
     condicion_pago:          'contado',
     observaciones:           obs || null,
@@ -3301,6 +3335,7 @@ async function confirmarPedido() {
       subtotal:                t.subtotal,
       descuento:               t.descuentoMonto,
       iva_total:               t.ivaTotal,
+    iva_rg:                  t.ivaRG,
       total:                   t.total,
       condicion_pago:          'contado',
       observaciones:           obs || null,
@@ -3402,6 +3437,7 @@ async function guardarBorrador() {
     subtotal:    t.subtotal,
     descuento:   t.descuentoMonto,
     iva_total:   t.ivaTotal,
+    iva_rg:      t.ivaRG,
     total:       t.total,
     etapa:       'pedido',
     observaciones: document.getElementById('pedido-observaciones')?.value || null
