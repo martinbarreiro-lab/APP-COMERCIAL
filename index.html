@@ -61,9 +61,33 @@
         <div style="font-size:12px;color:var(--color-text-tertiary);margin-bottom:14px">Registrate y la empresa activará tu acceso</div>
         <div id="registro-error" class="error-msg" style="display:none"></div>
         <div id="registro-ok" style="display:none;background:#e1f5ee;color:#085041;border-radius:8px;padding:12px;font-size:13px;margin-bottom:12px"></div>
-        <div class="campo"><label>Nombre completo</label><input type="text" id="reg-nombre" placeholder="Tu nombre o empresa"></div>
+        <div class="campo"><label>Razón social / Nombre</label><input type="text" id="reg-nombre" placeholder="Nombre o razón social"></div>
+        <div class="campo"><label>CUIT</label><input type="text" id="reg-cuit" placeholder="20-12345678-9"></div>
+        <div class="campo"><label>Condición IVA</label>
+          <select id="reg-iva">
+            <option value="">Elegí una opción...</option>
+            <option value="responsable_inscripto">Responsable inscripto</option>
+            <option value="monotributo">Monotributo</option>
+            <option value="exento">Exento</option>
+            <option value="consumidor_final">Consumidor final</option>
+          </select>
+        </div>
         <div class="campo"><label>Email</label><input type="email" id="reg-email" placeholder="tu@email.com"></div>
         <div class="campo"><label>Teléfono</label><input type="text" id="reg-telefono" placeholder="341 555 1234"></div>
+        <div class="campo"><label>Dirección</label><input type="text" id="reg-direccion" placeholder="Calle 1234"></div>
+        <div class="campo"><label>Provincia</label>
+          <div style="position:relative">
+            <input type="text" id="reg-provincia" placeholder="Escribí para buscar..." autocomplete="off" oninput="buscarProvincia(this.value)" onfocus="buscarProvincia(this.value)">
+            <input type="hidden" id="reg-provincia-id">
+            <div id="reg-provincia-lista" class="geo-lista" style="display:none"></div>
+          </div>
+        </div>
+        <div class="campo"><label>Localidad</label>
+          <div style="position:relative">
+            <input type="text" id="reg-localidad" placeholder="Primero elegí provincia" autocomplete="off" disabled oninput="buscarMunicipio(this.value)" onfocus="buscarMunicipio(this.value)">
+            <div id="reg-localidad-lista" class="geo-lista" style="display:none"></div>
+          </div>
+        </div>
         <div class="campo"><label>Contraseña</label>
           <div style="position:relative">
             <input type="password" id="reg-password" placeholder="Mínimo 6 caracteres" style="padding-right:42px">
