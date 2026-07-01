@@ -1850,6 +1850,10 @@ async function abrirPedido(id) {
   await cargarHistorialPedido(id)
   await actualizarEtapaPedido(id, p)
 
+  // Conectar el botón de PDF de la cabecera de Productos
+  const btnPdf = document.getElementById('btn-pdf-pedido')
+  if (btnPdf) btnPdf.onclick = () => descargarPDF(id)
+
   // El cliente NO puede subir documentos/facturas (solo la empresa)
   const rolDoc = await cargarRolUsuario()
   const btnSubirDoc = document.getElementById('btn-subir-documento')
@@ -1876,10 +1880,6 @@ async function abrirPedido(id) {
           <i class="ti ti-truck" aria-hidden="true"></i> Marcar como enviado
         </button>` : ''}
 
-      ${etapaActual3 !== 'cancelado' ? `
-        <button onclick="descargarPDF('${id}')" class="btn-secundario">
-          <i class="ti ti-file-download" aria-hidden="true"></i> Descargar PDF
-        </button>` : ''}
       ${!['cobrado','cancelado'].includes(etapaActual3) && (esAdmin3 || esVendedor3) ? `
         <button onclick="cancelarPedido('${id}')" class="btn-cancelar"><i class="ti ti-ban" aria-hidden="true"></i> Cancelar</button>
       ` : ''}
@@ -2688,79 +2688,132 @@ async function descargarPDF(pedidoId) {
 
 function generarHTMLPDF(p, items, cobros, historial) {
   const cliente = p.clientes
+
+  // Reconstruir desglose fiscal a partir de lo guardado
+  const subtotal = Number(p.subtotal || 0)
+  const descuento = Number(p.descuento || 0)
+  const ivaTotal = Number(p.iva_total || 0)
+  const ivaRG = Number(p.iva_rg || 0)
+  const neto = subtotal - descuento
+  const parteFacturada = ivaTotal > 0 ? ivaTotal / 0.21 : 0
+  const parteRemito = Math.max(neto - parteFacturada, 0)
+  const totalKg = (items || []).reduce((s, i) => s + (Number(i.kg) || 0), 0)
+
+  const filaItem = (i) => {
+    const pr = i.productos || {}
+    const t = pr.tipo_precio || 'por_unidad'
+    const uxc = Number(pr.unidades_por_caja) || 0
+    const kg = Number(i.kg) || 0
+    let detalle = ''
+    if ((t === 'por_kg' || t === 'por_unidad_caja') && uxc > 0) {
+      const tot = Number(i.cantidad) * uxc
+      const nu = t === 'por_kg' ? 'paq' : 'potes'
+      detalle = `${tot} ${nu}${kg > 0 ? ' · ' + kg.toFixed(1) + ' kg' : ''}`
+    } else if (kg > 0) { detalle = `${kg.toFixed(1)} kg` }
+    return `<tr>
+      <td><b>${pr.descripcion || '-'}</b>${detalle ? `<br><span class="det">${detalle}</span>` : ''}</td>
+      <td class="c">${i.cantidad} ${pr.unidad || ''}</td>
+      <td class="r">$${Number(i.precio_unitario).toLocaleString('es-AR')}</td>
+      <td class="r">$${Number(i.subtotal).toLocaleString('es-AR')}</td>
+    </tr>`
+  }
+
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <title>Pedido #${p.numero} — La Cabaña</title>
   <style>
-    body { font-family: Arial, sans-serif; color: #1a1a1a; padding: 24px; max-width: 700px; margin: 0 auto; }
-    h1 { font-size: 22px; color: #1a3a2a; margin-bottom: 4px; }
-    .subtitulo { color: #888; font-size: 13px; margin-bottom: 24px; }
-    .seccion { margin-bottom: 20px; }
-    .seccion-titulo { font-size: 11px; font-weight: bold; color: #2d6a4f; letter-spacing: 1px; text-transform: uppercase; border-bottom: 2px solid #e8f5e9; padding-bottom: 6px; margin-bottom: 10px; }
-    .fila { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
-    .fila span:first-child { color: #888; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th { background: #f8f8f8; padding: 8px; text-align: left; border-bottom: 1px solid #eee; }
-    td { padding: 8px; border-bottom: 1px solid #f5f5f5; }
-    .total-row { font-weight: bold; font-size: 16px; }
-    .timeline-item { display: flex; gap: 12px; padding: 8px 0; font-size: 13px; }
-    .timeline-icono { color: #2d6a4f; font-size: 16px; width: 20px; }
-    @media print { body { padding: 0; } }
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; color: #222; margin: 0; padding: 32px; max-width: 780px; margin: 0 auto; font-size: 13px; }
+    .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #0d8fd1; padding-bottom: 16px; margin-bottom: 22px; }
+    .head-left h1 { font-size: 20px; color: #0c447c; margin: 0 0 2px; }
+    .head-left .coop { font-size: 12px; color: #666; }
+    .head-right { text-align: right; }
+    .head-right .ped-num { font-size: 22px; font-weight: bold; color: #0d8fd1; }
+    .head-right .ped-fecha { font-size: 11px; color: #888; margin-top: 2px; }
+    .grid2 { display: flex; gap: 24px; margin-bottom: 22px; }
+    .box { flex: 1; background: #f7f9fb; border-radius: 8px; padding: 14px 16px; }
+    .box-titulo { font-size: 10px; font-weight: bold; color: #0d8fd1; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+    .box .fila { display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px; }
+    .box .fila span:first-child { color: #888; }
+    .seccion-titulo { font-size: 11px; font-weight: bold; color: #0c447c; letter-spacing: 1px; text-transform: uppercase; margin: 22px 0 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead { display: table-header-group; }
+    tr { page-break-inside: avoid; }
+    th { background: #0d8fd1; color: #fff; padding: 9px 10px; text-align: left; font-size: 11px; }
+    th.r, td.r { text-align: right; }
+    th.c, td.c { text-align: center; }
+    td { padding: 9px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+    td .det { color: #999; font-size: 10px; }
+    tbody tr:nth-child(even) { background: #f7f9fb; }
+    .fiscal { margin-top: 8px; margin-left: auto; width: 320px; }
+    .fiscal .fila { display: flex; justify-content: space-between; padding: 5px 0; font-size: 12px; border-bottom: 1px solid #f0f0f0; }
+    .fiscal .fila span:first-child { color: #666; }
+    .fiscal .total { font-size: 16px; font-weight: bold; color: #0c447c; border-top: 2px solid #0d8fd1; border-bottom: none; padding-top: 8px; margin-top: 4px; }
+    .cobros .fila { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f0f0f0; font-size: 12px; }
+    .vacio { color: #999; font-size: 12px; font-style: italic; }
+    .footer { margin-top: 30px; padding-top: 14px; border-top: 1px solid #eee; font-size: 10px; color: #aaa; text-align: center; }
+    @media print { body { padding: 12px; } .box { background: #f7f9fb !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } th { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
   </style>
 </head>
 <body>
-  <h1>🥛 La Cabaña — Pedido #${p.numero}</h1>
-  <p class="subtitulo">Generado el ${new Date().toLocaleString('es-AR')}</p>
-
-  <div class="seccion">
-    <div class="seccion-titulo">Datos del cliente</div>
-    <div class="fila"><span>Cliente</span><span>${cliente?.razon_social || '-'}</span></div>
-    <div class="fila"><span>CUIT</span><span>${cliente?.cuit || '-'}</span></div>
-    <div class="fila"><span>Condición IVA</span><span>${cliente?.condicion_iva?.replace(/_/g,' ') || '-'}</span></div>
-    <div class="fila"><span>Facturación</span><span>${labelFacturacion(cliente?.condicion_factura, cliente?.pct_remito, cliente?.pct_factura)}</span></div>
+  <div class="head">
+    <div class="head-left">
+      <h1>La Cabaña</h1>
+      <div class="coop">Cooperativa de Trabajo</div>
+    </div>
+    <div class="head-right">
+      <div class="ped-num">Pedido #${p.numero}</div>
+      <div class="ped-fecha">${formatFecha(p.fecha_pedido || p.created_at)}</div>
+    </div>
   </div>
 
-  <div class="seccion">
-    <div class="seccion-titulo">Productos</div>
-    <table>
-      <thead><tr><th>Descripción</th><th>Cantidad</th><th>Precio unit.</th><th>Subtotal</th></tr></thead>
-      <tbody>
-        ${items?.map(i => `<tr>
-          <td>${i.productos?.descripcion || '-'}</td>
-          <td>${i.cantidad} ${i.productos?.unidad || ''}${(()=>{const pr=i.productos||{};const t=pr.tipo_precio||'por_unidad';const uxc=Number(pr.unidades_por_caja)||0;const kg=Number(i.kg)||0;if((t==='por_kg'||t==='por_unidad_caja')&&uxc>0){const tot=Number(i.cantidad)*uxc;const nu=t==='por_kg'?'paq':'potes';return ` (${tot} ${nu}${kg>0?' · '+kg.toFixed(1)+' kg':''})`}else if(kg>0){return ` (${kg.toFixed(1)} kg)`}return ''})()}</td>
-          <td>$${Number(i.precio_unitario).toLocaleString('es-AR')}</td>
-          <td>$${Number(i.subtotal).toLocaleString('es-AR')}</td>
-        </tr>`).join('') || '<tr><td colspan="4">Sin items</td></tr>'}
-        <tr class="total-row">
-          <td colspan="3">TOTAL</td>
-          <td>$${Number(p.total).toLocaleString('es-AR')}</td>
-        </tr>
-      </tbody>
-    </table>
+  <div class="grid2">
+    <div class="box">
+      <div class="box-titulo">Cliente</div>
+      <div class="fila"><span>Razón social</span><span><b>${cliente?.razon_social || '-'}</b></span></div>
+      <div class="fila"><span>CUIT</span><span>${cliente?.cuit || '-'}</span></div>
+      <div class="fila"><span>Condición IVA</span><span>${cliente?.condicion_iva?.replace(/_/g,' ') || '-'}</span></div>
+      ${cliente?.direccion ? `<div class="fila"><span>Dirección</span><span>${cliente.direccion}</span></div>` : ''}
+      ${cliente?.localidad ? `<div class="fila"><span>Localidad</span><span>${cliente.localidad}${cliente.provincia ? ', ' + cliente.provincia : ''}</span></div>` : ''}
+    </div>
+    <div class="box">
+      <div class="box-titulo">Facturación</div>
+      <div class="fila"><span>Modalidad</span><span>${labelFacturacion(cliente?.condicion_factura, cliente?.pct_remito, cliente?.pct_factura)}</span></div>
+      <div class="fila"><span>Vencimiento</span><span>${p.fecha_vencimiento_cobro ? formatFecha(p.fecha_vencimiento_cobro) : '-'}</span></div>
+      <div class="fila"><span>Total kg</span><span>${totalKg.toFixed(1)} kg</span></div>
+    </div>
   </div>
 
-  <div class="seccion">
-    <div class="seccion-titulo">Cobros recibidos</div>
-    ${cobros?.map(c => `
+  <div class="seccion-titulo">Productos</div>
+  <table>
+    <thead><tr><th>Producto</th><th class="c">Cantidad</th><th class="r">Precio unit.</th><th class="r">Subtotal</th></tr></thead>
+    <tbody>
+      ${items?.map(filaItem).join('') || '<tr><td colspan="4" class="vacio">Sin productos</td></tr>'}
+    </tbody>
+  </table>
+
+  <div class="fiscal">
+    <div class="fila"><span>Subtotal</span><span>$${subtotal.toLocaleString('es-AR')}</span></div>
+    ${descuento > 0 ? `<div class="fila"><span>Descuento</span><span>- $${descuento.toLocaleString('es-AR')}</span></div><div class="fila"><span>Neto</span><span>$${neto.toLocaleString('es-AR')}</span></div>` : ''}
+    ${parteRemito > 0 ? `<div class="fila"><span>Parte Remito</span><span>$${Math.round(parteRemito).toLocaleString('es-AR')}</span></div>` : ''}
+    ${parteFacturada > 0 ? `<div class="fila"><span>Parte Factura</span><span>$${Math.round(parteFacturada).toLocaleString('es-AR')}</span></div>` : ''}
+    ${ivaTotal > 0 ? `<div class="fila"><span>IVA 21% s/factura</span><span>$${ivaTotal.toLocaleString('es-AR')}</span></div>` : ''}
+    ${ivaRG > 0 ? `<div class="fila"><span>IVA RG-5329 3% s/factura</span><span>$${ivaRG.toLocaleString('es-AR')}</span></div>` : ''}
+    <div class="fila total"><span>TOTAL</span><span>$${Number(p.total).toLocaleString('es-AR')}</span></div>
+  </div>
+
+  <div class="seccion-titulo">Cobros recibidos</div>
+  <div class="cobros">
+    ${cobros?.length ? cobros.map(c => `
       <div class="fila">
         <span>${labelMedio(c.medio_pago)}</span>
-        <span>$${Number(c.monto).toLocaleString('es-AR')} · ${formatFechaHora(c.created_at)}</span>
-      </div>`).join('') || '<p style="color:#888; font-size:13px">Sin cobros registrados</p>'}
+        <span>$${Number(c.monto).toLocaleString('es-AR')} · ${formatFecha(c.created_at)}</span>
+      </div>`).join('') : '<p class="vacio">Sin cobros registrados</p>'}
   </div>
 
-  <div class="seccion">
-    <div class="seccion-titulo">Línea de tiempo</div>
-    ${historial?.map(h => `
-      <div class="timeline-item">
-        <span class="timeline-icono">${iconAccion(h.accion)}</span>
-        <div>
-          <div>${h.detalle}</div>
-          <div style="color:#888; font-size:11px">${formatFechaHora(h.created_at)}</div>
-        </div>
-      </div>`).join('') || '<p style="color:#888; font-size:13px">Sin historial</p>'}
-  </div>
+  <div class="footer">La Cabaña — Cooperativa de Trabajo · Documento generado el ${new Date().toLocaleString('es-AR')}</div>
 </body>
 </html>`
 }
