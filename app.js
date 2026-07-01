@@ -757,6 +757,7 @@ async function cargarInicioCliente() {
           <span style="font-size:13px;font-weight:600;color:var(--color-marca-oscuro)">${fmtM(p.total)}</span>
         </div>
         ${renderTrackCliente(p)}
+        <button onclick="descargarPDF('${p.id}')" class="btn-secundario" style="width:100%;margin-top:10px;font-size:12px;padding:8px"><i class="ti ti-file-download" aria-hidden="true"></i> Descargar PDF</button>
       </div>`).join('')}`
 }
 
@@ -1875,7 +1876,7 @@ async function abrirPedido(id) {
           <i class="ti ti-truck" aria-hidden="true"></i> Marcar como enviado
         </button>` : ''}
 
-      ${etapaActual3 === 'cobrado' ? `
+      ${etapaActual3 !== 'cancelado' ? `
         <button onclick="descargarPDF('${id}')" class="btn-secundario">
           <i class="ti ti-file-download" aria-hidden="true"></i> Descargar PDF
         </button>` : ''}
