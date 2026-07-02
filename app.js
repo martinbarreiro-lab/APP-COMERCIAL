@@ -1922,6 +1922,14 @@ async function cargarProductosPedido(pedidoId) {
     .eq('pedido_id', pedidoId)
   const el = document.getElementById('productos-pedido')
   if (!items || items.length === 0) { el.innerHTML = '<p class="vacio">Sin productos</p>'; return }
+
+  // Traer bonificación del cliente y total_kg del pedido para el resumen de entrega
+  const { data: ped } = await db.from('pedidos').select('total_kg, clientes(bonificacion_pct)').eq('id', pedidoId).single()
+  const bonif = Number(ped?.clientes?.bonificacion_pct) || 0
+  const kgPedido = Number(ped?.total_kg) || 0
+  const kgBonif = kgPedido * (bonif / 100)
+  const kgEntregar = kgPedido + kgBonif
+
   el.innerHTML = `<table class="tabla tabla-responsive">
     <thead><tr><th>Producto</th><th>Cantidad</th><th>Precio unit.</th><th>Subtotal</th></tr></thead>
     <tbody>
@@ -1931,7 +1939,16 @@ async function cargarProductosPedido(pedidoId) {
         <td data-label="Precio unit.">$${Number(i.precio_unitario).toLocaleString('es-AR')}</td>
         <td data-label="Subtotal"><b>$${Number(i.subtotal).toLocaleString('es-AR')}</b></td>
       </tr>`).join('')}
-    </tbody></table>`
+    </tbody></table>
+    ${bonif > 0 && kgPedido > 0 ? `
+      <div class="bonif-box" style="margin-top:12px">
+        <i class="ti ti-gift" aria-hidden="true"></i> <b>Bonificación ${bonif}% en producto</b>
+        <div style="margin-top:6px;font-size:13px;display:flex;flex-direction:column;gap:3px">
+          <div style="display:flex;justify-content:space-between"><span>Pedido:</span><span>${kgPedido.toLocaleString('es-AR',{maximumFractionDigits:1})} kg</span></div>
+          <div style="display:flex;justify-content:space-between;color:#1d9e75"><span>Bonificación:</span><span>+ ${kgBonif.toLocaleString('es-AR',{maximumFractionDigits:1})} kg</span></div>
+          <div style="display:flex;justify-content:space-between;font-weight:700;border-top:1px solid rgba(0,0,0,0.1);padding-top:4px;margin-top:2px"><span>Entregar total:</span><span>${kgEntregar.toLocaleString('es-AR',{maximumFractionDigits:1})} kg</span></div>
+        </div>
+      </div>` : ''}`
 }
 
 async function cargarCobrosPedido(pedidoId) {
@@ -2733,6 +2750,10 @@ function generarHTMLPDF(p, items, cobros, historial) {
   const parteFacturada = ivaTotal > 0 ? ivaTotal / 0.21 : 0
   const parteRemito = Math.max(neto - parteFacturada, 0)
   const totalKg = (items || []).reduce((s, i) => s + (Number(i.kg) || 0), 0)
+  // Bonificación en producto (kg extra a entregar)
+  const bonifPct = Number(cliente?.bonificacion_pct) || 0
+  const kgBonif = totalKg * (bonifPct / 100)
+  const kgEntregar = totalKg + kgBonif
 
   const filaItem = (i) => {
     const pr = i.productos || {}
@@ -2828,6 +2849,14 @@ function generarHTMLPDF(p, items, cobros, historial) {
       ${items?.map(filaItem).join('') || '<tr><td colspan="4" class="vacio">Sin productos</td></tr>'}
     </tbody>
   </table>
+
+  ${bonifPct > 0 && totalKg > 0 ? `
+  <div style="margin-top:12px;background:#eef7f1;border:1px solid #cbe8d7;border-radius:8px;padding:12px 16px;max-width:340px;">
+    <div style="font-weight:bold;color:#1d9e75;font-size:12px;margin-bottom:6px;">BONIFICACIÓN ${bonifPct}% EN PRODUCTO</div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;"><span>Pedido</span><span>${totalKg.toFixed(1)} kg</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;color:#1d9e75;"><span>Bonificación</span><span>+ ${kgBonif.toFixed(1)} kg</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0 0;font-weight:bold;border-top:1px solid #cbe8d7;margin-top:3px;"><span>Entregar total</span><span>${kgEntregar.toFixed(1)} kg</span></div>
+  </div>` : ''}
 
   <div class="fiscal">
     <div class="fila"><span>Subtotal</span><span>$${subtotal.toLocaleString('es-AR')}</span></div>
@@ -3242,6 +3271,18 @@ function calcularTotales() {
   const descuentoMonto = subtotal * (descuento / 100)
   const neto           = subtotal - descuentoMonto
 
+  // Bonificación en PRODUCTO: el cliente paga por lo pedido pero recibe un % extra de mercadería.
+  // Ej: pide 2000 kg con 10% de bonif → se le entregan 2200 kg (200 de regalo).
+  const kgBonificados = totalKg * (bonif / 100)
+  const kgAEntregar   = totalKg + kgBonificados
+  // También por línea, para el detalle
+  lineas.forEach(l => {
+    l.kgBonif = (l.kg || 0) * (bonif / 100)
+    l.kgEntregar = (l.kg || 0) + l.kgBonif
+    l.unidadesBonif = (l.unidadesTotales || 0) * (bonif / 100)
+    l.unidadesEntregar = (l.unidadesTotales || 0) + l.unidadesBonif
+  })
+
   let montoRemito  = 0
   let montoFactura = 0
   let ivaTotal     = 0
@@ -3265,7 +3306,7 @@ function calcularTotales() {
   let bonifDetalle = ''
   if (bonif > 0) bonifDetalle = `${bonif}% de mercadería extra`
 
-  return { subtotal, descuentoMonto, neto, montoRemito, montoFactura, ivaTotal, ivaRG, total, totalKg, lineas, bonifDetalle, iva, factura, pctRemito, pctFact }
+  return { subtotal, descuentoMonto, neto, montoRemito, montoFactura, ivaTotal, ivaRG, total, totalKg, lineas, bonifDetalle, bonif, kgBonificados, kgAEntregar, iva, factura, pctRemito, pctFact }
 }
 
 // ── RESUMEN DEL PEDIDO ───────────────────────────
@@ -3314,9 +3355,14 @@ function mostrarResumenPedido() {
           <span>TOTAL A PAGAR:</span>
           <span>$${Number(t.total).toLocaleString('es-AR')}</span>
         </div>
-        ${t.bonifDetalle ? `
+        ${t.bonif > 0 && t.totalKg > 0 ? `
           <div class="bonif-box">
-            <i class="ti ti-gift" aria-hidden="true"></i> Bonificación: ${t.bonifDetalle}
+            <i class="ti ti-gift" aria-hidden="true"></i> <b>Bonificación ${t.bonif}% en producto</b>
+            <div style="margin-top:6px;font-size:12px;display:flex;flex-direction:column;gap:2px">
+              <div style="display:flex;justify-content:space-between"><span>Pedido:</span><span>${t.totalKg.toLocaleString('es-AR',{maximumFractionDigits:1})} kg</span></div>
+              <div style="display:flex;justify-content:space-between;color:#1d9e75"><span>Bonificación:</span><span>+ ${t.kgBonificados.toLocaleString('es-AR',{maximumFractionDigits:1})} kg</span></div>
+              <div style="display:flex;justify-content:space-between;font-weight:600;border-top:1px solid rgba(0,0,0,0.1);padding-top:3px;margin-top:2px"><span>Entregar total:</span><span>${t.kgAEntregar.toLocaleString('es-AR',{maximumFractionDigits:1})} kg</span></div>
+            </div>
           </div>` : ''}
       </div>
 
