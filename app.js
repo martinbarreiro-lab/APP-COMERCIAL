@@ -2012,8 +2012,10 @@ async function cargarHistorialPedido(pedidoId) {
     </div>`).join('')
 }
 
-async function registrarHistorial(pedidoId, accion, detalle) {
-  await db.from('historial_pedido').insert({ pedido_id: pedidoId, usuario_id: usuarioActual?.id, accion, detalle })
+async function registrarHistorial(pedidoId, accion, detalle, fechaISO) {
+  const row = { pedido_id: pedidoId, usuario_id: usuarioActual?.id, accion, detalle }
+  if (fechaISO) row.created_at = fechaISO
+  await db.from('historial_pedido').insert(row)
 }
 
 function abrirSubirDocumento() { document.getElementById('form-subir-documento').style.display = 'block' }
@@ -2023,18 +2025,24 @@ async function subirDocumento() {
   const tipo    = document.getElementById('tipo-documento').value
   const archivo = document.getElementById('archivo-documento').files[0]
   const nota    = document.getElementById('nota-documento').value.trim()
+  const fechaDoc = document.getElementById('fecha-documento')?.value
   if (!archivo) { avisar('Seleccioná un archivo'); return }
   const ext = archivo.name.split('.').pop()
   const nombre = `${pedidoActualId}/${tipo}_${Date.now()}.${ext}`
   const { error: uploadError } = await db.storage.from('documentos').upload(nombre, archivo, { upsert: true })
   if (uploadError) { avisar('Error al subir: ' + uploadError.message); return }
   const { data: urlData } = db.storage.from('documentos').getPublicUrl(nombre)
-  await db.from('documentos_pedido').insert({
+  // Fecha del documento: la elegida, o ahora
+  const hoyStr = new Date().toISOString().split('T')[0]
+  const fechaDocISO = (fechaDoc && fechaDoc !== hoyStr) ? new Date(fechaDoc + 'T12:00:00').toISOString() : new Date().toISOString()
+  const docData = {
     pedido_id: pedidoActualId, tipo, archivo_url: urlData.publicUrl,
     archivo_tipo: archivo.type === 'application/pdf' ? 'pdf' : 'imagen',
-    nota: nota || null, subido_por: usuarioActual.id, verificacion: 'pendiente'
-  })
-  await registrarHistorial(pedidoActualId, 'documento_subido', `Se subió ${labelTipoDoc(tipo)}`)
+    nota: nota || null, subido_por: usuarioActual.id, verificacion: 'pendiente',
+    created_at: fechaDocISO
+  }
+  await db.from('documentos_pedido').insert(docData)
+  await registrarHistorial(pedidoActualId, 'documento_subido', `Se subió ${labelTipoDoc(tipo)}`, fechaDocISO)
   cancelarSubirDocumento()
   await abrirPedido(pedidoActualId)
 }
@@ -2450,8 +2458,10 @@ function limpiarFiltrosPedidos() {
 
 // ── MARCAR ENVIADO ───────────────────────────────
 async function marcarEnviado(pedidoId) {
-  const ok = await confirmar('¿Confirmás que la mercadería fue enviada?', 'Confirmar')
-  if (!ok) return
+  // Pedir la fecha de envío (por defecto hoy; permite cargar entregas pasadas)
+  const fechaEnvio = await pedirFecha('¿Cuándo se envió la mercadería?', 'Confirmar envío')
+  if (fechaEnvio === null) return  // canceló
+  const fechaISO = fechaEnvio.iso
 
   // Verificar si el pedido ya está en algún envío (para no duplicar)
   const { data: yaEnviado } = await db.from('envio_pedidos').select('id').eq('pedido_id', pedidoId).limit(1)
@@ -2461,7 +2471,7 @@ async function marcarEnviado(pedidoId) {
     const { data: ped } = await db.from('pedidos').select('total').eq('id', pedidoId).single()
     const { data: envio, error: envErr } = await db.from('envios').insert({
       estado:        'en_camino',
-      fecha_salida:  new Date().toISOString(),
+      fecha_salida:  fechaISO,
       observaciones: null,
       creado_por:    usuarioActual.id,
       total_pedidos: 1,
@@ -2473,13 +2483,38 @@ async function marcarEnviado(pedidoId) {
 
   const { error } = await db.from('pedidos').update({
     etapa:         'enviado',
-    fecha_enviado: new Date().toISOString(),
+    fecha_enviado: fechaISO,
     enviado_por:   usuarioActual.id,
     updated_at:    new Date().toISOString()
   }).eq('id', pedidoId)
   if (error) { avisar('Error: ' + error.message); return }
   await registrarHistorial(pedidoId, 'estado_cambiado', 'Pedido marcado como enviado')
   await abrirPedido(pedidoId)
+}
+
+// Modal reutilizable para pedir una fecha. Devuelve {iso, str} o null si cancela.
+function pedirFecha(mensaje, textoConfirmar) {
+  return new Promise(resolve => {
+    const hoy = new Date().toISOString().split('T')[0]
+    const est = _AVISO_ESTILOS.info
+    document.getElementById('aviso-icono-wrap').style.background = est.bg
+    const ic = document.getElementById('aviso-icono')
+    ic.className = 'ti ti-calendar'; ic.style.color = est.color
+    document.getElementById('aviso-mensaje').innerHTML = `${mensaje}<br><input type="date" id="aviso-fecha-input" value="${hoy}" max="${hoy}" style="margin-top:10px;width:100%;border:0.5px solid #ccc;border-radius:8px;padding:9px;font-size:14px;box-sizing:border-box">`
+    document.getElementById('aviso-botones').innerHTML =
+      '<button id="aviso-no" style="flex:1;background:#fff;color:var(--color-text-secondary);border:1px solid var(--color-border-tertiary);border-radius:9px;padding:11px;font-size:14px;cursor:pointer">Cancelar</button>' +
+      `<button id="aviso-si" style="flex:1;background:#0d8fd1;color:#fff;border:none;border-radius:9px;padding:11px;font-size:14px;font-weight:600;cursor:pointer">${textoConfirmar || 'Confirmar'}</button>`
+    const modal = document.getElementById('modal-aviso')
+    modal.style.display = 'flex'
+    document.getElementById('aviso-no').onclick = () => { modal.style.display = 'none'; resolve(null) }
+    document.getElementById('aviso-si').onclick = () => {
+      const val = document.getElementById('aviso-fecha-input').value
+      modal.style.display = 'none'
+      if (!val) { resolve(null); return }
+      const iso = val === hoy ? new Date().toISOString() : new Date(val + 'T12:00:00').toISOString()
+      resolve({ iso, str: val })
+    }
+  })
 }
 
 // ── MARCAR RECIBIDO ──────────────────────────────
