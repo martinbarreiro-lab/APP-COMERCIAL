@@ -442,11 +442,16 @@ async function cargarDashboard() {
   const inicioMesAnt = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1).toISOString()
   const finMesAnt    = new Date(hoy.getFullYear(), hoy.getMonth(), 0, 23, 59, 59).toISOString()
   const en7dias   = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]
+  const inicioAnio = new Date(hoy.getFullYear(), 0, 1).toISOString()  // 1 de enero
+  const anioActual = hoy.getFullYear()
 
   // ── Queries en paralelo ─────────────────────────
   let qPedidosMes    = db.from('pedidos').select('id, total, etapa, estado_cobro, monto_cobrado, vendedor_id, created_at').gte('created_at', inicioMes).neq('estado', 'cancelado')
   let qPedidosMesAnt = db.from('pedidos').select('id, total, vendedor_id').gte('created_at', inicioMesAnt).lte('created_at', finMesAnt).neq('estado', 'cancelado')
   let qCobrosMes     = db.from('cobros').select('monto, medio_pago, vendedor_id').gte('created_at', inicioMes)
+  // Anuales: por fecha real del pedido (fecha_pedido), para que los retroactivos cuenten en su mes real
+  let qPedidosAnio   = db.from('pedidos').select('id, total, vendedor_id').gte('fecha_pedido', inicioAnio.split('T')[0]).neq('estado', 'cancelado')
+  let qCobrosAnio    = db.from('cobros').select('monto, vendedor_id').gte('created_at', inicioAnio)
   let qTodosActivos  = db.from('pedidos').select('id, total, etapa').neq('estado', 'cancelado').not('etapa', 'eq', 'cobrado')
   let qDeudaTotal    = db.from('pedidos').select('id, total, monto_cobrado, clientes(razon_social)').eq('estado_cobro', 'pendiente')
   let qVencidos      = db.from('pedidos').select('id, numero, total, monto_cobrado, fecha_vencimiento_cobro, clientes(razon_social)').eq('estado_cobro', 'pendiente').lt('fecha_vencimiento_cobro', hoyStr)
@@ -459,6 +464,8 @@ async function cargarDashboard() {
     qPedidosMes    = qPedidosMes.eq('vendedor_id', usuarioActual.id)
     qPedidosMesAnt = qPedidosMesAnt.eq('vendedor_id', usuarioActual.id)
     qCobrosMes     = qCobrosMes.eq('vendedor_id', usuarioActual.id)
+    qPedidosAnio   = qPedidosAnio.eq('vendedor_id', usuarioActual.id)
+    qCobrosAnio    = qCobrosAnio.eq('vendedor_id', usuarioActual.id)
     qTodosActivos  = qTodosActivos.eq('vendedor_id', usuarioActual.id)
     qDeudaTotal    = qDeudaTotal.eq('vendedor_id', usuarioActual.id)
     qVencidos      = qVencidos.eq('vendedor_id', usuarioActual.id)
@@ -470,6 +477,8 @@ async function cargarDashboard() {
     { data: pedidosMes },
     { data: pedidosMesAnt },
     { data: cobrosMes },
+    { data: pedidosAnio },
+    { data: cobrosAnio },
     { data: todosActivos },
     { data: deudaTotal },
     { data: vencidos },
@@ -478,7 +487,7 @@ async function cargarDashboard() {
     { data: alertasPend },
     vendedoresRes
   ] = await Promise.all([
-    qPedidosMes, qPedidosMesAnt, qCobrosMes, qTodosActivos,
+    qPedidosMes, qPedidosMesAnt, qCobrosMes, qPedidosAnio, qCobrosAnio, qTodosActivos,
     qDeudaTotal, qVencidos, qPorVencer, qAtascados, qAlertas,
     qVendedores ? qVendedores : Promise.resolve({ data: [] })
   ])
@@ -495,6 +504,12 @@ async function cargarDashboard() {
 
   const ticketProm    = pedidosMesCount > 0 ? Math.round(facturadoMes / pedidosMesCount) : 0
   const ticketPromAnt = pedidosMesAnt?.length > 0 ? Math.round(facturadoMesAnt / pedidosMesAnt.length) : 0
+
+  // ── Acumulados del año ──────────────────────────
+  const facturadoAnio   = (pedidosAnio || []).reduce((s, p) => s + Number(p.total), 0)
+  const cobradoAnio     = (cobrosAnio || []).reduce((s, c) => s + Number(c.monto), 0)
+  const pedidosAnioCount = (pedidosAnio || []).length
+  const ticketPromAnio  = pedidosAnioCount > 0 ? Math.round(facturadoAnio / pedidosAnioCount) : 0
   const ticketDelta   = ticketPromAnt > 0 ? Math.round(((ticketProm - ticketPromAnt) / ticketPromAnt) * 100) : null
 
   // ── Pipeline — todos los activos ────────────────
@@ -628,6 +643,33 @@ async function cargarDashboard() {
 
     ${alertasHTML}
 
+    <!-- ACUMULADO DEL AÑO -->
+    <div style="font-size:11px;font-weight:700;color:var(--color-marca-oscuro);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-calendar-stats" aria-hidden="true"></i> Acumulado ${anioActual}</div>
+    <div class="dash-kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px">
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px;border-top:3px solid #378add">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><i class="ti ti-chart-bar" style="font-size:14px;color:#378add" aria-hidden="true"></i><span style="font-size:12px;color:var(--color-text-secondary)">Facturado en el año</span></div>
+        <div style="font-size:24px;font-weight:600;line-height:1">${fmtM(facturadoAnio)}</div>
+        <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:5px">${pedidosAnioCount} pedido${pedidosAnioCount !== 1 ? 's' : ''}</div>
+      </div>
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px;border-top:3px solid #1d9e75">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><i class="ti ti-circle-check" style="font-size:14px;color:#1d9e75" aria-hidden="true"></i><span style="font-size:12px;color:var(--color-text-secondary)">Cobrado en el año</span></div>
+        <div style="font-size:24px;font-weight:600;line-height:1">${fmtM(cobradoAnio)}</div>
+        <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:5px">acumulado ${anioActual}</div>
+      </div>
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px;border-top:3px solid #e24b4a">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><i class="ti ti-hourglass" style="font-size:14px;color:#e24b4a" aria-hidden="true"></i><span style="font-size:12px;color:var(--color-text-secondary)">Deuda acumulada</span></div>
+        <div style="font-size:24px;font-weight:600;color:#e24b4a;line-height:1">${fmtM(deudaAcum)}</div>
+        <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:5px">${clientesDeudores} cliente${clientesDeudores !== 1 ? 's' : ''}</div>
+      </div>
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px;border-top:3px solid #ba7517">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px"><i class="ti ti-package" style="font-size:14px;color:#ba7517" aria-hidden="true"></i><span style="font-size:12px;color:var(--color-text-secondary)">Pedidos del año</span></div>
+        <div style="font-size:24px;font-weight:600;line-height:1">${pedidosAnioCount}</div>
+        <div style="font-size:12px;color:var(--color-text-tertiary);margin-top:5px">ticket prom. ${fmtM(ticketPromAnio)}</div>
+      </div>
+    </div>
+
+    <!-- ESTE MES -->
+    <div style="font-size:11px;font-weight:700;color:var(--color-marca-oscuro);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;display:flex;align-items:center;gap:6px"><i class="ti ti-calendar-month" aria-hidden="true"></i> Este mes — ${nombreMes}</div>
     <div class="dash-kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px">
       ${dashMetrica('ti-chart-bar', 'Facturado este mes', fmtM(facturadoMes), pedidosMesCount + ' pedidos', '#378add')}
       ${dashMetrica('ti-circle-check', 'Cobrado este mes', fmtM(cobradoMes), cobrosMesCount + ' cobros', '#1d9e75')}
