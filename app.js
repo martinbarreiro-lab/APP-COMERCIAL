@@ -2777,7 +2777,6 @@ async function descargarPDF(pedidoId) {
   const ventana = window.open('', '_blank')
   ventana.document.write(html)
   ventana.document.close()
-  ventana.print()
 }
 
 function generarHTMLPDF(p, items, cobros, historial) {
@@ -2852,10 +2851,26 @@ function generarHTMLPDF(p, items, cobros, historial) {
     .cobros .fila { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f0f0f0; font-size: 12px; }
     .vacio { color: #999; font-size: 12px; font-style: italic; }
     .footer { margin-top: 30px; padding-top: 14px; border-top: 1px solid #eee; font-size: 10px; color: #aaa; text-align: center; }
-    @media print { body { padding: 12px; } .box { background: #f7f9fb !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } th { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+    @media print { body { padding: 12px; } .no-print { display: none !important; } .box { background: #f7f9fb !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } th { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
   </style>
 </head>
 <body>
+  <div class="no-print" style="position:sticky;top:0;background:#0d8fd1;padding:12px 16px;display:flex;gap:10px;justify-content:center;margin:-32px -32px 24px;z-index:100;">
+    <button onclick="compartirPedido()" style="background:#fff;color:#0d8fd1;border:none;border-radius:8px;padding:11px 20px;font-size:14px;font-weight:600;cursor:pointer;">📲 Compartir / Enviar</button>
+    <button onclick="window.print()" style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid #fff;border-radius:8px;padding:11px 20px;font-size:14px;font-weight:600;cursor:pointer;">🖨️ Imprimir / Guardar</button>
+  </div>
+  <script>
+    async function compartirPedido() {
+      const titulo = document.title || 'Pedido - La Cabaña';
+      if (navigator.share) {
+        try { await navigator.share({ title: titulo, text: titulo + ' — La Cabaña Cooperativa de Trabajo' }); }
+        catch (e) {}
+      } else {
+        alert('Guardá el PDF con "Imprimir / Guardar" y adjuntalo por WhatsApp o mail.');
+        window.print();
+      }
+    }
+  </script>
   <div class="head">
     <div class="head-left">
       <h1>La Cabaña</h1>
