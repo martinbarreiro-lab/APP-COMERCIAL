@@ -2774,9 +2774,68 @@ async function descargarPDF(pedidoId) {
     .select('*').eq('pedido_id', pedidoId).order('created_at')
 
   const html = generarHTMLPDF(p, items, cobros, historial)
-  const ventana = window.open('', '_blank')
-  ventana.document.write(html)
-  ventana.document.close()
+
+  // Si las librerías no cargaron, caer al método viejo (abrir ventana)
+  if (!window.jspdf || !window.html2canvas) {
+    const ventana = window.open('', '_blank')
+    ventana.document.write(html); ventana.document.close()
+    return
+  }
+
+  avisar('Generando PDF...', 'info')
+
+  // Renderizar el HTML en un contenedor oculto para capturarlo
+  const cont = document.createElement('div')
+  cont.style.cssText = 'position:fixed;left:-9999px;top:0;width:780px;background:#fff;'
+  // Extraer solo el contenido del body (sin la barra de botones)
+  const bodyMatch = html.match(/<body>([\s\S]*?)<\/body>/i)
+  let inner = bodyMatch ? bodyMatch[1] : html
+  inner = inner.replace(/<div class="no-print"[\s\S]*?<\/script>/i, '')  // sacar barra + script
+  const styleMatch = html.match(/<style>([\s\S]*?)<\/style>/i)
+  cont.innerHTML = (styleMatch ? '<style>' + styleMatch[1] + '</style>' : '') + inner
+  document.body.appendChild(cont)
+
+  try {
+    const canvas = await html2canvas(cont, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
+    const { jsPDF } = window.jspdf
+    const pdf = new jsPDF('p', 'mm', 'a4')
+    const pw = pdf.internal.pageSize.getWidth()
+    const ph = pdf.internal.pageSize.getHeight()
+    const imgW = pw
+    const imgH = (canvas.height * imgW) / canvas.width
+    let heightLeft = imgH, position = 0
+    const imgData = canvas.toDataURL('image/jpeg', 0.92)
+    pdf.addImage(imgData, 'JPEG', 0, position, imgW, imgH)
+    heightLeft -= ph
+    while (heightLeft > 0) {
+      position -= ph
+      pdf.addPage()
+      pdf.addImage(imgData, 'JPEG', 0, position, imgW, imgH)
+      heightLeft -= ph
+    }
+
+    const nombre = `Pedido-${p.numero}-La-Cabana.pdf`
+    const blob = pdf.output('blob')
+    const file = new File([blob], nombre, { type: 'application/pdf' })
+
+    document.getElementById('modal-aviso').style.display = 'none'  // cerrar "Generando..."
+
+    // Intentar compartir el archivo (celular). Si no se puede, descargarlo.
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: `Pedido #${p.numero}`, text: `Pedido #${p.numero} — La Cabaña Cooperativa` })
+      } catch (e) { /* usuario canceló */ }
+    } else {
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = nombre; a.click()
+      URL.revokeObjectURL(url)
+    }
+  } catch (e) {
+    avisar('No se pudo generar el PDF: ' + e.message)
+  } finally {
+    document.body.removeChild(cont)
+  }
 }
 
 function generarHTMLPDF(p, items, cobros, historial) {
