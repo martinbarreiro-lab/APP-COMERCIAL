@@ -447,6 +447,7 @@ async function cargarDashboard() {
 
   // ── Queries en paralelo ─────────────────────────
   let qPedidosMes    = db.from('pedidos').select('id, total, etapa, estado_cobro, monto_cobrado, vendedor_id, created_at').gte('created_at', inicioMes).neq('estado', 'cancelado')
+  let qPedidosMesReal = db.from('pedidos').select('id, total, etapa, fecha_pedido').gte('fecha_pedido', inicioMes.split('T')[0]).neq('estado', 'cancelado')
   let qPedidosMesAnt = db.from('pedidos').select('id, total, vendedor_id').gte('created_at', inicioMesAnt).lte('created_at', finMesAnt).neq('estado', 'cancelado')
   let qCobrosMes     = db.from('cobros').select('monto, medio_pago, vendedor_id').gte('created_at', inicioMes)
   // Anuales: por fecha real del pedido (fecha_pedido), para que los retroactivos cuenten en su mes real
@@ -462,6 +463,7 @@ async function cargarDashboard() {
 
   if (!esAdmin) {
     qPedidosMes    = qPedidosMes.eq('vendedor_id', usuarioActual.id)
+    qPedidosMesReal = qPedidosMesReal.eq('vendedor_id', usuarioActual.id)
     qPedidosMesAnt = qPedidosMesAnt.eq('vendedor_id', usuarioActual.id)
     qCobrosMes     = qCobrosMes.eq('vendedor_id', usuarioActual.id)
     qPedidosAnio   = qPedidosAnio.eq('vendedor_id', usuarioActual.id)
@@ -475,6 +477,7 @@ async function cargarDashboard() {
 
   const [
     { data: pedidosMes },
+    { data: pedidosMesReal },
     { data: pedidosMesAnt },
     { data: cobrosMes },
     { data: pedidosAnio },
@@ -487,7 +490,7 @@ async function cargarDashboard() {
     { data: alertasPend },
     vendedoresRes
   ] = await Promise.all([
-    qPedidosMes, qPedidosMesAnt, qCobrosMes, qPedidosAnio, qCobrosAnio, qTodosActivos,
+    qPedidosMes, qPedidosMesReal, qPedidosMesAnt, qCobrosMes, qPedidosAnio, qCobrosAnio, qTodosActivos,
     qDeudaTotal, qVencidos, qPorVencer, qAtascados, qAlertas,
     qVendedores ? qVendedores : Promise.resolve({ data: [] })
   ])
@@ -512,15 +515,24 @@ async function cargarDashboard() {
   const ticketPromAnio  = pedidosAnioCount > 0 ? Math.round(facturadoAnio / pedidosAnioCount) : 0
   const ticketDelta   = ticketPromAnt > 0 ? Math.round(((ticketProm - ticketPromAnt) / ticketPromAnt) * 100) : null
 
-  // ── Pipeline — todos los activos ────────────────
-  const pipelineAll = {}
-  for (const e of ['pedido','facturado','enviado','recibido','cobrado']) {
-    const grupo = (todosActivos || []).filter(p => p.etapa === e)
-    pipelineAll[e] = { count: grupo.length, monto: grupo.reduce((s, p) => s + Number(p.total), 0) }
+  // ── Pipeline — acumulativo del mes ──────────────
+  // Cada pedido pasa por: pedido → facturado → enviado → recibido → cobrado.
+  // Un pedido en una etapa avanzada YA pasó por las anteriores, así que se cuenta en todas.
+  const ordenEtapas = ['pedido', 'facturado', 'enviado', 'recibido', 'cobrado']
+  const nivelEtapa = (e) => {
+    const i = ordenEtapas.indexOf(e)
+    return i === -1 ? 0 : i
   }
-  // cobrado del mes (para mostrar en pipeline, no de activos)
-  const cobradosPipeline = (pedidosMes || []).filter(p => p.etapa === 'cobrado')
-  pipelineAll['cobrado'] = { count: cobradosPipeline.length, monto: cobradosPipeline.reduce((s,p) => s+Number(p.total),0) }
+  const pedidosPipeline = pedidosMesReal || []
+  const pipelineAll = {}
+  ordenEtapas.forEach((etapa, idx) => {
+    // Cuenta los pedidos cuyo nivel es >= al de esta etapa (ya pasaron por acá)
+    const alcanzaron = pedidosPipeline.filter(p => nivelEtapa(p.etapa) >= idx)
+    pipelineAll[etapa] = {
+      count: alcanzaron.length,
+      monto: alcanzaron.reduce((s, p) => s + Number(p.total), 0)
+    }
+  })
 
   // ── Medios de pago ──────────────────────────────
   const medios = {}
@@ -546,35 +558,20 @@ async function cargarDashboard() {
       rankingHTML = `
         <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px;margin-bottom:20px">
           <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px;display:flex;align-items:center;gap:6px"><i class="ti ti-users" aria-hidden="true"></i> Rendimiento por vendedor — este mes</div>
-          <table style="width:100%;border-collapse:collapse;font-size:13px">
-            <thead>
-              <tr style="color:var(--color-text-tertiary);text-align:left;border-bottom:0.5px solid var(--color-border-tertiary)">
-                <th style="padding:6px 0;font-weight:500">Vendedor</th>
-                <th style="padding:6px 0;font-weight:500;text-align:right">Pedidos</th>
-                <th style="padding:6px 0;font-weight:500;text-align:right">Facturado</th>
-                <th style="padding:6px 0;font-weight:500;text-align:right">Cobrado</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${ranking.map((v, i) => {
-                const badge = v.pct >= 50
-                  ? `<span style="background:#e1f5ee;color:#085041;border-radius:6px;font-size:11px;padding:2px 8px;white-space:nowrap">${fmtM(v.cobrado)}</span>`
-                  : `<span style="background:#faeeda;color:#633806;border-radius:6px;font-size:11px;padding:2px 8px;white-space:nowrap">${fmtM(v.cobrado)}</span>`
-                return `
-                  <tr style="border-top:0.5px solid var(--color-border-tertiary)">
-                    <td style="padding:10px 0">
-                      <div style="display:flex;align-items:center;gap:8px">
-                        <span style="background:#e1f5ee;color:#085041;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;flex-shrink:0">${i+1}</span>
-                        ${v.nombre}
-                      </div>
-                    </td>
-                    <td style="text-align:right;padding:10px 0">${v.pedidos}</td>
-                    <td style="text-align:right;padding:10px 0;font-weight:500">${fmtM(v.facturado)}</td>
-                    <td style="text-align:right;padding:10px 0">${badge}</td>
-                  </tr>`
-              }).join('')}
-            </tbody>
-          </table>
+          <div class="rend-vend-lista">
+            ${ranking.map((v, i) => `
+              <div class="rend-vend-item">
+                <div class="rend-vend-nombre">
+                  <span class="rend-vend-rank">${i+1}</span>
+                  <span>${v.nombre}</span>
+                </div>
+                <div class="rend-vend-datos">
+                  <div class="rend-vend-dato"><span class="rvd-label">Pedidos</span><span class="rvd-valor">${v.pedidos}</span></div>
+                  <div class="rend-vend-dato"><span class="rvd-label">Facturado</span><span class="rvd-valor">${fmtM(v.facturado)}</span></div>
+                  <div class="rend-vend-dato"><span class="rvd-label">Cobrado</span><span class="rvd-valor" style="color:${v.pct >= 50 ? '#085041' : '#633806'}">${fmtM(v.cobrado)}</span></div>
+                </div>
+              </div>`).join('')}
+          </div>
         </div>`
     }
   }
@@ -602,11 +599,11 @@ async function cargarDashboard() {
 
   // ── Pipeline HTML ────────────────────────────────
   const etapasDef = [
-    { id:'pedido',    label:'Pedido',    color:'#888780', icono:'ti-package' },
-    { id:'facturado', label:'Facturado', color:'#378add', icono:'ti-file-invoice' },
-    { id:'enviado',   label:'Enviado',   color:'#1d9e75', icono:'ti-truck' },
-    { id:'recibido',  label:'Recibido',  color:'#ba7517', icono:'ti-hand-stop' },
-    { id:'cobrado',   label:'Cobrado',   color:'#1d9e75', icono:'ti-circle-check' },
+    { id:'pedido',    label:'Pedidos',   color:'#0d8fd1', icono:'ti-package' },
+    { id:'facturado', label:'Facturados', color:'#378add', icono:'ti-file-invoice' },
+    { id:'enviado',   label:'Enviados',   color:'#1d9e75', icono:'ti-truck' },
+    { id:'recibido',  label:'Recibidos',  color:'#ba7517', icono:'ti-hand-stop' },
+    { id:'cobrado',   label:'Cobrados',   color:'#1d9e75', icono:'ti-circle-check' },
   ]
   const pipelineHTML = etapasDef.map((e, idx) => `
     <div style="flex:1;text-align:center;padding:16px 8px${idx < 4 ? ';border-right:0.5px solid var(--color-border-tertiary)' : ''}">
@@ -692,7 +689,7 @@ async function cargarDashboard() {
     </div>
 
     <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:12px;padding:16px;margin-bottom:16px">
-      <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px;display:flex;align-items:center;gap:6px"><i class="ti ti-git-branch" aria-hidden="true"></i> Pipeline — todos los pedidos activos</div>
+      <div style="font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px;display:flex;align-items:center;gap:6px"><i class="ti ti-git-branch" aria-hidden="true"></i> Avance de pedidos — ${nombreMes}</div>
       <div class="dash-pipeline" style="display:flex;overflow-x:auto;gap:4px;-webkit-overflow-scrolling:touch">
         ${pipelineHTML}
       </div>
