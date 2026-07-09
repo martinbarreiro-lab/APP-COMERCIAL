@@ -949,3 +949,27 @@ body { background:#f0f2f5; color:#1a1a1a; }
 .geo-item:last-child { border-bottom:none; }
 .geo-item:hover { background:var(--color-background-tertiary); }
 .geo-vacio { padding:9px 12px; font-size:12px; color:var(--color-text-tertiary); }
+
+/* ── Rendimiento por vendedor (responsive) ── */
+.rend-vend-item {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:12px 0; border-top:0.5px solid var(--color-border-tertiary); gap:12px;
+}
+.rend-vend-item:first-child { border-top:none; }
+.rend-vend-nombre { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:500; min-width:0; }
+.rend-vend-nombre > span:last-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rend-vend-rank {
+  background:#e1f5ee; color:#085041; border-radius:50%;
+  width:22px; height:22px; display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:600; flex-shrink:0;
+}
+.rend-vend-datos { display:flex; gap:20px; flex-shrink:0; }
+.rend-vend-dato { display:flex; flex-direction:column; align-items:flex-end; }
+.rvd-label { font-size:10px; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:.03em; }
+.rvd-valor { font-size:14px; font-weight:600; margin-top:1px; white-space:nowrap; }
+
+@media (max-width:600px) {
+  .rend-vend-item { flex-direction:column; align-items:stretch; gap:8px; }
+  .rend-vend-datos { justify-content:space-between; gap:8px; }
+  .rend-vend-dato { align-items:flex-start; flex:1; }
+}
