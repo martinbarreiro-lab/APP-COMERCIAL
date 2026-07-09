@@ -1402,13 +1402,17 @@ function waLink(telefono) {
   if (!telefono) return null
   let n = String(telefono).replace(/\D/g, '')   // solo dígitos
   if (!n) return null
-  // Quitar 0 inicial (código de área largo) y 15 (celular local)
-  if (n.startsWith('54')) n = n.slice(2)          // quitar país si ya viene
-  if (n.startsWith('0'))  n = n.slice(1)          // quitar 0 inicial
-  // Si tiene un 15 después del código de área (ej: 341 15 1234567), quitarlo
+  // Quitar código de país (54) si viene
+  if (n.startsWith('54')) n = n.slice(2)
+  // Quitar el 9 de celular si viene justo después del país (54 9 ...)
+  if (n.startsWith('9')) n = n.slice(1)
+  // Quitar 0 inicial (código de área con 0)
+  if (n.startsWith('0')) n = n.slice(1)
+  // Quitar el 15 del celular local (ej: 341 15 1234567 → 341 1234567)
   n = n.replace(/^(\d{2,4})15(\d{6,8})$/, '$1$2')
   // Si quedó muy corto, no es válido
   if (n.length < 8) return null
+  // WhatsApp Argentina: 54 + 9 + área + número
   return `https://wa.me/549${n}`
 }
 function labelFacturacion(tipo, pctR, pctF) {
