@@ -454,9 +454,9 @@ async function cargarDashboard() {
   let qPedidosAnio   = db.from('pedidos').select('id, total, vendedor_id').gte('fecha_pedido', inicioAnio.split('T')[0]).neq('estado', 'cancelado')
   let qCobrosAnio    = db.from('cobros').select('monto, vendedor_id').gte('created_at', inicioAnio)
   let qTodosActivos  = db.from('pedidos').select('id, total, etapa').neq('estado', 'cancelado').not('etapa', 'eq', 'cobrado')
-  let qDeudaTotal    = db.from('pedidos').select('id, total, monto_cobrado, clientes(razon_social)').eq('estado_cobro', 'pendiente')
-  let qVencidos      = db.from('pedidos').select('id, numero, total, monto_cobrado, fecha_vencimiento_cobro, clientes(razon_social)').eq('estado_cobro', 'pendiente').lt('fecha_vencimiento_cobro', hoyStr)
-  let qPorVencer     = db.from('pedidos').select('id, numero, total, monto_cobrado, fecha_vencimiento_cobro, clientes(razon_social)').eq('estado_cobro', 'pendiente').gte('fecha_vencimiento_cobro', hoyStr).lte('fecha_vencimiento_cobro', en7dias)
+  let qDeudaTotal    = db.from('pedidos').select('id, total, monto_cobrado, clientes(razon_social)').eq('estado_cobro', 'pendiente').in('etapa', ['facturado', 'enviado', 'recibido', 'cobrado'])
+  let qVencidos      = db.from('pedidos').select('id, numero, total, monto_cobrado, fecha_vencimiento_cobro, clientes(razon_social)').eq('estado_cobro', 'pendiente').in('etapa', ['facturado', 'enviado', 'recibido', 'cobrado']).lt('fecha_vencimiento_cobro', hoyStr)
+  let qPorVencer     = db.from('pedidos').select('id, numero, total, monto_cobrado, fecha_vencimiento_cobro, clientes(razon_social)').eq('estado_cobro', 'pendiente').in('etapa', ['facturado', 'enviado', 'recibido', 'cobrado']).gte('fecha_vencimiento_cobro', hoyStr).lte('fecha_vencimiento_cobro', en7dias)
   let qAtascados     = db.from('pedidos').select('id, numero, clientes(razon_social), created_at').eq('etapa', 'facturado').lte('created_at', new Date(Date.now() - 3 * 86400000).toISOString())
   let qAlertas       = db.from('notificaciones_admin').select('id, tipo').eq('leida', false)
   let qVendedores    = esAdmin ? db.from('perfiles').select('id, nombre_completo').neq('rol', 'cliente') : null
@@ -749,7 +749,7 @@ async function cargarInicioCliente() {
   const deudaMapaCliente = await calcularDeudaPorCliente(clienteId)
   const deuda = deudaMapaCliente[clienteId]?.deuda || 0
   // Próximo vencimiento
-  const conVenc = todos.filter(p => p.fecha_vencimiento_cobro && (p.estado_cobro === 'pendiente' || !p.estado_cobro))
+  const conVenc = todos.filter(p => p.fecha_vencimiento_cobro && (p.estado_cobro === 'pendiente' || !p.estado_cobro) && ['facturado','enviado','recibido','cobrado'].includes(p.etapa))
     .sort((a,b) => new Date(a.fecha_vencimiento_cobro) - new Date(b.fecha_vencimiento_cobro))
   const proxVenc = conVenc[0]?.fecha_vencimiento_cobro
 
@@ -915,8 +915,11 @@ async function cargarEnvios() {
 // Con clienteId: devuelve el mismo mapa pero solo para ese cliente.
 async function calcularDeudaPorCliente(clienteId = null) {
   const hoyStr = new Date().toISOString().split('T')[0]
+  // Solo cuentan como deuda los pedidos ya facturados (facturado/enviado/recibido/cobrado),
+  // no los recién creados sin facturar.
   let q = db.from('pedidos').select('cliente_id, total, monto_cobrado, fecha_vencimiento_cobro')
     .eq('estado_cobro', 'pendiente').neq('etapa', 'cancelado')
+    .in('etapa', ['facturado', 'enviado', 'recibido', 'cobrado'])
   if (clienteId) q = q.eq('cliente_id', clienteId)
   const { data: pedidos } = await q
 
@@ -3825,6 +3828,7 @@ async function cargarCobranza() {
              fecha_vencimiento_cobro, fecha_pedido, vendedor_id,
              clientes(id, razon_social, telefono)`)
     .not('etapa', 'eq', 'cancelado')
+    .in('etapa', ['facturado', 'enviado', 'recibido', 'cobrado'])
     .order('fecha_vencimiento_cobro', { ascending: true, nullsFirst: false })
 
   // Filtrado por rol: cliente ve solo lo suyo, vendedor lo de sus clientes, admin todo
