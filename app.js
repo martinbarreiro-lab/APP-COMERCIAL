@@ -6502,20 +6502,24 @@ async function verificarPagoInformado(pagoId) {
   if (!pago) return
   if (!await confirmar(`¿Verificar el pago de $${Number(pago.monto).toLocaleString('es-AR')}? Se registrará como cobrado.`, 'Verificar')) return
 
-  // Registrar el cobro real
-  await db.from('cobros').insert({
+  // Registrar el cobro real (la columna del comprobante en `cobros` se llama foto_url)
+  const estadoMapPago = { efectivo:'cobrado_efectivo', transferencia:'cobrado_transferencia', cheque:'cobrado_cheque', echeq:'cobrado_cheque' }
+  const { error: errCobro } = await db.from('cobros').insert({
     pedido_id:   pago.pedido_id,
     monto:       pago.monto,
     medio_pago:  pago.medio_pago,
+    estado:      estadoMapPago[pago.medio_pago] || 'cobrado_efectivo',
     vendedor_id: usuarioActual.id,
-    comprobante_url: pago.comprobante_url || null
+    foto_url:    pago.comprobante_url || null
   })
+  if (errCobro) { avisar('No se pudo registrar el cobro: ' + errCobro.message); return }
 
   // Actualizar el pedido (sumar a monto_cobrado)
   const { data: ped } = await db.from('pedidos').select('total, monto_cobrado').eq('id', pago.pedido_id).single()
   const nuevoCobrado = Number(ped?.monto_cobrado || 0) + Number(pago.monto)
   const estadoCobro = nuevoCobrado >= Number(ped?.total || 0) ? 'cobrado' : 'parcial'
-  await db.from('pedidos').update({ monto_cobrado: nuevoCobrado, estado_cobro: estadoCobro }).eq('id', pago.pedido_id)
+  const { error: errPed } = await db.from('pedidos').update({ monto_cobrado: nuevoCobrado, estado_cobro: estadoCobro }).eq('id', pago.pedido_id)
+  if (errPed) { avisar('El cobro se registró pero no se pudo actualizar el pedido: ' + errPed.message) }
 
   // Marcar el pago como verificado
   await db.from('pagos_informados').update({ estado: 'verificado', verificado_por: usuarioActual.id }).eq('id', pagoId)
