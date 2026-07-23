@@ -1437,7 +1437,7 @@ function iconMedio(m) {
   return i[m] || '<i class="ti ti-coin" aria-hidden="true"></i>'
 }
 function iconAccion(a) {
-  const i = { pedido_creado:'📦', documento_subido:'📄', cobro_registrado:'💰', estado_cambiado:'🔄', pedido_cerrado:'✅', recepcion_ok:'✅', recepcion_problema:'⚠️' }
+  const i = { pedido_creado:'📦', documento_subido:'📄', cobro_registrado:'💰', cobro_eliminado:'🗑️', estado_cambiado:'🔄', pedido_cerrado:'✅', recepcion_ok:'✅', recepcion_problema:'⚠️' }
   return i[a] || '•'
 }
 function renderDiferencias(d) {
@@ -2046,6 +2046,7 @@ async function cargarCobrosPedido(pedidoId) {
     </div>`
   const listEl = document.getElementById('lista-cobros-pedido')
   if (!cobros || cobros.length === 0) { listEl.innerHTML = '<p class="vacio">Sin cobros registrados</p>'; return }
+  const puedeBorrarCobro = rolUsuarioActual === 'admin' || rolUsuarioActual === 'empresa' || rolUsuarioActual === 'vendedor'
   listEl.innerHTML = cobros.map(c => `
     <div class="cobro-item">
       <div class="cobro-item-info">
@@ -2055,8 +2056,38 @@ async function cargarCobrosPedido(pedidoId) {
         ${c.nota ? `<span class="cobro-nota"><i class="ti ti-note" aria-hidden="true"></i> ${c.nota}</span>` : ''}
         <span class="cobro-fecha">${formatFechaHora(c.created_at)}</span>
       </div>
-      ${c.foto_url ? `<a href="${c.foto_url}" target="_blank" class="btn-ver"><i class="ti ti-camera" aria-hidden="true"></i> Ver</a>` : ''}
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+        ${c.foto_url ? `<a href="${c.foto_url}" target="_blank" class="btn-ver"><i class="ti ti-camera" aria-hidden="true"></i> Ver</a>` : ''}
+        ${puedeBorrarCobro ? `<button onclick="eliminarCobro('${c.id}','${pedidoId}')" title="Eliminar cobro" style="background:#fff;border:0.5px solid #f0c4c4;color:#e24b4a;border-radius:8px;padding:6px 9px;font-size:12px;cursor:pointer"><i class="ti ti-trash" aria-hidden="true"></i></button>` : ''}
+      </div>
     </div>`).join('')
+}
+
+// Elimina un cobro y recalcula el estado de cobro del pedido
+async function eliminarCobro(cobroId, pedidoId) {
+  const { data: cobro } = await db.from('cobros').select('monto, medio_pago').eq('id', cobroId).single()
+  if (!cobro) return
+  const ok = await confirmar(`¿Eliminar este cobro de $${Number(cobro.monto).toLocaleString('es-AR')}? Se va a recalcular el saldo del pedido.`, 'Eliminar')
+  if (!ok) return
+
+  const { error } = await db.from('cobros').delete().eq('id', cobroId)
+  if (error) { avisar('No se pudo eliminar el cobro: ' + error.message); return }
+
+  // Recalcular el total cobrado a partir de los cobros que quedaron
+  const { data: restantes } = await db.from('cobros').select('monto').eq('pedido_id', pedidoId)
+  const nuevoCobrado = (restantes || []).reduce((s, c) => s + Number(c.monto), 0)
+  const { data: ped } = await db.from('pedidos').select('total, etapa').eq('id', pedidoId).single()
+  const total = Number(ped?.total || 0)
+  const nuevoEstadoCobro = nuevoCobrado <= 0 ? 'pendiente' : (nuevoCobrado >= total - 0.01 ? 'cobrado' : 'parcial')
+
+  const upd = { monto_cobrado: nuevoCobrado, estado_cobro: nuevoEstadoCobro }
+  // Si el pedido estaba marcado como cobrado y ya no lo está, volver la etapa a 'recibido'
+  if (ped?.etapa === 'cobrado' && nuevoEstadoCobro !== 'cobrado') upd.etapa = 'recibido'
+  await db.from('pedidos').update(upd).eq('id', pedidoId)
+
+  await registrarHistorial(pedidoId, 'cobro_eliminado', `Se eliminó un cobro de ${labelMedio(cobro.medio_pago)} por $${Number(cobro.monto).toLocaleString('es-AR')}`)
+  avisar('Cobro eliminado correctamente')
+  await abrirPedido(pedidoId)
 }
 
 async function cargarHistorialPedido(pedidoId) {
