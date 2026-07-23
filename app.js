@@ -2058,9 +2058,60 @@ async function cargarCobrosPedido(pedidoId) {
       </div>
       <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
         ${c.foto_url ? `<a href="${c.foto_url}" target="_blank" class="btn-ver"><i class="ti ti-camera" aria-hidden="true"></i> Ver</a>` : ''}
+        ${c.foto_url ? `<button onclick="comprobanteAPDF('${c.foto_url}','Comprobante-${labelMedio(c.medio_pago)}')" title="Compartir como PDF" style="background:#fff;border:0.5px solid var(--color-border-tertiary);color:var(--color-marca);border-radius:8px;padding:6px 9px;font-size:12px;cursor:pointer"><i class="ti ti-file-download" aria-hidden="true"></i> PDF</button>` : ''}
         ${puedeBorrarCobro ? `<button onclick="eliminarCobro('${c.id}','${pedidoId}')" title="Eliminar cobro" style="background:#fff;border:0.5px solid #f0c4c4;color:#e24b4a;border-radius:8px;padding:6px 9px;font-size:12px;cursor:pointer"><i class="ti ti-trash" aria-hidden="true"></i></button>` : ''}
       </div>
     </div>`).join('')
+}
+
+// Convierte la imagen de un comprobante en PDF y lo comparte (o descarga)
+async function comprobanteAPDF(url, nombreBase) {
+  if (!window.jspdf) { window.open(url, '_blank'); return }
+  avisar('Generando PDF...', 'info')
+  try {
+    const resp = await fetch(url)
+    const blobImg = await resp.blob()
+    const dataUrl = await new Promise((res, rej) => {
+      const r = new FileReader()
+      r.onload = () => res(r.result)
+      r.onerror = rej
+      r.readAsDataURL(blobImg)
+    })
+
+    // Medir la imagen para encajarla bien en la hoja
+    const img = new Image()
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = dataUrl })
+
+    const { jsPDF } = window.jspdf
+    const pdf = new jsPDF('p', 'mm', 'a4')
+    const pw = pdf.internal.pageSize.getWidth()
+    const ph = pdf.internal.pageSize.getHeight()
+    const margen = 10
+    const maxW = pw - margen * 2
+    const maxH = ph - margen * 2
+    let w = maxW
+    let h = (img.height * w) / img.width
+    if (h > maxH) { h = maxH; w = (img.width * h) / img.height }
+    const x = (pw - w) / 2
+    pdf.addImage(dataUrl, 'JPEG', x, margen, w, h)
+
+    const nombre = `${(nombreBase || 'Comprobante').replace(/\s+/g, '-')}.pdf`
+    const blobPdf = pdf.output('blob')
+    const file = new File([blobPdf], nombre, { type: 'application/pdf' })
+
+    document.getElementById('modal-aviso').style.display = 'none'
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: nombre }) } catch (e) {}
+    } else {
+      const u = URL.createObjectURL(blobPdf)
+      const a = document.createElement('a')
+      a.href = u; a.download = nombre; a.click()
+      URL.revokeObjectURL(u)
+    }
+  } catch (e) {
+    avisar('No se pudo generar el PDF del comprobante: ' + e.message)
+  }
 }
 
 // Elimina un cobro y recalcula el estado de cobro del pedido
