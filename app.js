@@ -454,9 +454,9 @@ async function cargarDashboard() {
   let qPedidosAnio   = db.from('pedidos').select('id, total, vendedor_id').gte('fecha_pedido', inicioAnio.split('T')[0]).neq('estado', 'cancelado')
   let qCobrosAnio    = db.from('cobros').select('monto, vendedor_id').gte('created_at', inicioAnio)
   let qTodosActivos  = db.from('pedidos').select('id, total, etapa').neq('estado', 'cancelado').not('etapa', 'eq', 'cobrado')
-  let qDeudaTotal    = db.from('pedidos').select('id, total, monto_cobrado, clientes(razon_social)').eq('estado_cobro', 'pendiente').in('etapa', ['facturado', 'enviado', 'recibido', 'cobrado'])
-  let qVencidos      = db.from('pedidos').select('id, numero, total, monto_cobrado, fecha_vencimiento_cobro, clientes(razon_social)').eq('estado_cobro', 'pendiente').in('etapa', ['facturado', 'enviado', 'recibido', 'cobrado']).lt('fecha_vencimiento_cobro', hoyStr)
-  let qPorVencer     = db.from('pedidos').select('id, numero, total, monto_cobrado, fecha_vencimiento_cobro, clientes(razon_social)').eq('estado_cobro', 'pendiente').in('etapa', ['facturado', 'enviado', 'recibido', 'cobrado']).gte('fecha_vencimiento_cobro', hoyStr).lte('fecha_vencimiento_cobro', en7dias)
+  let qDeudaTotal    = db.from('pedidos').select('id, total, monto_cobrado, clientes(razon_social)').or('estado_cobro.is.null,estado_cobro.eq.pendiente,estado_cobro.eq.parcial').in('etapa', ['facturado', 'enviado', 'recibido', 'cobrado'])
+  let qVencidos      = db.from('pedidos').select('id, numero, total, monto_cobrado, fecha_vencimiento_cobro, clientes(razon_social)').or('estado_cobro.is.null,estado_cobro.eq.pendiente,estado_cobro.eq.parcial').in('etapa', ['facturado', 'enviado', 'recibido', 'cobrado']).lt('fecha_vencimiento_cobro', hoyStr)
+  let qPorVencer     = db.from('pedidos').select('id, numero, total, monto_cobrado, fecha_vencimiento_cobro, clientes(razon_social)').or('estado_cobro.is.null,estado_cobro.eq.pendiente,estado_cobro.eq.parcial').in('etapa', ['facturado', 'enviado', 'recibido', 'cobrado']).gte('fecha_vencimiento_cobro', hoyStr).lte('fecha_vencimiento_cobro', en7dias)
   let qAtascados     = db.from('pedidos').select('id, numero, clientes(razon_social), created_at').eq('etapa', 'facturado').lte('created_at', new Date(Date.now() - 3 * 86400000).toISOString())
   let qAlertas       = db.from('notificaciones_admin').select('id, tipo').eq('leida', false)
   let qVendedores    = esAdmin ? db.from('perfiles').select('id, nombre_completo').neq('rol', 'cliente') : null
@@ -749,7 +749,7 @@ async function cargarInicioCliente() {
   const deudaMapaCliente = await calcularDeudaPorCliente(clienteId)
   const deuda = deudaMapaCliente[clienteId]?.deuda || 0
   // Próximo vencimiento
-  const conVenc = todos.filter(p => p.fecha_vencimiento_cobro && (p.estado_cobro === 'pendiente' || !p.estado_cobro) && ['facturado','enviado','recibido','cobrado'].includes(p.etapa))
+  const conVenc = todos.filter(p => p.fecha_vencimiento_cobro && (p.estado_cobro !== 'cobrado') && ['facturado','enviado','recibido','cobrado'].includes(p.etapa))
     .sort((a,b) => new Date(a.fecha_vencimiento_cobro) - new Date(b.fecha_vencimiento_cobro))
   const proxVenc = conVenc[0]?.fecha_vencimiento_cobro
 
@@ -918,7 +918,7 @@ async function calcularDeudaPorCliente(clienteId = null) {
   // Solo cuentan como deuda los pedidos ya facturados (facturado/enviado/recibido/cobrado),
   // no los recién creados sin facturar.
   let q = db.from('pedidos').select('cliente_id, total, monto_cobrado, fecha_vencimiento_cobro')
-    .eq('estado_cobro', 'pendiente').neq('etapa', 'cancelado')
+    .or('estado_cobro.is.null,estado_cobro.eq.pendiente,estado_cobro.eq.parcial').neq('etapa', 'cancelado')
     .in('etapa', ['facturado', 'enviado', 'recibido', 'cobrado'])
   if (clienteId) q = q.eq('cliente_id', clienteId)
   const { data: pedidos } = await q
@@ -1461,8 +1461,11 @@ function badgeEstado(e) {
   return `<span class="badge ${c[e]||'badge-gris'}">${e}</span>`
 }
 function badgeCobro(e) {
-  const c = { pendiente:'badge-amarillo', cobrado_efectivo:'badge-verde', cobrado_transferencia:'badge-verde', cobrado_cheque:'badge-verde', cobrado_tarjeta:'badge-verde', incobrable:'badge-rojo' }
-  const l = { pendiente:'Pendiente', cobrado_efectivo:'Efectivo', cobrado_transferencia:'Transferencia', cobrado_cheque:'Cheque', cobrado_tarjeta:'Tarjeta', incobrable:'Incobrable' }
+  const c = { pendiente:'badge-amarillo', parcial:'badge-amarillo', cobrado:'badge-verde',
+              cobrado_efectivo:'badge-verde', cobrado_transferencia:'badge-verde', cobrado_cheque:'badge-verde', cobrado_tarjeta:'badge-verde', incobrable:'badge-rojo' }
+  const l = { pendiente:'Pendiente', parcial:'Cobro parcial', cobrado:'Cobrado',
+              cobrado_efectivo:'Cobrado', cobrado_transferencia:'Cobrado', cobrado_cheque:'Cobrado', cobrado_tarjeta:'Cobrado', incobrable:'Incobrable' }
+  if (!e) return `<span class="badge badge-amarillo">Pendiente</span>`
   return `<span class="badge ${c[e]||'badge-gris'}">${l[e]||e}</span>`
 }
 function badgeEnvio(e) {
@@ -2224,15 +2227,18 @@ async function guardarCobro() {
   const nuevoPendiente = Number(pedido.total) - nuevoMonto
   const pagoCompleto = nuevoPendiente <= 0.01
   const estadoMap = { efectivo:'cobrado_efectivo', transferencia:'cobrado_transferencia', cheque:'cobrado_cheque', echeq:'cobrado_cheque' }
-  const nuevoEstado = pagoCompleto ? (estadoMap[medio] || 'cobrado_efectivo') : 'pendiente'
+  // Estado del COBRO (según el medio de pago)
+  const estadoCobroRegistro = estadoMap[medio] || 'cobrado_efectivo'
+  // Estado de cobro del PEDIDO (pendiente / parcial / cobrado)
+  const estadoCobroPedido = pagoCompleto ? 'cobrado' : (nuevoMonto > 0 ? 'parcial' : 'pendiente')
   const { error } = await db.from('cobros').insert({
     pedido_id: pedidoActualId, vendedor_id: usuarioActual.id,
-    estado: nuevoEstado, monto, medio_pago: medio,
+    estado: estadoCobroRegistro, monto, medio_pago: medio,
     foto_url: fotoUrl, nota: nota || null,
     fecha_vencimiento_cheque: fechaCheque || null
   })
   if (error) { avisar('Error: ' + error.message); return }
-  const updateData = { monto_cobrado: nuevoMonto, estado_cobro: nuevoEstado }
+  const updateData = { monto_cobrado: nuevoMonto, estado_cobro: estadoCobroPedido }
   if (pagoCompleto) updateData.etapa = 'cobrado'
   await db.from('pedidos').update(updateData).eq('id', pedidoActualId)
   await registrarHistorial(pedidoActualId, 'cobro_registrado', `${labelMedio(medio)} por $${monto.toLocaleString('es-AR')}`)
@@ -3925,9 +3931,9 @@ async function cargarCobranza() {
   if (hasta) query = query.lte('fecha_pedido', hasta + 'T23:59:59')
 
   // Filtro por estado
-  if (_cobEstado === 'vencido')   query = query.or('estado_cobro.eq.pendiente,estado_cobro.is.null').lt('fecha_vencimiento_cobro', hoy)
-  if (_cobEstado === 'pendiente') query = query.or('estado_cobro.eq.pendiente,estado_cobro.is.null')
-  if (_cobEstado === 'cobrado')   query = query.not('estado_cobro', 'is', null).not('estado_cobro', 'eq', 'pendiente')
+  if (_cobEstado === 'vencido')   query = query.or('estado_cobro.is.null,estado_cobro.eq.pendiente,estado_cobro.eq.parcial').lt('fecha_vencimiento_cobro', hoy)
+  if (_cobEstado === 'pendiente') query = query.or('estado_cobro.is.null,estado_cobro.eq.pendiente,estado_cobro.eq.parcial')
+  if (_cobEstado === 'cobrado')   query = query.eq('estado_cobro', 'cobrado')
 
   const { data: pedidos, error: pedErr } = await query
   if (pedErr) { console.error('Cobranza error:', pedErr); return }
@@ -3949,8 +3955,8 @@ async function cargarCobranza() {
 
 // ── STATS ────────────────────────────────────────
 async function renderCobStats(pedidos, hoy, esAdmin) {
-  const pendientes = pedidos?.filter(p => !p.estado_cobro || p.estado_cobro === 'pendiente') || []
-  const cobrados   = pedidos?.filter(p => p.estado_cobro && p.estado_cobro !== 'pendiente') || []
+  const pendientes = pedidos?.filter(p => p.estado_cobro !== 'cobrado') || []
+  const cobrados   = pedidos?.filter(p => p.estado_cobro === 'cobrado') || []
   const vencidos   = pendientes.filter(p => p.fecha_vencimiento_cobro && p.fecha_vencimiento_cobro < hoy)
 
   const totalPendiente = pendientes.reduce((s, p) => s + (Number(p.total) - Number(p.monto_cobrado)), 0)
@@ -3989,8 +3995,8 @@ function renderListaCobranza(pedidos, hoy, esAdmin) {
   const el = document.getElementById('lista-cobranza')
 
   // Separar pendientes y cobrados
-  const pendientes = (pedidos || []).filter(p => !p.estado_cobro || p.estado_cobro === 'pendiente')
-  const cobrados   = (pedidos || []).filter(p => p.estado_cobro && p.estado_cobro !== 'pendiente')
+  const pendientes = (pedidos || []).filter(p => p.estado_cobro !== 'cobrado')
+  const cobrados   = (pedidos || []).filter(p => p.estado_cobro === 'cobrado')
 
   // Guardar para las pestañas
   _cobPendientes = pendientes
@@ -4264,7 +4270,9 @@ async function guardarCobroRapido() {
   }
 
   const updateData = { monto_cobrado: nuevoMonto }
-  if (pagoCompleto) { updateData.estado_cobro = estadoMap[medio]; updateData.etapa = 'cobrado' }
+  // Estado de cobro del PEDIDO: pendiente / parcial / cobrado (distinto del estado del cobro)
+  updateData.estado_cobro = pagoCompleto ? 'cobrado' : (nuevoMonto > 0 ? 'parcial' : 'pendiente')
+  if (pagoCompleto) updateData.etapa = 'cobrado'
   await db.from('pedidos').update(updateData).eq('id', _cobroPedidoActualId)
   await registrarHistorial(_cobroPedidoActualId, 'cobro_registrado',
     `${labelMedio(medio)} por ${formatMonto(monto)}`)
@@ -4377,9 +4385,9 @@ async function exportarCobranza() {
     `$${Number(p.total).toLocaleString('es-AR')}`,
     `$${Number(p.monto_cobrado).toLocaleString('es-AR')}`,
     `$${(Number(p.total) - Number(p.monto_cobrado)).toLocaleString('es-AR')}`,
-    p.estado_cobro === 'pendiente' ? 'Pendiente' : 'Cobrado',
+    p.estado_cobro === 'cobrado' ? 'Cobrado' : (p.estado_cobro === 'parcial' ? 'Parcial' : 'Pendiente'),
     p.fecha_vencimiento_cobro ? formatFecha(p.fecha_vencimiento_cobro) : '-',
-    p.fecha_vencimiento_cobro && p.fecha_vencimiento_cobro < hoy && p.estado_cobro === 'pendiente' ? 'VENCIDO' : ''
+    p.fecha_vencimiento_cobro && p.fecha_vencimiento_cobro < hoy && p.estado_cobro !== 'cobrado' ? 'VENCIDO' : ''
   ]) || []
 
   // Usar ; como separador (estándar Excel Argentina)
@@ -6339,7 +6347,7 @@ async function reporteEvolucion(desde, hasta) {
 // ── REPORTE DEUDA POR ANTIGÜEDAD ──
 async function reporteDeudaAntiguedad(desde, hasta) {
   let q = db.from('pedidos').select('total, monto_cobrado, fecha_vencimiento_cobro, created_at, cliente_id, vendedor_id, clientes(razon_social)')
-    .eq('estado_cobro','pendiente').neq('etapa','cancelado')
+    .or('estado_cobro.is.null,estado_cobro.eq.pendiente,estado_cobro.eq.parcial').neq('etapa','cancelado')
   q = await aplicarFiltroVendedorReporte(q)
   const { data: pedidos } = await q
 
