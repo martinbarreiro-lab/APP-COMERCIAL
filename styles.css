@@ -973,3 +973,29 @@ body { background:#f0f2f5; color:#1a1a1a; }
   .rend-vend-datos { justify-content:space-between; gap:8px; }
   .rend-vend-dato { align-items:flex-start; flex:1; }
 }
+
+/* ── Comisiones ── */
+.com-filtros { display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap; align-items:center; }
+.com-filtros select, .com-fechas input { border:0.5px solid var(--color-border-tertiary); border-radius:8px; padding:8px 12px; font-size:13px; background:#fff; }
+.com-fechas { display:flex; align-items:center; gap:8px; }
+.com-totales { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px; }
+.com-tot-card { background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-top:3px solid #0d8fd1; border-radius:10px; padding:14px 16px; }
+.com-tot-label { font-size:11px; color:var(--color-text-secondary); }
+.com-tot-val { font-size:20px; font-weight:700; margin-top:3px; }
+.com-tot-sub { font-size:11px; color:var(--color-text-tertiary); margin-top:2px; }
+.com-grupo { background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:14px 16px; margin-bottom:12px; }
+.com-grupo-tit { font-size:13px; font-weight:600; color:var(--color-marca-oscuro); margin-bottom:4px; display:flex; align-items:center; gap:6px; }
+.com-grupo-nota { font-size:11px; color:var(--color-text-tertiary); margin-bottom:10px; }
+.com-count { background:var(--color-background-tertiary); color:var(--color-text-secondary); border-radius:10px; font-size:11px; padding:1px 8px; }
+.com-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-top:1px solid var(--color-background-secondary); font-size:13px; gap:12px; }
+.com-item-sub { font-size:11px; color:var(--color-text-tertiary); margin-top:2px; }
+.com-item-monto { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.com-monto-val { font-weight:600; }
+.com-monto-val.verde { color:#1d9e75; }
+.com-badge-sin { font-size:10px; color:#c99a06; background:#fef6e6; padding:2px 7px; border-radius:5px; white-space:nowrap; }
+.com-btn-pagar { background:#1d9e75; color:#fff; border:none; border-radius:7px; padding:6px 12px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap; }
+@media (max-width:600px) {
+  .com-totales { grid-template-columns:1fr; }
+  .com-item { flex-direction:column; align-items:stretch; }
+  .com-item-monto { justify-content:space-between; }
+}
