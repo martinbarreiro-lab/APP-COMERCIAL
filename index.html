@@ -21,7 +21,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css">
-  <link rel="stylesheet" href="styles.css?v=64">
+  <link rel="stylesheet" href="styles.css?v=66">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -150,6 +150,7 @@
         <button onclick="mostrarSeccion('problemas')" class="nav-btn" id="nav-problemas"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Reclamos <span id="nav-problemas-badge" style="display:none;background:#e24b4a;color:white;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px"></span></button>
         <button onclick="mostrarSeccion('clientes')"  class="nav-btn" id="nav-clientes"><i class="ti ti-users" aria-hidden="true"></i> Clientes</button>
         <button onclick="mostrarSeccion('productos')" class="nav-btn" id="nav-productos"><i class="ti ti-box" aria-hidden="true"></i> Productos</button>
+        <button onclick="mostrarSeccion('comisiones')" class="nav-btn" id="nav-comisiones"><i class="ti ti-percentage" aria-hidden="true"></i> Comisiones</button>
         <button onclick="mostrarSeccion('reportes')" class="nav-btn" id="nav-reportes"><i class="ti ti-chart-bar" aria-hidden="true"></i> Reportes</button>
         <button onclick="mostrarSeccion('usuarios')" class="nav-btn" id="nav-usuarios"><i class="ti ti-user-cog" aria-hidden="true"></i> Usuarios <span id="nav-usuarios-badge" style="display:none;background:#e24b4a;color:white;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px"></span></button>
       </nav>
@@ -531,6 +532,20 @@
 
         </section>
 
+        <!-- COMISIONES -->
+        <section id="seccion-comisiones" class="seccion" style="display:none">
+          <div class="seccion-header"><h2>Comisiones</h2></div>
+          <div class="com-filtros">
+            <select id="com-vendedor" onchange="cargarComisiones()"></select>
+            <div class="com-fechas">
+              <input type="date" id="com-desde" onchange="cargarComisiones()">
+              <span>→</span>
+              <input type="date" id="com-hasta" onchange="cargarComisiones()">
+            </div>
+          </div>
+          <div id="com-contenido"></div>
+        </section>
+
         <!-- REPORTES -->
         <section id="seccion-reportes" class="seccion" style="display:none">
           <div class="seccion-header"><h2>Reportes</h2></div>
@@ -646,6 +661,9 @@
       </div>
       <div class="mobile-more-item" onclick="navMovil('productos')">
         <i class="ti ti-cheese" aria-hidden="true"></i> Productos
+      </div>
+      <div class="mobile-more-item" id="more-comisiones" onclick="navMovil('comisiones')">
+        <i class="ti ti-percentage" aria-hidden="true"></i> Comisiones
       </div>
       <div class="mobile-more-item" id="more-usuarios" onclick="navMovil('usuarios')">
         <i class="ti ti-key" aria-hidden="true"></i> Usuarios
@@ -942,6 +960,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=65"></script>
+  <script src="app.js?v=66"></script>
 </body>
 </html>
