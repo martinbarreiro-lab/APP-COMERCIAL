@@ -377,14 +377,14 @@ async function configurarInterfazPorRol() {
 
   if (esCliente) {
     // El cliente NO ve: clientes (otros), reportes, configuración, usuarios
-    const ocultarParaCliente = ['clientes', 'reportes', 'configuracion', 'usuarios']
+    const ocultarParaCliente = ['clientes', 'reportes', 'configuracion', 'usuarios', 'comisiones']
     ocultarParaCliente.forEach(sec => {
       const nav = document.getElementById('nav-' + sec)
       if (nav) nav.style.display = 'none'
     })
     document.querySelectorAll('.mobile-more-item').forEach(item => {
       const txt = item.textContent.toLowerCase()
-      if (txt.includes('cliente') || txt.includes('reporte') || txt.includes('usuario')) {
+      if (txt.includes('cliente') || txt.includes('reporte') || txt.includes('usuario') || txt.includes('comisi')) {
         item.style.display = 'none'
       }
     })
@@ -396,6 +396,9 @@ async function configurarInterfazPorRol() {
     if (navConfig) navConfig.style.display = 'none'
     const navUsr = document.getElementById('nav-usuarios')
     if (navUsr) navUsr.style.display = 'none'
+    // El vendedor no ve Comisiones (es info de gestión)
+    const navCom = document.getElementById('nav-comisiones')
+    if (navCom) navCom.style.display = 'none'
     // El vendedor no ve el reporte de Vendedor (es info de todo el equipo)
     const repTabVend = document.getElementById('rep-tab-vendedor')
     if (repTabVend) repTabVend.style.display = 'none'
@@ -422,6 +425,7 @@ function mostrarSeccion(nombre) {
   if (nombre === 'problemas') cargarProblemas()
   if (nombre === 'clientes')  cargarClientes()
   if (nombre === 'productos') cargarProductos()
+  if (nombre === 'comisiones') cargarComisionesInit()
   if (nombre === 'reportes')  cargarReportes()
   if (nombre === 'usuarios')  cargarUsuarios()
 }
@@ -7358,4 +7362,148 @@ async function abrirEditarObjetivo(clienteId, objetivoActual) {
   if (rolUsuarioActual === 'cliente') { cargarInicioCliente() }
   else if (clienteEditandoId === clienteId) { abrirFichaCliente(clienteId) }
   else { cargarClientes() }
+}
+
+// ══════════════════════════════════════════════════
+// COMISIONES
+// ══════════════════════════════════════════════════
+async function cargarComisionesInit() {
+  // Solo admin/empresa
+  const rol = await cargarRolUsuario()
+  if (rol !== 'admin' && rol !== 'empresa') {
+    document.getElementById('com-contenido').innerHTML = '<p class="vacio">No tenés acceso a esta sección.</p>'
+    return
+  }
+  // Cargar vendedores en el selector
+  const sel = document.getElementById('com-vendedor')
+  const { data: vendedores } = await db.from('perfiles')
+    .select('id, nombre_completo, pct_comision')
+    .in('rol', ['vendedor', 'admin', 'empresa'])
+    .order('nombre_completo')
+  const vends = (vendedores || []).filter(v => Number(v.pct_comision) > 0)
+  if (vends.length === 0) {
+    document.getElementById('com-contenido').innerHTML = '<p class="vacio">No hay vendedores con comisión configurada. Asigná un % de comisión en la ficha del vendedor.</p>'
+    sel.innerHTML = ''
+    return
+  }
+  sel.innerHTML = vends.map(v => `<option value="${v.id}" data-pct="${v.pct_comision}">${v.nombre_completo} (${v.pct_comision}%)</option>`).join('')
+
+  // Fechas por defecto: mes actual
+  const hoy = new Date()
+  const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0]
+  const ultimoDia = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().split('T')[0]
+  document.getElementById('com-desde').value = primerDia
+  document.getElementById('com-hasta').value = ultimoDia
+
+  cargarComisiones()
+}
+
+async function cargarComisiones() {
+  const sel = document.getElementById('com-vendedor')
+  if (!sel || !sel.value) return
+  const vendedorId = sel.value
+  const pct = Number(sel.options[sel.selectedIndex].dataset.pct) || 0
+  const desde = document.getElementById('com-desde').value
+  const hasta = document.getElementById('com-hasta').value
+  const cont = document.getElementById('com-contenido')
+  cont.innerHTML = '<p class="vacio">Cargando...</p>'
+
+  // Traer pedidos del vendedor en el rango (por fecha del pedido), ya entregados o cobrados
+  let q = db.from('pedidos')
+    .select('id, numero, total, etapa, estado_cobro, fecha_pedido, clientes(razon_social)')
+    .eq('vendedor_id', vendedorId)
+    .neq('estado', 'cancelado')
+    .in('etapa', ['recibido', 'cobrado'])
+  if (desde) q = q.gte('fecha_pedido', desde)
+  if (hasta) q = q.lte('fecha_pedido', hasta)
+  const { data: pedidos } = await q
+
+  // Traer las comisiones ya pagadas de esos pedidos
+  const ids = (pedidos || []).map(p => p.id)
+  let pagadasMap = {}
+  if (ids.length > 0) {
+    const { data: pagadas } = await db.from('comisiones_pagadas').select('*').in('pedido_id', ids)
+    ;(pagadas || []).forEach(c => { pagadasMap[c.pedido_id] = c })
+  }
+
+  // Clasificar
+  const proyectadas = []  // entregado, no cobrado completo
+  const porPagar    = []  // cobrado completo, comisión no pagada
+  const pagadas     = []  // comisión pagada
+  ;(pedidos || []).forEach(p => {
+    const comision = Number(p.total) * (pct / 100)
+    const item = { ...p, comision }
+    if (pagadasMap[p.id]) {
+      pagadas.push({ ...item, pagada: pagadasMap[p.id] })
+    } else if (p.estado_cobro === 'cobrado') {
+      porPagar.push(item)
+    } else {
+      proyectadas.push(item)
+    }
+  })
+
+  // Totales
+  const totProyectadas = proyectadas.reduce((s, p) => s + p.comision, 0)
+  const totPorPagar    = porPagar.reduce((s, p) => s + p.comision, 0)
+  const totPagadas     = pagadas.reduce((s, p) => s + p.comision, 0)
+  const totPeriodo     = totProyectadas + totPorPagar + totPagadas
+
+  const filaPedido = (p, tipo) => `
+    <div class="com-item">
+      <div class="com-item-info">
+        <b>Pedido #${p.numero}</b> · ${p.clientes?.razon_social || '-'}
+        <div class="com-item-sub">Total $${Number(p.total).toLocaleString('es-AR')} · ${pct}%${tipo === 'pagada' && p.pagada ? ' · pagada ' + formatFecha(p.pagada.created_at) : ''}${tipo === 'porpagar' ? ' · cobrado' : ''}</div>
+      </div>
+      <div class="com-item-monto">
+        <span class="com-monto-val ${tipo === 'pagada' ? 'verde' : ''}">$${Math.round(p.comision).toLocaleString('es-AR')}</span>
+        ${tipo === 'proyectada' ? '<span class="com-badge-sin">Aún sin cobrar</span>' : ''}
+        ${tipo === 'porpagar' ? `<button class="com-btn-pagar" onclick="marcarComisionPagada('${p.id}','${sel.value}',${p.comision},${pct})">Marcar pagada</button>` : ''}
+      </div>
+    </div>`
+
+  cont.innerHTML = `
+    <div class="com-totales">
+      <div class="com-tot-card" style="border-top-color:#0d8fd1">
+        <div class="com-tot-label">Comisiones del período</div>
+        <div class="com-tot-val">$${Math.round(totPeriodo).toLocaleString('es-AR')}</div>
+        <div class="com-tot-sub">generado + proyectado</div>
+      </div>
+      <div class="com-tot-card" style="border-top-color:#d68910">
+        <div class="com-tot-label">Falta pagar</div>
+        <div class="com-tot-val" style="color:#ba7517">$${Math.round(totPorPagar).toLocaleString('es-AR')}</div>
+        <div class="com-tot-sub">ya cobradas, sin pagar</div>
+      </div>
+      <div class="com-tot-card" style="border-top-color:#1d9e75">
+        <div class="com-tot-label">Ya pagadas</div>
+        <div class="com-tot-val" style="color:#1d9e75">$${Math.round(totPagadas).toLocaleString('es-AR')}</div>
+        <div class="com-tot-sub">liquidadas al vendedor</div>
+      </div>
+    </div>
+
+    <div class="com-grupo">
+      <div class="com-grupo-tit"><i class="ti ti-hourglass" aria-hidden="true"></i> Proyectadas — entregados sin cobrar <span class="com-count">${proyectadas.length}</span></div>
+      <div class="com-grupo-nota">La comisión se genera cuando el pedido se cobra completo. Estas todavía no se ganaron.</div>
+      ${proyectadas.length ? proyectadas.map(p => filaPedido(p, 'proyectada')).join('') : '<p class="vacio">Ninguna</p>'}
+    </div>
+
+    <div class="com-grupo">
+      <div class="com-grupo-tit"><i class="ti ti-cash" aria-hidden="true"></i> Generadas — por pagar <span class="com-count">${porPagar.length}</span></div>
+      ${porPagar.length ? porPagar.map(p => filaPedido(p, 'porpagar')).join('') : '<p class="vacio">Ninguna</p>'}
+    </div>
+
+    <div class="com-grupo">
+      <div class="com-grupo-tit"><i class="ti ti-circle-check" aria-hidden="true"></i> Pagadas <span class="com-count">${pagadas.length}</span></div>
+      ${pagadas.length ? pagadas.map(p => filaPedido(p, 'pagada')).join('') : '<p class="vacio">Ninguna</p>'}
+    </div>`
+}
+
+async function marcarComisionPagada(pedidoId, vendedorId, monto, pct) {
+  const ok = await confirmar(`¿Marcar como pagada la comisión de $${Math.round(monto).toLocaleString('es-AR')}?`, 'Marcar pagada')
+  if (!ok) return
+  const { error } = await db.from('comisiones_pagadas').insert({
+    pedido_id: pedidoId, vendedor_id: vendedorId,
+    monto: monto, pct_aplicado: pct, pagada_por: usuarioActual.id
+  })
+  if (error) { avisar('Error: ' + error.message); return }
+  cargarComisiones()
 }
