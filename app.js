@@ -7425,7 +7425,7 @@ async function cargarComisiones() {
   }
 
   // Clasificar
-  const proyectadas = []  // facturado en adelante, no cobrado completo
+  const proyectadas = []  // facturado/entregado, no cobrado completo (NO cuenta al total)
   const porPagar    = []  // cobrado completo, comisión no pagada
   const pagadas     = []  // comisión pagada (se filtran por fecha de pago abajo)
   ;(pedidos || []).forEach(p => {
@@ -7448,53 +7448,54 @@ async function cargarComisiones() {
     return true
   })
 
-  // Totales: lo pendiente es total (deuda real); lo pagado es del período filtrado
-  const totProyectadas = proyectadas.reduce((s, p) => s + p.comision, 0)
   const totPorPagar    = porPagar.reduce((s, p) => s + p.comision, 0)
   const totPagadas     = pagadasFiltradas.reduce((s, p) => s + p.comision, 0)
-  const totPeriodo     = totProyectadas + totPorPagar + totPagadas
+  const totProyectadas = proyectadas.reduce((s, p) => s + p.comision, 0)
+  // "Comisiones generadas" = las que ya se ganaron (pedido cobrado): por pagar + pagadas del período
+  const totGeneradas   = totPorPagar + totPagadas
 
   const filaPedido = (p, tipo) => `
-    <div class="com-item">
+    <div class="com-item" onclick="irAlPedidoComision('${p.id}')" style="cursor:pointer">
       <div class="com-item-info">
-        <b>Pedido #${p.numero}</b> · ${p.clientes?.razon_social || '-'}
-        <div class="com-item-sub">Total $${Number(p.total).toLocaleString('es-AR')} · ${pct}%${tipo === 'pagada' && p.pagada ? ' · pagada ' + formatFecha(p.pagada.created_at) : ''}${tipo === 'porpagar' ? ' · cobrado' : ''}${tipo === 'proyectada' ? ' · ' + (p.etapa === 'facturado' ? 'facturado' : p.etapa === 'enviado' ? 'enviado' : 'entregado') : ''}</div>
+        <b>Pedido #${p.numero}</b> · ${p.clientes?.razon_social || '-'} <i class="ti ti-external-link" style="font-size:12px;color:var(--color-text-tertiary)" aria-hidden="true"></i>
+        <div class="com-item-sub">Total $${Number(p.total).toLocaleString('es-AR')} · ${pct}%${tipo === 'pagada' && p.pagada ? ' · pagada ' + formatFecha(p.pagada.created_at) : ''}${tipo === 'porpagar' ? ' · cobrado' : ''}</div>
       </div>
       <div class="com-item-monto">
         <span class="com-monto-val ${tipo === 'pagada' ? 'verde' : ''}">$${Math.round(p.comision).toLocaleString('es-AR')}</span>
-        ${tipo === 'proyectada' ? '<span class="com-badge-sin">Aún sin cobrar</span>' : ''}
-        ${tipo === 'porpagar' ? `<button class="com-btn-pagar" onclick="marcarComisionPagada('${p.id}','${sel.value}',${p.comision},${pct})">Marcar pagada</button>` : ''}
+        ${tipo === 'porpagar' ? `<button class="com-btn-pagar" onclick="event.stopPropagation(); marcarComisionPagada('${p.id}','${sel.value}',${p.comision},${pct})">Marcar pagada</button>` : ''}
       </div>
     </div>`
 
   cont.innerHTML = `
-    <div class="com-totales">
-      <div class="com-tot-card" style="border-top-color:#0d8fd1">
-        <div class="com-tot-label">Comisiones pendientes</div>
-        <div class="com-tot-val">$${Math.round(totProyectadas + totPorPagar).toLocaleString('es-AR')}</div>
-        <div class="com-tot-sub">proyectadas + por pagar</div>
+    <div class="com-totales-v2">
+      <div class="com-tot-principal">
+        <div class="com-tot-label">Comisiones generadas <span style="color:var(--color-text-tertiary)">(pedidos cobrados)</span></div>
+        <div class="com-tot-val" style="color:#1d9e75;font-size:24px">$${Math.round(totGeneradas).toLocaleString('es-AR')}</div>
+        <div class="com-tot-sub">lo que ganó en el período</div>
       </div>
-      <div class="com-tot-card" style="border-top-color:#d68910">
-        <div class="com-tot-label">Falta pagar (ya cobradas)</div>
-        <div class="com-tot-val" style="color:#ba7517">$${Math.round(totPorPagar).toLocaleString('es-AR')}</div>
-        <div class="com-tot-sub">listas para liquidar</div>
-      </div>
-      <div class="com-tot-card" style="border-top-color:#1d9e75">
-        <div class="com-tot-label">Pagadas en el período</div>
-        <div class="com-tot-val" style="color:#1d9e75">$${Math.round(totPagadas).toLocaleString('es-AR')}</div>
-        <div class="com-tot-sub">seg&uacute;n el rango de fechas</div>
+      <div class="com-tot-fila">
+        <div class="com-tot-card" style="border-left:4px solid #0d8fd1">
+          <div class="com-tot-label">Ya pagadas</div>
+          <div class="com-tot-val" style="color:#0d8fd1">$${Math.round(totPagadas).toLocaleString('es-AR')}</div>
+          <div class="com-tot-sub">ya recibió</div>
+        </div>
+        <div class="com-tot-card" style="border-left:4px solid #d68910">
+          <div class="com-tot-label">Pendiente de cobro</div>
+          <div class="com-tot-val" style="color:#ba7517">$${Math.round(totProyectadas).toLocaleString('es-AR')}</div>
+          <div class="com-tot-sub">facturado sin cobrar</div>
+        </div>
       </div>
     </div>
 
     <div class="com-grupo">
-      <div class="com-grupo-tit"><i class="ti ti-hourglass" aria-hidden="true"></i> Proyectadas — facturados sin cobrar <span class="com-count">${proyectadas.length}</span></div>
-      <div class="com-grupo-nota">La comisión se genera cuando el pedido se cobra completo. Estas todavía no se ganaron.</div>
-      ${proyectadas.length ? proyectadas.map(p => filaPedido(p, 'proyectada')).join('') : '<p class="vacio">Ninguna</p>'}
-    </div>
-
-    <div class="com-grupo">
-      <div class="com-grupo-tit"><i class="ti ti-cash" aria-hidden="true"></i> Generadas — por pagar <span class="com-count">${porPagar.length}</span></div>
+      <div class="com-grupo-tit"><i class="ti ti-cash" aria-hidden="true"></i> Cobradas — se pueden pagar <span class="com-count">${porPagar.length}</span></div>
       ${porPagar.length ? porPagar.map(p => filaPedido(p, 'porpagar')).join('') : '<p class="vacio">Ninguna</p>'}
+    </div>
+
+    <div class="com-grupo">
+      <div class="com-grupo-tit"><i class="ti ti-hourglass" aria-hidden="true"></i> Pendiente de cobro <span class="com-count">${proyectadas.length}</span></div>
+      <div class="com-grupo-nota">Facturado/entregado, el cliente todavía no pagó. No suma a lo generado hasta cobrarse.</div>
+      ${proyectadas.length ? proyectadas.map(p => filaPedido(p, 'proyectada')).join('') : '<p class="vacio">Ninguna</p>'}
     </div>
 
     <div class="com-grupo">
@@ -7502,6 +7503,12 @@ async function cargarComisiones() {
       <div class="com-grupo-nota">Filtradas por el rango de fechas seleccionado arriba.</div>
       ${pagadasFiltradas.length ? pagadasFiltradas.map(p => filaPedido(p, 'pagada')).join('') : '<p class="vacio">Ninguna en este período</p>'}
     </div>`
+}
+
+// Ir al pedido real desde la comisión
+function irAlPedidoComision(pedidoId) {
+  mostrarSeccion('pedidos')
+  setTimeout(() => abrirPedido(pedidoId), 250)
 }
 
 async function marcarComisionPagada(pedidoId, vendedorId, monto, pct) {
