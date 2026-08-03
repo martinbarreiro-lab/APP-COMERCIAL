@@ -7408,15 +7408,13 @@ async function cargarComisiones() {
   const cont = document.getElementById('com-contenido')
   cont.innerHTML = '<p class="vacio">Cargando...</p>'
 
-  // Traer pedidos del vendedor en el rango (por fecha del pedido), ya entregados o cobrados
-  let q = db.from('pedidos')
+  // Traer TODOS los pedidos del vendedor ya facturados en adelante (no cancelados).
+  // No filtramos por fecha acá: lo pendiente se ve siempre completo.
+  const { data: pedidos } = await db.from('pedidos')
     .select('id, numero, total, etapa, estado_cobro, fecha_pedido, clientes(razon_social)')
     .eq('vendedor_id', vendedorId)
     .neq('estado', 'cancelado')
-    .in('etapa', ['recibido', 'cobrado'])
-  if (desde) q = q.gte('fecha_pedido', desde)
-  if (hasta) q = q.lte('fecha_pedido', hasta)
-  const { data: pedidos } = await q
+    .in('etapa', ['facturado', 'enviado', 'recibido', 'cobrado'])
 
   // Traer las comisiones ya pagadas de esos pedidos
   const ids = (pedidos || []).map(p => p.id)
@@ -7427,9 +7425,9 @@ async function cargarComisiones() {
   }
 
   // Clasificar
-  const proyectadas = []  // entregado, no cobrado completo
+  const proyectadas = []  // facturado en adelante, no cobrado completo
   const porPagar    = []  // cobrado completo, comisión no pagada
-  const pagadas     = []  // comisión pagada
+  const pagadas     = []  // comisión pagada (se filtran por fecha de pago abajo)
   ;(pedidos || []).forEach(p => {
     const comision = Number(p.total) * (pct / 100)
     const item = { ...p, comision }
@@ -7442,17 +7440,25 @@ async function cargarComisiones() {
     }
   })
 
-  // Totales
+  // Las PAGADAS se filtran por el rango de fechas (fecha en que se pagó la comisión)
+  const pagadasFiltradas = pagadas.filter(p => {
+    const f = (p.pagada.created_at || '').split('T')[0]
+    if (desde && f < desde) return false
+    if (hasta && f > hasta) return false
+    return true
+  })
+
+  // Totales: lo pendiente es total (deuda real); lo pagado es del período filtrado
   const totProyectadas = proyectadas.reduce((s, p) => s + p.comision, 0)
   const totPorPagar    = porPagar.reduce((s, p) => s + p.comision, 0)
-  const totPagadas     = pagadas.reduce((s, p) => s + p.comision, 0)
+  const totPagadas     = pagadasFiltradas.reduce((s, p) => s + p.comision, 0)
   const totPeriodo     = totProyectadas + totPorPagar + totPagadas
 
   const filaPedido = (p, tipo) => `
     <div class="com-item">
       <div class="com-item-info">
         <b>Pedido #${p.numero}</b> · ${p.clientes?.razon_social || '-'}
-        <div class="com-item-sub">Total $${Number(p.total).toLocaleString('es-AR')} · ${pct}%${tipo === 'pagada' && p.pagada ? ' · pagada ' + formatFecha(p.pagada.created_at) : ''}${tipo === 'porpagar' ? ' · cobrado' : ''}</div>
+        <div class="com-item-sub">Total $${Number(p.total).toLocaleString('es-AR')} · ${pct}%${tipo === 'pagada' && p.pagada ? ' · pagada ' + formatFecha(p.pagada.created_at) : ''}${tipo === 'porpagar' ? ' · cobrado' : ''}${tipo === 'proyectada' ? ' · ' + (p.etapa === 'facturado' ? 'facturado' : p.etapa === 'enviado' ? 'enviado' : 'entregado') : ''}</div>
       </div>
       <div class="com-item-monto">
         <span class="com-monto-val ${tipo === 'pagada' ? 'verde' : ''}">$${Math.round(p.comision).toLocaleString('es-AR')}</span>
@@ -7464,24 +7470,24 @@ async function cargarComisiones() {
   cont.innerHTML = `
     <div class="com-totales">
       <div class="com-tot-card" style="border-top-color:#0d8fd1">
-        <div class="com-tot-label">Comisiones del período</div>
-        <div class="com-tot-val">$${Math.round(totPeriodo).toLocaleString('es-AR')}</div>
-        <div class="com-tot-sub">generado + proyectado</div>
+        <div class="com-tot-label">Comisiones pendientes</div>
+        <div class="com-tot-val">$${Math.round(totProyectadas + totPorPagar).toLocaleString('es-AR')}</div>
+        <div class="com-tot-sub">proyectadas + por pagar</div>
       </div>
       <div class="com-tot-card" style="border-top-color:#d68910">
-        <div class="com-tot-label">Falta pagar</div>
+        <div class="com-tot-label">Falta pagar (ya cobradas)</div>
         <div class="com-tot-val" style="color:#ba7517">$${Math.round(totPorPagar).toLocaleString('es-AR')}</div>
-        <div class="com-tot-sub">ya cobradas, sin pagar</div>
+        <div class="com-tot-sub">listas para liquidar</div>
       </div>
       <div class="com-tot-card" style="border-top-color:#1d9e75">
-        <div class="com-tot-label">Ya pagadas</div>
+        <div class="com-tot-label">Pagadas en el período</div>
         <div class="com-tot-val" style="color:#1d9e75">$${Math.round(totPagadas).toLocaleString('es-AR')}</div>
-        <div class="com-tot-sub">liquidadas al vendedor</div>
+        <div class="com-tot-sub">seg&uacute;n el rango de fechas</div>
       </div>
     </div>
 
     <div class="com-grupo">
-      <div class="com-grupo-tit"><i class="ti ti-hourglass" aria-hidden="true"></i> Proyectadas — entregados sin cobrar <span class="com-count">${proyectadas.length}</span></div>
+      <div class="com-grupo-tit"><i class="ti ti-hourglass" aria-hidden="true"></i> Proyectadas — facturados sin cobrar <span class="com-count">${proyectadas.length}</span></div>
       <div class="com-grupo-nota">La comisión se genera cuando el pedido se cobra completo. Estas todavía no se ganaron.</div>
       ${proyectadas.length ? proyectadas.map(p => filaPedido(p, 'proyectada')).join('') : '<p class="vacio">Ninguna</p>'}
     </div>
@@ -7492,8 +7498,9 @@ async function cargarComisiones() {
     </div>
 
     <div class="com-grupo">
-      <div class="com-grupo-tit"><i class="ti ti-circle-check" aria-hidden="true"></i> Pagadas <span class="com-count">${pagadas.length}</span></div>
-      ${pagadas.length ? pagadas.map(p => filaPedido(p, 'pagada')).join('') : '<p class="vacio">Ninguna</p>'}
+      <div class="com-grupo-tit"><i class="ti ti-circle-check" aria-hidden="true"></i> Pagadas <span class="com-count">${pagadasFiltradas.length}</span></div>
+      <div class="com-grupo-nota">Filtradas por el rango de fechas seleccionado arriba.</div>
+      ${pagadasFiltradas.length ? pagadasFiltradas.map(p => filaPedido(p, 'pagada')).join('') : '<p class="vacio">Ninguna en este período</p>'}
     </div>`
 }
 
