@@ -2036,6 +2036,7 @@ async function cargarCobrosPedido(pedidoId) {
         ${ivaRG > 0 ? `<div class="fiscal-fila"><span>IVA RG-5329 3% s/factura:</span><span>$${ivaRG.toLocaleString('es-AR')}</span></div>` : ''}
         ${ivaTotal === 0 && parteRemito > 0 ? `<div class="fiscal-fila"><span>Todo Remito (sin IVA)</span><span></span></div>` : ''}
         <div class="fiscal-fila total-fila"><span>TOTAL:</span><span>$${total.toLocaleString('es-AR')}</span></div>
+        ${(rolUsuarioActual === 'admin' || rolUsuarioActual === 'empresa') ? `<div style="text-align:right;margin-top:8px"><button onclick="editarTotalPedido('${pedidoId}',${total})" style="background:#fff;border:0.5px solid var(--color-border-tertiary);color:var(--color-marca);border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer"><i class="ti ti-pencil" aria-hidden="true"></i> Ajustar total</button></div>` : ''}
       </div>`
   }
 
@@ -2054,6 +2055,7 @@ async function cargarCobrosPedido(pedidoId) {
   const listEl = document.getElementById('lista-cobros-pedido')
   if (!cobros || cobros.length === 0) { listEl.innerHTML = '<p class="vacio">Sin cobros registrados</p>'; return }
   const puedeBorrarCobro = rolUsuarioActual === 'admin' || rolUsuarioActual === 'empresa' || rolUsuarioActual === 'vendedor'
+  const puedeEditarMonto = rolUsuarioActual === 'admin' || rolUsuarioActual === 'empresa'
   listEl.innerHTML = cobros.map(c => `
     <div class="cobro-item">
       <div class="cobro-item-info">
@@ -2066,9 +2068,61 @@ async function cargarCobrosPedido(pedidoId) {
       <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
         ${c.foto_url ? `<a href="${c.foto_url}" target="_blank" class="btn-ver"><i class="ti ti-camera" aria-hidden="true"></i> Ver</a>` : ''}
         ${c.foto_url ? `<button onclick="comprobanteAPDF('${c.foto_url}','Comprobante-${labelMedio(c.medio_pago)}')" title="Compartir como PDF" style="background:#fff;border:0.5px solid var(--color-border-tertiary);color:var(--color-marca);border-radius:8px;padding:6px 9px;font-size:12px;cursor:pointer"><i class="ti ti-file-download" aria-hidden="true"></i> PDF</button>` : ''}
+        ${puedeEditarMonto ? `<button onclick="editarMontoCobro('${c.id}','${pedidoId}',${Number(c.monto)})" title="Editar monto" style="background:#fff;border:0.5px solid var(--color-border-tertiary);color:var(--color-marca);border-radius:8px;padding:6px 9px;font-size:12px;cursor:pointer"><i class="ti ti-pencil" aria-hidden="true"></i></button>` : ''}
         ${puedeBorrarCobro ? `<button onclick="eliminarCobro('${c.id}','${pedidoId}')" title="Eliminar cobro" style="background:#fff;border:0.5px solid #f0c4c4;color:#e24b4a;border-radius:8px;padding:6px 9px;font-size:12px;cursor:pointer"><i class="ti ti-trash" aria-hidden="true"></i></button>` : ''}
       </div>
     </div>`).join('')
+}
+
+// Editar el monto de un cobro ya cargado (admin/empresa) y recalcular el pedido
+async function editarMontoCobro(cobroId, pedidoId, montoActual) {
+  const nuevoStr = prompt('Nuevo monto del cobro:', montoActual)
+  if (nuevoStr === null) return
+  const nuevoMonto = parseFloat(String(nuevoStr).replace(/\./g, '').replace(',', '.'))
+  if (isNaN(nuevoMonto) || nuevoMonto <= 0) { avisar('Ingresá un monto válido'); return }
+
+  const { error } = await db.from('cobros').update({ monto: nuevoMonto }).eq('id', cobroId)
+  if (error) { avisar('Error: ' + error.message); return }
+
+  // Recalcular el total cobrado del pedido con todos los cobros
+  const { data: cobros } = await db.from('cobros').select('monto').eq('pedido_id', pedidoId)
+  const nuevoCobrado = (cobros || []).reduce((s, c) => s + Number(c.monto), 0)
+  const { data: ped } = await db.from('pedidos').select('total, etapa').eq('id', pedidoId).single()
+  const total = Number(ped?.total || 0)
+  const estado = nuevoCobrado <= 0 ? 'pendiente' : (nuevoCobrado >= total - 0.01 ? 'cobrado' : 'parcial')
+  const upd = { monto_cobrado: nuevoCobrado, estado_cobro: estado }
+  if (estado === 'cobrado') upd.etapa = 'cobrado'
+  else if (ped?.etapa === 'cobrado') upd.etapa = 'recibido'
+  await db.from('pedidos').update(upd).eq('id', pedidoId)
+
+  await registrarHistorial(pedidoId, 'cobro_registrado', `Monto de cobro editado a $${nuevoMonto.toLocaleString('es-AR')}`)
+  avisar('Monto actualizado', 'ok')
+  await abrirPedido(pedidoId)
+}
+
+// Editar el total del pedido (admin/empresa) — para cuando la factura real difiere del calculado
+async function editarTotalPedido(pedidoId, totalActual) {
+  const nuevoStr = prompt('Nuevo total del pedido (ajuste manual):', Math.round(totalActual))
+  if (nuevoStr === null) return
+  const nuevoTotal = parseFloat(String(nuevoStr).replace(/\./g, '').replace(',', '.'))
+  if (isNaN(nuevoTotal) || nuevoTotal <= 0) { avisar('Ingresá un total válido'); return }
+
+  const ok = await confirmar(`¿Cambiar el total del pedido a $${nuevoTotal.toLocaleString('es-AR')}? Esto ajusta el monto a cobrar.`, 'Ajustar total')
+  if (!ok) return
+
+  // Recalcular estado de cobro según lo ya cobrado
+  const { data: ped } = await db.from('pedidos').select('monto_cobrado, etapa').eq('id', pedidoId).single()
+  const cobrado = Number(ped?.monto_cobrado || 0)
+  const estado = cobrado <= 0 ? 'pendiente' : (cobrado >= nuevoTotal - 0.01 ? 'cobrado' : 'parcial')
+  const upd = { total: nuevoTotal, estado_cobro: estado }
+  if (estado === 'cobrado' && ped?.etapa !== 'cobrado') upd.etapa = 'cobrado'
+  else if (estado !== 'cobrado' && ped?.etapa === 'cobrado') upd.etapa = 'recibido'
+
+  const { error } = await db.from('pedidos').update(upd).eq('id', pedidoId)
+  if (error) { avisar('Error: ' + error.message); return }
+  await registrarHistorial(pedidoId, 'estado_cambiado', `Total ajustado manualmente a $${nuevoTotal.toLocaleString('es-AR')}`)
+  avisar('Total actualizado', 'ok')
+  await abrirPedido(pedidoId)
 }
 
 // Convierte la imagen de un comprobante en PDF y lo comparte (o descarga)
@@ -2217,7 +2271,12 @@ async function guardarCobro() {
   if (!monto || monto <= 0) { avisar('Ingresá un monto válido'); return }
   const { data: pedido } = await db.from('pedidos').select('total, monto_cobrado').eq('id', pedidoActualId).single()
   const pendiente = Number(pedido.total) - Number(pedido.monto_cobrado)
-  if (monto > pendiente + 0.01) { avisar('El monto supera el saldo pendiente'); return }
+  // Permitir cobrar de más (sobrepago), pero avisar para evitar errores de tipeo
+  if (monto > pendiente + 0.01) {
+    const exceso = monto - pendiente
+    const ok = await confirmar(`El monto supera el saldo pendiente ($${pendiente.toLocaleString('es-AR')}) en $${exceso.toLocaleString('es-AR')}. ¿Registrar igual?`, 'Registrar')
+    if (!ok) return
+  }
   let fotoUrl = null
   if (foto) {
     const ext = foto.name.split('.').pop()
@@ -2229,7 +2288,7 @@ async function guardarCobro() {
   const hayOtroMedio = cobrosAnt?.some(c => c.medio_pago !== medio)
   const nuevoMonto = Number(pedido.monto_cobrado) + monto
   const nuevoPendiente = Number(pedido.total) - nuevoMonto
-  const pagoCompleto = nuevoPendiente <= 0.01
+  const pagoCompleto = nuevoPendiente <= 0.01  // incluye sobrepago (pendiente negativo)
   const estadoMap = { efectivo:'cobrado_efectivo', transferencia:'cobrado_transferencia', cheque:'cobrado_cheque', echeq:'cobrado_cheque' }
   // Estado del COBRO (según el medio de pago)
   const estadoCobroRegistro = estadoMap[medio] || 'cobrado_efectivo'
@@ -4241,9 +4300,9 @@ async function guardarCobroRapido() {
 
   const pendiente = Number(pedido.total) - Number(pedido.monto_cobrado)
   if (monto > pendiente + 0.01) {
-    document.getElementById('mc-error').textContent = 'El monto supera el saldo pendiente'
-    document.getElementById('mc-error').style.display = 'block'
-    return
+    const exceso = monto - pendiente
+    const ok = await confirmar(`El monto supera el saldo pendiente ($${pendiente.toLocaleString('es-AR')}) en $${exceso.toLocaleString('es-AR')}. ¿Registrar igual?`, 'Registrar')
+    if (!ok) return
   }
 
   let fotoUrl = null
