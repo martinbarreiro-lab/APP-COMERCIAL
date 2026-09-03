@@ -82,6 +82,7 @@ document.addEventListener('keydown', (e) => {
   const modales = [
     ['modal-recibido', cerrarModalRecibido],
     ['modal-cobro', cerrarModalCobro],
+    ['modal-editar-cobro', cerrarEditarCobro],
     ['modal-detalle-cob', cerrarDetalleCob],
     ['modal-envio-obs', cerrarModalEnvioObs],
     ['modal-informar-pago', cerrarInformarPago],
@@ -2068,25 +2069,74 @@ async function cargarCobrosPedido(pedidoId) {
       <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
         ${c.foto_url ? `<a href="${c.foto_url}" target="_blank" class="btn-ver"><i class="ti ti-camera" aria-hidden="true"></i> Ver</a>` : ''}
         ${c.foto_url ? `<button onclick="comprobanteAPDF('${c.foto_url}','Comprobante-${labelMedio(c.medio_pago)}')" title="Compartir como PDF" style="background:#fff;border:0.5px solid var(--color-border-tertiary);color:var(--color-marca);border-radius:8px;padding:6px 9px;font-size:12px;cursor:pointer"><i class="ti ti-file-download" aria-hidden="true"></i> PDF</button>` : ''}
-        ${puedeEditarMonto ? `<button onclick="editarMontoCobro('${c.id}','${pedidoId}',${Number(c.monto)})" title="Editar monto" style="background:#fff;border:0.5px solid var(--color-border-tertiary);color:var(--color-marca);border-radius:8px;padding:6px 9px;font-size:12px;cursor:pointer"><i class="ti ti-pencil" aria-hidden="true"></i></button>` : ''}
+        ${puedeEditarMonto ? `<button onclick="editarMontoCobro('${c.id}','${pedidoId}',${Number(c.monto)})" title="Editar cobro" style="background:#fff;border:0.5px solid var(--color-border-tertiary);color:var(--color-marca);border-radius:8px;padding:6px 9px;font-size:12px;cursor:pointer"><i class="ti ti-pencil" aria-hidden="true"></i></button>` : ''}
         ${puedeBorrarCobro ? `<button onclick="eliminarCobro('${c.id}','${pedidoId}')" title="Eliminar cobro" style="background:#fff;border:0.5px solid #f0c4c4;color:#e24b4a;border-radius:8px;padding:6px 9px;font-size:12px;cursor:pointer"><i class="ti ti-trash" aria-hidden="true"></i></button>` : ''}
       </div>
     </div>`).join('')
 }
 
 // Editar el monto de un cobro ya cargado (admin/empresa) y recalcular el pedido
+let _editarCobroId = null
+let _editarCobroPedidoId = null
+let _editarCobroFotoActual = null
+
 async function editarMontoCobro(cobroId, pedidoId, montoActual) {
-  const nuevoStr = prompt('Nuevo monto del cobro:', montoActual)
-  if (nuevoStr === null) return
-  const nuevoMonto = parseFloat(String(nuevoStr).replace(/\./g, '').replace(',', '.'))
-  if (isNaN(nuevoMonto) || nuevoMonto <= 0) { avisar('Ingresá un monto válido'); return }
+  // Traer el cobro completo para precargar el modal
+  const { data: c } = await db.from('cobros').select('*').eq('id', cobroId).single()
+  if (!c) { avisar('No se encontró el cobro'); return }
+  _editarCobroId = cobroId
+  _editarCobroPedidoId = pedidoId
+  _editarCobroFotoActual = c.foto_url || null
 
-  const { error } = await db.from('cobros').update({ monto: nuevoMonto }).eq('id', cobroId)
-  if (error) { avisar('Error: ' + error.message); return }
+  document.getElementById('ec-medio').value = c.medio_pago || 'efectivo'
+  document.getElementById('ec-monto').value = Number(c.monto)
+  document.getElementById('ec-nota').value = c.nota || ''
+  document.getElementById('ec-foto').value = ''
+  document.getElementById('ec-foto-actual').innerHTML = c.foto_url
+    ? `<a href="${c.foto_url}" target="_blank" style="color:var(--color-marca)">Ver comprobante actual</a>`
+    : 'Sin comprobante cargado'
+  document.getElementById('ec-error').style.display = 'none'
+  document.getElementById('modal-editar-cobro').style.display = 'flex'
+}
 
-  // Recalcular el total cobrado del pedido con todos los cobros
+function cerrarEditarCobro() {
+  document.getElementById('modal-editar-cobro').style.display = 'none'
+  _editarCobroId = null; _editarCobroPedidoId = null; _editarCobroFotoActual = null
+}
+
+async function guardarEdicionCobro() {
+  if (!_editarCobroId) return
+  const medio = document.getElementById('ec-medio').value
+  const monto = parseFloat(document.getElementById('ec-monto').value)
+  const nota  = document.getElementById('ec-nota').value.trim()
+  const foto  = document.getElementById('ec-foto').files[0]
+  const errEl = document.getElementById('ec-error')
+  if (!monto || monto <= 0) { errEl.textContent = 'Ingresá un monto válido'; errEl.style.display = 'block'; return }
+
+  const pedidoId = _editarCobroPedidoId
+  const cobroId = _editarCobroId
+
+  // Subir nueva foto si se eligió una
+  let fotoUrl = _editarCobroFotoActual
+  if (foto) {
+    const ext = foto.name.split('.').pop()
+    const path = `${pedidoId}/${medio}_${Date.now()}.${ext}`
+    const { error: upErr } = await db.storage.from('comprobantes').upload(path, foto, { upsert: true })
+    if (upErr) { errEl.textContent = 'Error al subir la foto: ' + upErr.message; errEl.style.display = 'block'; return }
+    const { data: ud } = db.storage.from('comprobantes').getPublicUrl(path)
+    fotoUrl = ud.publicUrl
+  }
+
+  const estadoMap = { efectivo:'cobrado_efectivo', transferencia:'cobrado_transferencia', cheque:'cobrado_cheque', echeq:'cobrado_cheque' }
+  const { error } = await db.from('cobros').update({
+    monto, medio_pago: medio, nota: nota || null,
+    estado: estadoMap[medio] || 'cobrado_efectivo', foto_url: fotoUrl
+  }).eq('id', cobroId)
+  if (error) { errEl.textContent = 'Error: ' + error.message; errEl.style.display = 'block'; return }
+
+  // Recalcular el total cobrado del pedido
   const { data: cobros } = await db.from('cobros').select('monto').eq('pedido_id', pedidoId)
-  const nuevoCobrado = (cobros || []).reduce((s, c) => s + Number(c.monto), 0)
+  const nuevoCobrado = (cobros || []).reduce((s, cc) => s + Number(cc.monto), 0)
   const { data: ped } = await db.from('pedidos').select('total, etapa').eq('id', pedidoId).single()
   const total = Number(ped?.total || 0)
   const estado = nuevoCobrado <= 0 ? 'pendiente' : (nuevoCobrado >= total - 0.01 ? 'cobrado' : 'parcial')
@@ -2095,8 +2145,9 @@ async function editarMontoCobro(cobroId, pedidoId, montoActual) {
   else if (ped?.etapa === 'cobrado') upd.etapa = 'recibido'
   await db.from('pedidos').update(upd).eq('id', pedidoId)
 
-  await registrarHistorial(pedidoId, 'cobro_registrado', `Monto de cobro editado a $${nuevoMonto.toLocaleString('es-AR')}`)
-  avisar('Monto actualizado', 'ok')
+  await registrarHistorial(pedidoId, 'cobro_registrado', `Cobro editado: ${labelMedio(medio)} por $${monto.toLocaleString('es-AR')}`)
+  cerrarEditarCobro()
+  avisar('Cobro actualizado', 'ok')
   await abrirPedido(pedidoId)
 }
 
