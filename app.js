@@ -378,14 +378,14 @@ async function configurarInterfazPorRol() {
 
   if (esCliente) {
     // El cliente NO ve: clientes (otros), reportes, configuración, usuarios
-    const ocultarParaCliente = ['clientes', 'reportes', 'configuracion', 'usuarios', 'comisiones']
+    const ocultarParaCliente = ['clientes', 'reportes', 'configuracion', 'usuarios', 'comisiones', 'analisis']
     ocultarParaCliente.forEach(sec => {
       const nav = document.getElementById('nav-' + sec)
       if (nav) nav.style.display = 'none'
     })
     document.querySelectorAll('.mobile-more-item').forEach(item => {
       const txt = item.textContent.toLowerCase()
-      if (txt.includes('cliente') || txt.includes('reporte') || txt.includes('usuario') || txt.includes('comisi')) {
+      if (txt.includes('cliente') || txt.includes('reporte') || txt.includes('usuario') || txt.includes('comisi') || txt.includes('análisis')) {
         item.style.display = 'none'
       }
     })
@@ -428,6 +428,7 @@ function mostrarSeccion(nombre) {
   if (nombre === 'productos') cargarProductos()
   if (nombre === 'comisiones') cargarComisionesInit()
   if (nombre === 'reportes')  cargarReportes()
+  if (nombre === 'analisis')  cargarAnalisisInit()
   if (nombre === 'usuarios')  cargarUsuarios()
 }
 
@@ -7630,4 +7631,297 @@ async function marcarComisionPagada(pedidoId, vendedorId, monto, pct) {
   })
   if (error) { avisar('Error: ' + error.message); return }
   cargarComisiones()
+}
+
+// ══════════════════════════════════════════════════
+// ANÁLISIS (evolución mensual, general y por cliente)
+// ══════════════════════════════════════════════════
+let _anVista = 'general'
+let _anDatosCache = null
+
+function setAnVista(v) {
+  _anVista = v
+  document.getElementById('an-tab-general').classList.toggle('activa', v === 'general')
+  document.getElementById('an-tab-cliente').classList.toggle('activa', v === 'cliente')
+  document.getElementById('an-cliente-sel').style.display = v === 'cliente' ? '' : 'none'
+  cargarAnalisis()
+}
+
+async function cargarAnalisisInit() {
+  const rol = await cargarRolUsuario()
+  if (rol === 'cliente') {
+    document.getElementById('an-contenido').innerHTML = '<p class="vacio">No tenés acceso a esta sección.</p>'
+    return
+  }
+  // Cargar clientes en el selector (para la vista por cliente)
+  const sel = document.getElementById('an-cliente-sel')
+  let qCli = db.from('clientes').select('id, razon_social, objetivo_kg_mensual').eq('activo', true).order('razon_social')
+  if (rol === 'vendedor') qCli = qCli.eq('vendedor_id', usuarioActual.id)
+  const { data: clientes } = await qCli
+  sel.innerHTML = (clientes || []).map(c => `<option value="${c.id}" data-obj="${c.objetivo_kg_mensual || 0}">${c.razon_social}</option>`).join('')
+  _anClientes = clientes || []
+  setAnVista('general')
+}
+
+let _anClientes = []
+
+// Trae todos los pedidos (no cancelados) y arma los datos por mes
+async function _anTraerPedidos(clienteId) {
+  const rol = await cargarRolUsuario()
+  // Últimos 12 meses
+  const hoy = new Date()
+  const inicio = new Date(hoy.getFullYear(), hoy.getMonth() - 11, 1).toISOString().split('T')[0]
+  let q = db.from('pedidos')
+    .select('id, numero, total, total_kg, etapa, estado_cobro, fecha_pedido, cliente_id, vendedor_id')
+    .neq('estado', 'cancelado')
+    .in('etapa', ['facturado', 'enviado', 'recibido', 'cobrado'])
+    .gte('fecha_pedido', inicio)
+  if (clienteId) q = q.eq('cliente_id', clienteId)
+  if (rol === 'vendedor') q = q.eq('vendedor_id', usuarioActual.id)
+  const { data: pedidos } = await q
+
+  // % de comisión del vendedor (para comisiones). Si es admin, usamos el del vendedor de cada pedido.
+  const { data: perfiles } = await db.from('perfiles').select('id, pct_comision')
+  const pctMap = {}
+  ;(perfiles || []).forEach(p => { pctMap[p.id] = Number(p.pct_comision) || 0 })
+
+  // Comisiones pagadas (para "cobradas")
+  const ids = (pedidos || []).map(p => p.id)
+  let comPagadas = {}
+  if (ids.length) {
+    const { data: cp } = await db.from('comisiones_pagadas').select('pedido_id, monto').in('pedido_id', ids)
+    ;(cp || []).forEach(c => { comPagadas[c.pedido_id] = Number(c.monto) })
+  }
+  return { pedidos: pedidos || [], pctMap, comPagadas }
+}
+
+// Agrupa por mes (clave YYYY-MM)
+function _anAgrupar(pedidos, pctMap, comPagadas) {
+  const meses = {}
+  const hoy = new Date()
+  // Inicializar los últimos 12 meses en cero
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1)
+    const clave = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+    meses[clave] = { clave, fecha: d, pedidos: 0, vendido: 0, kg: 0, comGen: 0, comCobr: 0 }
+  }
+  pedidos.forEach(p => {
+    const clave = (p.fecha_pedido || '').slice(0, 7)
+    if (!meses[clave]) return
+    const m = meses[clave]
+    m.pedidos++
+    m.vendido += Number(p.total) || 0
+    m.kg += Number(p.total_kg) || 0
+    const pct = pctMap[p.vendedor_id] || 0
+    const comision = (Number(p.total) || 0) * (pct / 100)
+    if (p.estado_cobro === 'cobrado') m.comGen += comision
+    if (comPagadas[p.id]) m.comCobr += comPagadas[p.id]
+  })
+  return Object.values(meses).sort((a,b) => a.fecha - b.fecha)
+}
+
+const _MESES_CORTO = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+const _MESES_LARGO = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+
+async function cargarAnalisis() {
+  const cont = document.getElementById('an-contenido')
+  cont.innerHTML = '<p class="vacio">Cargando...</p>'
+  const clienteId = _anVista === 'cliente' ? document.getElementById('an-cliente-sel').value : null
+  if (_anVista === 'cliente' && !clienteId) { cont.innerHTML = '<p class="vacio">Elegí un cliente.</p>'; return }
+
+  const { pedidos, pctMap, comPagadas } = await _anTraerPedidos(clienteId)
+  const datos = _anAgrupar(pedidos, pctMap, comPagadas)
+
+  if (_anVista === 'general') {
+    cont.innerHTML = _anRenderGeneral(datos)
+  } else {
+    const objSel = Number(document.getElementById('an-cliente-sel').selectedOptions[0]?.dataset.obj) || 0
+    cont.innerHTML = _anRenderCliente(datos, objSel)
+  }
+  // Inicializar el gráfico detallado con los últimos 4 meses
+  _anRangoIdx = [Math.max(0, datos.length - 4), datos.length - 1]
+  _anDatosMeses = datos
+  _anDibujarDetalle()
+}
+
+let _anDatosMeses = []
+let _anRangoIdx = [0, 0]
+
+function _anRenderGeneral(datos) {
+  const totVendido = datos.reduce((s,m) => s+m.vendido, 0)
+  const totPedidos = datos.reduce((s,m) => s+m.pedidos, 0)
+  const totComGen  = datos.reduce((s,m) => s+m.comGen, 0)
+  const totComCobr = datos.reduce((s,m) => s+m.comCobr, 0)
+  // Crecimiento: primer semestre vs segundo
+  const mitad = Math.floor(datos.length/2)
+  const v1 = datos.slice(0, mitad).reduce((s,m)=>s+m.vendido,0)
+  const v2 = datos.slice(mitad).reduce((s,m)=>s+m.vendido,0)
+  const crec = v1 > 0 ? Math.round(((v2-v1)/v1)*100) : 0
+
+  return `
+    <div class="an-kpis">
+      <div class="an-kpi"><div class="an-kpi-lbl">Vendido (12m)</div><div class="an-kpi-val">${fmtM(totVendido)}</div><div class="an-kpi-sub ${crec>=0?'up':'down'}">${crec>=0?'▲':'▼'} ${Math.abs(crec)}% semestral</div></div>
+      <div class="an-kpi"><div class="an-kpi-lbl">Pedidos</div><div class="an-kpi-val">${totPedidos}</div><div class="an-kpi-sub">prom ${(totPedidos/12).toFixed(1)}/mes</div></div>
+      <div class="an-kpi"><div class="an-kpi-lbl">Com. generadas</div><div class="an-kpi-val">${fmtM(totComGen)}</div></div>
+      <div class="an-kpi"><div class="an-kpi-lbl">Com. cobradas</div><div class="an-kpi-val" style="color:#1d9e75">${fmtM(totComCobr)}</div></div>
+    </div>
+
+    <div class="an-card">
+      <div class="an-card-head">
+        <span class="an-card-tit">Detalle por mes</span>
+        <div class="an-rango">
+          <select id="an-rango-desde" onchange="_anCambiarRango()"></select>
+          <span>a</span>
+          <select id="an-rango-hasta" onchange="_anCambiarRango()"></select>
+        </div>
+      </div>
+      <div class="an-leyenda">
+        <span><span class="an-lg" style="background:#e0873a"></span> Kg vendidos</span>
+        <span><span class="an-lg" style="background:#0d8fd1"></span> Facturado ($)</span>
+      </div>
+      <div id="an-grafico-detalle"></div>
+    </div>
+
+    <div class="an-card">
+      <span class="an-card-tit">Evolución anual — 12 meses</span>
+      <div class="an-leyenda"><span><span class="an-lg" style="background:#0d8fd1"></span> Facturado ($)</span></div>
+      ${_anGraficoAnual(datos)}
+    </div>
+
+    <div class="an-card" style="overflow-x:auto">
+      <span class="an-card-tit">Tabla mensual</span>
+      <table class="an-tabla">
+        <thead><tr><th>Mes</th><th>Pedidos</th><th>Kg</th><th>Vendido</th><th>Com. gen.</th><th>Com. cobr.</th><th>Var.</th></tr></thead>
+        <tbody>
+          ${datos.slice().reverse().map((m, i, arr) => {
+            const ant = arr[i+1]
+            const varr = ant && ant.vendido > 0 ? Math.round(((m.vendido-ant.vendido)/ant.vendido)*100) : null
+            return `<tr>
+              <td class="l">${_MESES_CORTO[m.fecha.getMonth()]} ${m.fecha.getFullYear()}</td>
+              <td>${m.pedidos}</td>
+              <td>${m.kg.toLocaleString('es-AR',{maximumFractionDigits:0})}</td>
+              <td>$${m.vendido.toLocaleString('es-AR',{maximumFractionDigits:0})}</td>
+              <td>$${Math.round(m.comGen).toLocaleString('es-AR')}</td>
+              <td>$${Math.round(m.comCobr).toLocaleString('es-AR')}</td>
+              <td class="${varr===null?'':varr>=0?'up':'down'}">${varr===null?'—':(varr>=0?'+':'')+varr+'%'}</td>
+            </tr>`
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`
+}
+
+function _anRenderCliente(datos, objetivo) {
+  // Cumplimiento promedio últimos 3 meses
+  const ult3 = datos.slice(-3)
+  const cumpls = objetivo > 0 ? ult3.map(m => (m.kg/objetivo)*100) : []
+  const cumplProm = cumpls.length ? Math.round(cumpls.reduce((a,b)=>a+b,0)/cumpls.length) : 0
+  // Tendencia (comparar primeros 6 vs últimos 6 en kg)
+  const mitad = Math.floor(datos.length/2)
+  const k1 = datos.slice(0,mitad).reduce((s,m)=>s+m.kg,0)
+  const k2 = datos.slice(mitad).reduce((s,m)=>s+m.kg,0)
+  const tend = k2 > k1*1.05 ? 'creciente' : (k2 < k1*0.95 ? 'decreciente' : 'estable')
+  const tendColor = tend==='creciente'?'#1d9e75':(tend==='decreciente'?'#c0392b':'#888')
+  const tendIcon = tend==='creciente'?'ti-trending-up':(tend==='decreciente'?'ti-trending-down':'ti-minus')
+
+  return `
+    <div class="an-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+        <span class="an-card-tit">Objetivo mensual: ${objetivo>0?objetivo.toLocaleString('es-AR')+' kg':'sin objetivo'}</span>
+        <span style="font-size:12px;color:${tendColor};font-weight:600"><i class="ti ${tendIcon}"></i> Tendencia: ${tend}</span>
+      </div>
+      ${objetivo>0?`<div style="font-size:12px;color:#888">Cumplimiento promedio últimos 3 meses: <b style="color:#222">${cumplProm}%</b></div>`:''}
+    </div>
+
+    <div class="an-card">
+      <div class="an-card-head">
+        <span class="an-card-tit">Detalle por mes</span>
+        <div class="an-rango">
+          <select id="an-rango-desde" onchange="_anCambiarRango()"></select>
+          <span>a</span>
+          <select id="an-rango-hasta" onchange="_anCambiarRango()"></select>
+        </div>
+      </div>
+      <div class="an-leyenda">
+        <span><span class="an-lg" style="background:#e0873a"></span> Kg vendidos</span>
+        <span><span class="an-lg" style="background:#0d8fd1"></span> Facturado ($)</span>
+      </div>
+      <div id="an-grafico-detalle"></div>
+    </div>
+
+    <div class="an-card" style="overflow-x:auto">
+      <span class="an-card-tit">Tabla mensual</span>
+      <table class="an-tabla">
+        <thead><tr><th>Mes</th><th>Pedidos</th><th>Kg</th>${objetivo>0?'<th>Objetivo</th><th>Cumpl.</th>':''}<th>Vendido</th></tr></thead>
+        <tbody>
+          ${datos.slice().reverse().map(m => {
+            const cumpl = objetivo>0 ? Math.round((m.kg/objetivo)*100) : null
+            const cc = cumpl===null?'':cumpl>=100?'up':cumpl>=70?'warn':'down'
+            return `<tr>
+              <td class="l">${_MESES_CORTO[m.fecha.getMonth()]} ${m.fecha.getFullYear()}</td>
+              <td>${m.pedidos}</td>
+              <td>${m.kg.toLocaleString('es-AR',{maximumFractionDigits:0})}</td>
+              ${objetivo>0?`<td>${objetivo.toLocaleString('es-AR')}</td><td class="${cc}" style="font-weight:600">${cumpl}%</td>`:''}
+              <td>$${m.vendido.toLocaleString('es-AR',{maximumFractionDigits:0})}</td>
+            </tr>`
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`
+}
+
+// Gráfico anual: barras simples de facturado (12 meses)
+function _anGraficoAnual(datos) {
+  const max = Math.max(...datos.map(m => m.vendido), 1)
+  return `<div class="an-anual">
+    ${datos.map(m => `
+      <div class="an-anual-col">
+        <div class="an-anual-bar" style="height:${Math.round((m.vendido/max)*100)}px" title="${_MESES_LARGO[m.fecha.getMonth()]}: $${m.vendido.toLocaleString('es-AR')}"></div>
+        <span class="an-anual-lbl">${_MESES_CORTO[m.fecha.getMonth()]}</span>
+      </div>`).join('')}
+  </div>`
+}
+
+// Gráfico detallado: 2 barras (kg naranja, plata azul) por mes en el rango elegido
+function _anDibujarDetalle() {
+  const cont = document.getElementById('an-grafico-detalle')
+  if (!cont) return
+  // Poblar los selectores de rango
+  const selD = document.getElementById('an-rango-desde')
+  const selH = document.getElementById('an-rango-hasta')
+  if (selD && selD.options.length === 0) {
+    const opts = _anDatosMeses.map((m,i) => `<option value="${i}">${_MESES_CORTO[m.fecha.getMonth()]} ${m.fecha.getFullYear()}</option>`).join('')
+    selD.innerHTML = opts; selH.innerHTML = opts
+    selD.value = _anRangoIdx[0]; selH.value = _anRangoIdx[1]
+  }
+  const [a, b] = _anRangoIdx
+  const rango = _anDatosMeses.slice(a, b+1)
+  if (rango.length === 0) { cont.innerHTML = '<p class="vacio">Rango inválido</p>'; return }
+  const maxKg = Math.max(...rango.map(m=>m.kg), 1)
+  const maxV  = Math.max(...rango.map(m=>m.vendido), 1)
+
+  cont.innerHTML = `<div class="an-det">
+    ${rango.map(m => `
+      <div class="an-det-mes">
+        <div class="an-det-barras">
+          <div class="an-det-b">
+            <span class="an-det-val" style="color:#e0873a">${m.kg>0?m.kg.toLocaleString('es-AR',{maximumFractionDigits:0}):''}</span>
+            <div class="an-det-bar" style="height:${Math.round((m.kg/maxKg)*130)}px;background:#e0873a" title="${m.kg.toLocaleString('es-AR')} kg"></div>
+          </div>
+          <div class="an-det-b">
+            <span class="an-det-val" style="color:#0d8fd1;font-size:8px">${m.vendido>0?fmtM(m.vendido):''}</span>
+            <div class="an-det-bar" style="height:${Math.round((m.vendido/maxV)*130)}px;background:#0d8fd1" title="$${m.vendido.toLocaleString('es-AR')}"></div>
+          </div>
+        </div>
+        <span class="an-det-lbl">${_MESES_CORTO[m.fecha.getMonth()]}</span>
+      </div>`).join('')}
+  </div>`
+}
+
+function _anCambiarRango() {
+  const d = parseInt(document.getElementById('an-rango-desde').value)
+  const h = parseInt(document.getElementById('an-rango-hasta').value)
+  if (d > h) { avisar('El mes "desde" no puede ser mayor que "hasta"'); return }
+  _anRangoIdx = [d, h]
+  _anDibujarDetalle()
 }
