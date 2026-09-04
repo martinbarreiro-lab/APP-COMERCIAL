@@ -886,6 +886,14 @@ function fmtM(n) {
   return '$' + Number(n||0).toLocaleString('es-AR', { minimumFractionDigits:0, maximumFractionDigits:0 })
 }
 
+// Abreviado para gráficos: $6.9M, $890K, $450
+function fmtAbrev(n) {
+  const v = Number(n) || 0
+  if (v >= 1000000) return '$' + (v/1000000).toFixed(1).replace(/\.0$/, '') + 'M'
+  if (v >= 1000)    return '$' + Math.round(v/1000) + 'K'
+  return '$' + Math.round(v)
+}
+
 // ── PEDIDOS ──────────────────────────────────────
 function mostrarVistaPedidos(vista) {
   document.getElementById('vista-lista-pedidos').style.display   = vista === 'lista'   ? 'block' : 'none'
@@ -7909,7 +7917,7 @@ function _anDibujarDetalle() {
             <div class="an-det-bar" style="height:${Math.round((m.kg/maxKg)*130)}px;background:#e0873a" title="${m.kg.toLocaleString('es-AR')} kg"></div>
           </div>
           <div class="an-det-b">
-            <span class="an-det-val" style="color:#0d8fd1;font-size:8px">${m.vendido>0?fmtM(m.vendido):''}</span>
+            <span class="an-det-val" style="color:#0d8fd1">${m.vendido>0?fmtAbrev(m.vendido):''}</span>
             <div class="an-det-bar" style="height:${Math.round((m.vendido/maxV)*130)}px;background:#0d8fd1" title="$${m.vendido.toLocaleString('es-AR')}"></div>
           </div>
         </div>
