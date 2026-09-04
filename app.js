@@ -7832,7 +7832,19 @@ function _anRenderCliente(datos, objetivo) {
   const tendColor = tend==='creciente'?'#1d9e75':(tend==='decreciente'?'#c0392b':'#888')
   const tendIcon = tend==='creciente'?'ti-trending-up':(tend==='decreciente'?'ti-trending-down':'ti-minus')
 
+  // Totales de comisiones del cliente (12 meses)
+  const totComGen  = datos.reduce((s,m) => s+m.comGen, 0)
+  const totComCobr = datos.reduce((s,m) => s+m.comCobr, 0)
+  const totVendido = datos.reduce((s,m) => s+m.vendido, 0)
+
   return `
+    <div class="an-kpis">
+      <div class="an-kpi"><div class="an-kpi-lbl">Vendido (12m)</div><div class="an-kpi-val">${fmtM(totVendido)}</div></div>
+      <div class="an-kpi"><div class="an-kpi-lbl">Kg (12m)</div><div class="an-kpi-val">${datos.reduce((s,m)=>s+m.kg,0).toLocaleString('es-AR',{maximumFractionDigits:0})}</div></div>
+      <div class="an-kpi"><div class="an-kpi-lbl">Com. generadas</div><div class="an-kpi-val">${fmtM(totComGen)}</div></div>
+      <div class="an-kpi"><div class="an-kpi-lbl">Com. cobradas</div><div class="an-kpi-val" style="color:#1d9e75">${fmtM(totComCobr)}</div></div>
+    </div>
+
     <div class="an-card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
         <span class="an-card-tit">Objetivo mensual: ${objetivo>0?objetivo.toLocaleString('es-AR')+' kg':'sin objetivo'}</span>
@@ -7860,7 +7872,7 @@ function _anRenderCliente(datos, objetivo) {
     <div class="an-card" style="overflow-x:auto">
       <span class="an-card-tit">Tabla mensual</span>
       <table class="an-tabla">
-        <thead><tr><th>Mes</th><th>Pedidos</th><th>Kg</th>${objetivo>0?'<th>Objetivo</th><th>Cumpl.</th>':''}<th>Vendido</th></tr></thead>
+        <thead><tr><th>Mes</th><th>Pedidos</th><th>Kg</th>${objetivo>0?'<th>Objetivo</th><th>Cumpl.</th>':''}<th>Vendido</th><th>Com. gen.</th><th>Com. cobr.</th></tr></thead>
         <tbody>
           ${datos.slice().reverse().map(m => {
             const cumpl = objetivo>0 ? Math.round((m.kg/objetivo)*100) : null
@@ -7871,6 +7883,8 @@ function _anRenderCliente(datos, objetivo) {
               <td>${m.kg.toLocaleString('es-AR',{maximumFractionDigits:0})}</td>
               ${objetivo>0?`<td>${objetivo.toLocaleString('es-AR')}</td><td class="${cc}" style="font-weight:600">${cumpl}%</td>`:''}
               <td>$${m.vendido.toLocaleString('es-AR',{maximumFractionDigits:0})}</td>
+              <td>$${Math.round(m.comGen).toLocaleString('es-AR')}</td>
+              <td>$${Math.round(m.comCobr).toLocaleString('es-AR')}</td>
             </tr>`
           }).join('')}
         </tbody>
