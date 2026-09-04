@@ -1,1050 +1,1015 @@
-/* ================================ LA CABAÑA — Estilos v2.0 ================================ */
-
-/* ── VARIABLES DE MARCA Y TEMA CLARO FIJO ── */
-:root {
-  color-scheme: light only;
-
-  /* Azul de marca La Cabaña */
-  --color-marca:            #0d8fd1;
-  --color-marca-oscuro:     #0a6ca0;
-  --color-marca-claro:      #e6f4fb;
-
-  /* Fondos (tema claro fijo) */
-  --color-background-primary:   #ffffff;
-  --color-background-secondary: #f4f6f8;
-  --color-background-tertiary:  #f0f2f5;
-
-  /* Textos */
-  --color-text-primary:    #1a1a1a;
-  --color-text-secondary:  #555555;
-  --color-text-tertiary:   #8a8a8a;
-
-  /* Bordes */
-  --color-border-secondary: #d4d8dd;
-  --color-border-tertiary:  #e2e5e9;
-
-  /* Radios */
-  --border-radius-md: 8px;
-  --border-radius-lg: 12px;
-
-  /* Fuente */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-}
-
-* { margin:0; padding:0; box-sizing:border-box; font-family:'Inter',Arial,sans-serif; }
-body { background:#f0f2f5; color:#1a1a1a; }
-
-/* ── LOGIN ── */
-#pantalla-login { min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#0a6ca0,#0d8fd1); }
-.login-box { background:white; padding:40px; border-radius:16px; width:100%; max-width:380px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.3); }
-.login-logo { margin-bottom:10px; display:flex; justify-content:center; }
-.login-box h1 { font-size:28px; color:#0a6ca0; margin-bottom:4px; }
-.login-subtitulo { color:#888; margin-bottom:28px; font-size:14px; }
-.campo { text-align:left; margin-bottom:16px; }
-.campo label { display:block; font-size:13px; font-weight:bold; color:#444; margin-bottom:6px; }
-.campo input, .campo select, .campo textarea { width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:15px; outline:none; transition:border 0.2s; }
-.campo input:focus, .campo select:focus, .campo textarea:focus { border-color:#0d8fd1; }
-.campo textarea { resize:vertical; }
-.btn-login { width:100%; padding:13px; background:#0d8fd1; color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; margin-top:8px; }
-.btn-login:hover { background:#0a6ca0; }
-.link-olvide { display:block; margin-top:16px; color:#0d8fd1; font-size:13px; text-decoration:none; }
-.error-msg { background:#fee; color:#c00; padding:10px; border-radius:8px; margin-bottom:16px; font-size:13px; }
-
-/* ── TOPBAR ── */
-.topbar { background:#0d8fd1; color:white; padding:0 20px; height:56px; display:flex; align-items:center; justify-content:space-between; position:fixed; top:0; left:0; right:0; z-index:100; }
-.topbar-titulo { font-size:20px; font-weight:bold; line-height:1.1; }
-.topbar-usuario { display:flex; align-items:center; gap:12px; font-size:14px; }
-.btn-salir { background:rgba(255,255,255,0.2); color:white; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px; }
-.btn-salir:hover { background:rgba(255,255,255,0.3); }
-
-/* ── LAYOUT ── */
-.layout { display:flex; margin-top:56px; min-height:calc(100vh - 56px); }
-.sidebar { width:200px; background:white; border-right:1px solid #e0e0e0; padding:16px 0; position:fixed; top:56px; bottom:0; overflow-y:auto; }
-.nav-btn { width:100%; text-align:left; padding:12px 20px; border:none; background:none; font-size:14px; cursor:pointer; color:#444; transition:all 0.2s; }
-.nav-btn i { margin-right:10px; font-size:16px; vertical-align:-2px; }
-.nav-btn:hover { background:#e6f4fb; color:#0a6ca0; }
-.nav-btn.activo { background:#e6f4fb; color:#0a6ca0; font-weight:bold; border-left:3px solid #0d8fd1; }
-#contenido-principal { margin-left:200px; padding:28px; flex:1; }
-.seccion h2 { font-size:22px; margin-bottom:20px; color:#0a6ca0; }
-.seccion-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
-.vacio { color:#888; padding:16px 0; font-size:14px; }
-
-/* ── ALERTAS ── */
-.alerta-box { background:#fff3cd; border:1px solid #f59e0b; border-radius:10px; padding:14px 18px; margin-bottom:20px; font-size:14px; line-height:1.6; }
-
-/* ── DASHBOARD ── */
-.tarjetas { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; }
-.tarjeta { background:white; border-radius:12px; padding:24px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
-.tarjeta-numero { font-size:36px; font-weight:bold; color:#0d8fd1; }
-.tarjeta-label { font-size:13px; color:#888; margin-top:6px; }
-
-/* ── BOTONES ── */
-.btn-nuevo { background:#0d8fd1; color:white; border:none; padding:10px 18px; border-radius:8px; font-size:14px; cursor:pointer; font-weight:bold; }
-.btn-nuevo:hover { background:#0a6ca0; }
-.btn-volver { background:#f0f0f0; color:#444; border:none; padding:10px 16px; border-radius:8px; font-size:14px; cursor:pointer; }
-.btn-volver:hover { background:#e0e0e0; }
-.btn-guardar { width:100%; padding:14px; background:#0d8fd1; color:white; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; margin-top:20px; }
-.btn-guardar:hover { background:#0a6ca0; }
-.btn-secundario { background:#e6f4fb; color:#0d8fd1; border:1px solid #0d8fd1; padding:7px 14px; border-radius:8px; font-size:13px; cursor:pointer; font-weight:bold; }
-.btn-secundario:hover { background:#0d8fd1; color:white; }
-.btn-ver { background:#e3f2fd; color:#1565c0; padding:5px 12px; border-radius:6px; text-decoration:none; font-size:13px; font-weight:bold; }
-.btn-verificar { background:#fff8e1; color:#f59e0b; border:1px solid #f59e0b; padding:5px 12px; border-radius:6px; font-size:13px; cursor:pointer; font-weight:bold; }
-.btn-mini { background:#f0f0f0; color:#444; border:none; padding:5px 12px; border-radius:6px; font-size:13px; cursor:pointer; }
-.btn-cancelar { background:#f0f0f0; color:#444; border:none; padding:10px 18px; border-radius:8px; font-size:14px; cursor:pointer; }
-.btn-guardar-inline { background:#0d8fd1; color:white; border:none; padding:10px 18px; border-radius:8px; font-size:14px; cursor:pointer; font-weight:bold; }
-
-/* ── TABLAS ── */
-.tabla { width:100%; background:white; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.06); border-collapse:collapse; }
-.tabla th { background:#f8f8f8; padding:12px 16px; text-align:left; font-size:13px; color:#666; border-bottom:1px solid #eee; }
-.tabla td { padding:12px 16px; font-size:14px; border-bottom:1px solid #f0f0f0; vertical-align:middle; }
-.tabla tr:hover td { background:#f9fffe; }
-.fila-alerta td { background:#fff8e1; }
-
-/* ── BADGES ── */
-.badge { padding:3px 10px; border-radius:20px; font-size:12px; font-weight:bold; white-space:nowrap; }
-.badge-verde    { background:#e8f5e9; color:#2d6a4f; }
-.badge-amarillo { background:#fff8e1; color:#f59e0b; }
-.badge-rojo     { background:#fee;    color:#c00; }
-.badge-gris     { background:#f0f0f0; color:#666; }
-.badge-azul     { background:#e3f2fd; color:#1565c0; }
-
-/* ── BUSCADOR ── */
-.buscador-box { margin-bottom:16px; }
-.buscador-input { width:100%; padding:12px 16px; border:1px solid #ddd; border-radius:10px; font-size:15px; outline:none; background:white; }
-.buscador-input:focus { border-color:#0d8fd1; }
-
-/* ── TARJETAS CLIENTES ── */
-.cliente-card { background:white; border-radius:12px; padding:16px 20px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.06); transition:all 0.2s; }
-.cliente-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.12); transform:translateY(-1px); }
-.cliente-card-info { flex:1; }
-.cliente-nombre { font-size:16px; font-weight:bold; color:#1a1a1a; margin-bottom:4px; }
-.cliente-tel { font-size:13px; color:#666; margin-bottom:4px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.cliente-saldo { font-size:13px; font-weight:bold; }
-.saldo-deuda { color:#c00; }
-.saldo-ok { color:#2d6a4f; }
-.cliente-card-arrow { font-size:24px; color:#ccc; margin-left:12px; }
-.btn-whatsapp-texto { background:#25d366; color:white; padding:4px 12px; border-radius:20px; text-decoration:none; font-size:12px; font-weight:bold; display:inline-flex; align-items:center; gap:5px; white-space:nowrap; }
-.btn-whatsapp-texto:hover { background:#1eb858; }
-.btn-whatsapp-texto i { font-size:14px; }
-
-/* ── TARJETAS PEDIDOS ── */
-.pedido-card { background:white; border-radius:12px; padding:16px 20px; margin-bottom:10px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.06); transition:all 0.2s; }
-.pedido-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.12); transform:translateY(-1px); }
-.pedido-card.pedido-alerta { border-left:4px solid #f59e0b; }
-.pedido-card-top { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
-.pedido-numero { font-size:16px; font-weight:bold; color:#0a6ca0; }
-.pedido-cliente { font-size:14px; color:#666; margin-bottom:6px; }
-.pedido-card-bottom { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-.pedido-total { font-size:16px; font-weight:bold; color:#1a1a1a; }
-.pedido-vence { font-size:12px; color:#888; }
-
-/* ── PROGRESO DEL PEDIDO ── */
-.progreso-bar { display:flex; align-items:center; background:white; border-radius:12px; padding:20px 24px; margin-bottom:20px; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
-.progreso-paso { display:flex; flex-direction:column; align-items:center; gap:6px; }
-.progreso-circulo { width:36px; height:36px; border-radius:50%; background:#e0e0e0; color:#999; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:14px; }
-.progreso-circulo.activo { background:#0d8fd1; color:white; }
-/* Lógica por progreso: hecho=verde, actual=amarillo, falta=gris */
-.progreso-circulo.prog-circ-hecho { background:#1d9e75; color:#fff; }
-.progreso-circulo.prog-circ-actual { background:#e8b730; color:#fff; box-shadow:0 0 0 4px rgba(232,183,48,0.22); }
-.progreso-circulo.prog-circ-pendiente { background:#e3e5e8; color:#9aa0a6; }
-.progreso-paso.prog-hecho .progreso-label { color:#1d9e75; font-weight:600; }
-.progreso-paso.prog-actual .progreso-label { color:#c8890a; font-weight:700; }
-.progreso-paso.prog-pendiente .progreso-label { color:#9aa0a6; }
-.progreso-label { font-size:12px; color:#888; white-space:nowrap; }
-.progreso-linea { flex:1; height:2px; background:#e0e0e0; margin:0 8px; margin-bottom:18px; }
-
-/* ── DETALLE PEDIDO ── */
-.detalle-card { background:white; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
-.info-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
-.info-label { display:block; font-size:12px; color:#888; margin-bottom:2px; }
-.info-valor { font-size:15px; font-weight:bold; }
-.total-grande { font-size:22px; color:#0d8fd1; }
-.detalle-seccion { background:white; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
-.detalle-seccion h3 { font-size:16px; color:#0a6ca0; margin-bottom:16px; }
-.detalle-seccion-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
-.detalle-seccion-header h3 { margin-bottom:0; }
-
-/* ── FORM INLINE ── */
-.form-inline { background:#f9f9f9; border-radius:10px; padding:16px; margin-top:12px; border:1px solid #e0e0e0; }
-.form-botones { display:flex; gap:10px; margin-top:12px; }
-
-/* ── DOCUMENTOS ── */
-.doc-item { padding:14px; border:1px solid #e0e0e0; border-radius:10px; margin-bottom:10px; }
-.doc-info { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:8px; }
-.doc-tipo { font-weight:bold; font-size:14px; }
-.doc-nota { font-size:13px; color:#666; }
-.doc-quien { font-size:12px; color:#aaa; width:100%; }
-.doc-acciones { display:flex; gap:8px; }
-.diferencias-box { background:#fff8e1; border-radius:8px; padding:10px; margin-top:10px; font-size:13px; }
-
-/* ── COBROS ── */
-.cobro-resumen { background:#f9f9f9; border-radius:10px; padding:16px; margin-bottom:16px; }
-.cobro-barra-wrap { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
-.cobro-barra { flex:1; height:10px; background:#e0e0e0; border-radius:5px; overflow:hidden; }
-.cobro-barra-fill { height:100%; background:#0d8fd1; border-radius:5px; transition:width 0.3s; }
-.cobro-numeros { display:flex; gap:20px; flex-wrap:wrap; font-size:14px; }
-.cobro-item { padding:14px; border:1px solid #e0e0e0; border-radius:10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:flex-start; }
-.cobro-item-info { display:flex; flex-direction:column; gap:4px; }
-.cobro-medio { font-weight:bold; font-size:15px; }
-.cobro-monto { font-size:18px; font-weight:bold; color:#0d8fd1; }
-.cobro-cheque-fecha { font-size:13px; color:#f59e0b; font-weight:bold; }
-.cobro-nota { font-size:13px; color:#666; }
-.cobro-fecha { font-size:12px; color:#aaa; }
-.verde { color:#2d6a4f; }
-.rojo  { color:#c00; }
-
-/* ── HISTORIAL ── */
-.historial-item { display:flex; gap:12px; padding:12px 0; border-bottom:1px solid #f0f0f0; }
-.historial-icono { font-size:20px; }
-.historial-info { display:flex; flex-direction:column; gap:3px; }
-.historial-detalle { font-size:14px; color:#333; }
-.historial-quien { font-size:12px; color:#aaa; }
-
-/* ── FORMULARIO CLIENTE ── */
-.form-card { background:white; border-radius:12px; padding:24px; box-shadow:0 2px 8px rgba(0,0,0,0.06); max-width:700px; }
-.form-seccion { font-size:11px; font-weight:bold; color:#0d8fd1; letter-spacing:1px; margin:24px 0 12px; padding-bottom:6px; border-bottom:2px solid #e6f4fb; }
-.campo-doble { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-.input-con-sufijo { display:flex; align-items:center; gap:8px; }
-.input-con-sufijo input { flex:1; }
-.input-con-sufijo span { color:#666; font-size:14px; white-space:nowrap; }
-.checkboxes { display:flex; flex-direction:column; gap:12px; margin-top:8px; }
-.check-label { display:flex; align-items:center; gap:10px; font-size:14px; cursor:pointer; width:fit-content; }
-.check-label input { width:18px; height:18px; cursor:pointer; accent-color:#0d8fd1; }
-.ficha-nombre { font-size:24px; font-weight:bold; color:#0a6ca0; margin-bottom:8px; }
-.ficha-fila { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f0f0f0; font-size:14px; }
-.ficha-fila span:first-child { color:#888; }
-.ficha-fila span:last-child { font-weight:bold; text-align:right; }
-.ficha-obs { font-size:14px; color:#444; padding:12px; background:#f9f9f9; border-radius:8px; }
-.ficha-pedido-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid #f0f0f0; font-size:14px; }
-
-/* ── PRODUCTOS ── */
-.categoria-grupo { margin-bottom:24px; }
-.categoria-titulo { font-size:13px; font-weight:bold; color:#0d8fd1; letter-spacing:1px; text-transform:uppercase; padding:8px 0; margin-bottom:8px; border-bottom:2px solid #e6f4fb; }
-.precio-sin-definir { color:#aaa; font-style:italic; }
-.precio-anterior { color:#aaa; text-decoration:line-through; }
-
-/* ── TABLA ACTUALIZAR PRECIOS ── */
-.tabla-precios { width:100%; background:white; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.06); border-collapse:collapse; margin-bottom:8px; }
-.tabla-precios th { background:#f8f8f8; padding:12px 16px; text-align:left; font-size:13px; color:#666; border-bottom:1px solid #eee; }
-.tabla-precios td { padding:12px 16px; font-size:14px; border-bottom:1px solid #f0f0f0; vertical-align:middle; }
-.precio-actual-col { font-weight:bold; color:#0d8fd1; font-size:15px; }
-.input-precio-nuevo { width:140px; padding:8px 12px; border:2px solid #e0e0e0; border-radius:8px; font-size:15px; outline:none; transition:border 0.2s; }
-.input-precio-nuevo:focus { border-color:#0d8fd1; }
-
-/* ── HISTORIAL LISTAS ── */
-.historial-lista-item { background:white; border-radius:12px; padding:20px; margin-bottom:12px; box-shadow:0 2px 6px rgba(0,0,0,0.06); display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
-.historial-lista-info { flex:1; }
-.historial-lista-fecha { font-size:16px; margin-bottom:6px; }
-.historial-lista-detalle { font-size:13px; color:#888; margin-bottom:8px; }
-.historial-lista-cambios { display:flex; flex-wrap:wrap; gap:6px; }
-.cambio-badge { background:#f0f0f0; color:#666; padding:3px 10px; border-radius:20px; font-size:12px; }
-
-/* ── PRECIOS DOS COLUMNAS ── */
-.precio-col { font-size:14px; }
-.precio-col small { color:#888; font-size:11px; }
-.desc-detalle { color:#888; font-size:11px; }
-
-/* ── NUEVO PEDIDO ── */
-.pedido-selector-cliente { margin-bottom:16px; }
-.cliente-seleccionado { background:#e6f4fb; border-radius:10px; padding:14px 18px; display:flex; justify-content:space-between; align-items:center; font-weight:bold; }
-.btn-cambiar { background:white; border:1px solid #0d8fd1; color:#0d8fd1; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px; }
-.condiciones-cliente { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
-.resultado-cliente { padding:12px 16px; background:white; border-bottom:1px solid #f0f0f0; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:14px; }
-.resultado-cliente:hover { background:#f9fffe; }
-
-/* ── TABS CATEGORÍAS ── */
-.tabs-categorias { display:flex; gap:8px; overflow-x:auto; padding-bottom:8px; margin-bottom:16px; }
-.tab-cat { background:white; border:1px solid #ddd; color:#666; padding:8px 16px; border-radius:20px; cursor:pointer; font-size:13px; white-space:nowrap; }
-.tab-cat.activo { background:#0d8fd1; border-color:#0d8fd1; color:white; font-weight:bold; }
-
-/* ── PRODUCTO EN PEDIDO ── */
-.producto-pedido-card { background:white; border-radius:12px; padding:16px; margin-bottom:10px; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
-.prod-pedido-info { margin-bottom:12px; }
-.prod-pedido-nombre { font-size:15px; font-weight:bold; margin-bottom:4px; }
-.prod-pedido-precios { font-size:13px; color:#666; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.precio-dest { font-weight:bold; color:#0d8fd1; font-size:14px; }
-.sep { color:#ccc; }
-.prod-pedido-controles { display:flex; gap:16px; flex-wrap:wrap; }
-.control-cantidad { display:flex; flex-direction:column; gap:4px; }
-.control-label { font-size:12px; color:#888; }
-.cantidad-btns { display:flex; align-items:center; gap:4px; }
-.btn-cant { width:36px; height:36px; border-radius:8px; border:1px solid #ddd; background:white; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#0d8fd1; font-weight:bold; }
-.btn-cant:hover { background:#e6f4fb; }
-.input-cant { width:60px; height:36px; text-align:center; border:1px solid #ddd; border-radius:8px; font-size:15px; font-weight:bold; }
-
-/* ── BARRA TOTAL FLOTANTE ── */
-.barra-total-pedido { position:fixed; bottom:0; left:200px; right:0; background:#0a6ca0; color:white; padding:14px 24px; display:flex; justify-content:space-between; align-items:center; z-index:50; box-shadow:0 -4px 16px rgba(0,0,0,0.2); }
-.barra-total-info { display:flex; gap:12px; align-items:center; font-size:14px; }
-.barra-monto { font-size:20px; font-weight:bold; }
-.btn-ver-resumen { background:#0d8fd1; color:white; border:none; padding:12px 24px; border-radius:8px; font-size:15px; font-weight:bold; cursor:pointer; }
-.btn-ver-resumen:hover:not(.disabled) { background:#3d8a6f; }
-.btn-ver-resumen.disabled { opacity:0.4; cursor:not-allowed; }
-
-/* ── RESUMEN FISCAL ── */
-.resumen-fiscal { background:#f9f9f9; border-radius:10px; padding:16px; }
-.fiscal-fila { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee; font-size:14px; }
-.fiscal-separador { height:1px; background:#ddd; margin:8px 0; }
-.descuento-fila { color:#c00; }
-.total-fila { font-size:18px; font-weight:bold; color:#0a6ca0; border-bottom:none; }
-.bonif-box { background:#e3f2fd; border-radius:8px; padding:12px; margin-top:12px; font-size:14px; color:#1565c0; }
-
-/* ── PEDIDO CARD ── */
-.pedido-card { background:white; border-radius:12px; padding:16px 20px; margin-bottom:10px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.06); transition:all 0.2s; }
-.pedido-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.12); transform:translateY(-1px); }
-.pedido-card.pedido-alerta { border-left:4px solid #f59e0b; }
-.pedido-card-top { display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
-.pedido-numero { font-size:16px; font-weight:bold; color:#0a6ca0; }
-.pedido-cliente { font-size:14px; color:#666; margin-bottom:6px; }
-.pedido-card-bottom { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-.pedido-total { font-size:16px; font-weight:bold; }
-.pedido-vence { font-size:12px; color:#888; }
-
-/* Padding bottom para que la barra no tape contenido */
-#vista-nuevo-pedido { padding-bottom:80px; }
-
-/* ── LISTA CLIENTES EN PEDIDO ── */
-.dropdown-cliente-wrap { position:relative; }
-.dropdown-clientes {
-  position:absolute; top:100%; left:0; right:0;
-  max-height:280px; overflow-y:auto;
-  border:1px solid #e0e0e0; border-radius:10px;
-  background:white; margin-top:4px;
-  box-shadow:0 8px 24px rgba(0,0,0,0.12);
-  z-index:200;
-}
-.lista-clientes-pedido { max-height:320px; overflow-y:auto; border:1px solid #e0e0e0; border-radius:10px; background:white; margin-top:8px; }
-.resultado-cliente { padding:14px 16px; border-bottom:1px solid #f0f0f0; cursor:pointer; display:flex; justify-content:space-between; align-items:center; transition:background 0.15s; }
-.resultado-cliente:hover { background:#e6f4fb; }
-.resultado-cliente:last-child { border-bottom:none; }
-.resultado-cliente-info { display:flex; flex-direction:column; gap:4px; }
-.resultado-cliente-nombre { font-size:15px; font-weight:bold; color:#1a1a1a; }
-.resultado-cliente-badges { display:flex; gap:6px; flex-wrap:wrap; }
-.resultado-cliente-arrow { font-size:22px; color:#ccc; }
-.cliente-sel-nombre { font-size:16px; font-weight:bold; }
-.text-gris { color:#888; }
-
-/* ── PEDIDO CARD CON ACCIONES ── */
-.pedido-card { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-.pedido-card-main { flex:1; cursor:pointer; }
-.pedido-card-acciones { display:flex; flex-direction:column; gap:8px; }
-.btn-icono-pedido { width:38px; height:38px; border-radius:8px; border:1px solid #e0e0e0; background:white; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
-.btn-icono-pedido:hover { background:#f0f0f0; }
-.btn-icono-pedido.rojo { border-color:#ffcdd2; }
-.btn-icono-pedido.rojo:hover { background:#ffebee; }
-
-/* ── FIX DROPDOWN CLIENTES ── */
-.dropdown-cliente-wrap { position:relative; }
-.dropdown-clientes {
-  position:absolute !important;
-  top:calc(100% + 4px); left:0; right:0;
-  max-height:260px; overflow-y:auto;
-  border:1px solid #e0e0e0; border-radius:10px;
-  background:white;
-  box-shadow:0 8px 24px rgba(0,0,0,0.15);
-  z-index:500;
-}
-
-/* ── FILTROS PEDIDOS ── */
-.filtros-pedidos { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:16px; background:white; padding:14px 18px; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.06); }
-.filtro-input { padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:14px; outline:none; min-width:200px; }
-.filtro-input:focus { border-color:#0d8fd1; }
-.filtro-fechas { display:flex; align-items:center; gap:8px; font-size:13px; color:#666; }
-.filtro-input-fecha { padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:14px; outline:none; }
-.filtro-input-fecha:focus { border-color:#0d8fd1; }
-.btn-limpiar { background:#f0f0f0; color:#666; border:none; padding:8px 14px; border-radius:8px; font-size:13px; cursor:pointer; }
-.btn-limpiar:hover { background:#e0e0e0; }
-
-/* ── FECHAS EN PEDIDO CARD ── */
-.pedido-card-fechas { display:flex; gap:16px; flex-wrap:wrap; margin-top:6px; font-size:12px; color:#aaa; }
-
-/* ── KANBAN ── */
-.kanban-board { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; overflow-x:auto; padding-bottom:16px; }
-.kanban-col { min-width:150px; }
-.kanban-col-header { display:flex; align-items:center; gap:6px; padding:8px 10px; border-radius:8px; margin-bottom:10px; font-size:12px; font-weight:500; }
-.kanban-count { margin-left:auto; font-size:10px; padding:1px 7px; border-radius:20px; font-weight:500; }
-.kanban-cards { display:flex; flex-direction:column; gap:8px; }
-.kanban-card { background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:12px; cursor:pointer; transition:box-shadow 0.2s; }
-.kanban-card:hover { box-shadow:0 4px 12px rgba(0,0,0,0.10); }
-.kanban-card-num { font-size:11px; font-weight:500; color:var(--color-text-primary); margin-bottom:4px; }
-.kanban-card-total { font-size:14px; font-weight:500; color:var(--color-text-primary); margin-bottom:4px; }
-.kanban-card-fecha { font-size:10px; color:var(--color-text-tertiary); display:flex; align-items:center; gap:3px; }
-.kanban-alerta { font-size:10px; color:#ba7517; margin-top:4px; }
-.kanban-empty { border:1.5px dashed var(--color-border-tertiary); border-radius:10px; padding:20px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:4px; }
-.kanban-empty i { font-size:20px; color:var(--color-text-tertiary); }
-.kanban-empty span { font-size:11px; color:var(--color-text-tertiary); }
-.kanban-pdf-btn { margin-top:8px; font-size:11px; padding:4px 10px; border-radius:6px; border:0.5px solid var(--color-border-tertiary); background:var(--color-background-secondary); color:var(--color-text-secondary); cursor:pointer; display:flex; align-items:center; gap:4px; width:fit-content; }
-.kanban-pdf-btn:hover { background:var(--color-background-primary); }
-
-/* ── BOTONES ETAPA ── */
-.btn-enviado { background:#0a6ca0; color:white; border:none; padding:9px 18px; border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; }
-.btn-recibido { background:#1565c0; color:white; border:none; padding:9px 18px; border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; }
-
-/* ══ COBRANZA ══════════════════════════════════ */
-.cob-stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }
-.cob-stat-card { background:var(--color-background-secondary); border-radius:var(--border-radius-md); padding:1rem; }
-.cob-stat-card.rojo { background:#fcebeb; }
-.cob-stat-label { font-size:13px; color:var(--color-text-secondary); margin-bottom:6px; }
-.cob-stat-num { font-size:22px; font-weight:500; color:var(--color-text-primary); }
-.cob-stat-num.rojo { color:#a32d2d; }
-.cob-stat-sub { font-size:12px; color:var(--color-text-tertiary); margin-top:4px; }
-.cob-stat-sub.rojo { color:#a32d2d; }
-
-.cob-filtro-btn { padding:7px 12px; border:0.5px solid var(--color-border-tertiary); border-radius:8px; font-size:12px; font-weight:500; cursor:pointer; background:var(--color-background-primary); color:var(--color-text-secondary); }
-.cob-filtro-btn.activo { background:#0a6ca0; color:white; border-color:#0a6ca0; }
-.cob-filtro-btn.rojo { color:#a32d2d; background:#fcebeb; border-color:#f7c1c1; }
-.cob-filtro-btn.naranja { color:#633806; background:#faeeda; border-color:#fac775; }
-.cob-filtro-btn.verde { color:#085041; background:#e1f5ee; border-color:#9fe1cb; }
-
-.cob-seccion-titulo { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; color:var(--color-text-secondary); margin-bottom:10px; }
-.cob-seccion-count { background:var(--color-background-secondary); color:var(--color-text-secondary); font-size:11px; padding:1px 8px; border-radius:20px; }
-
-.cob-card { background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); padding:14px 18px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
-.cob-card-cobrada { opacity:0.7; }
-.cob-card-main { flex:1; }
-.cob-card-top { display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
-.cob-card-cliente { font-size:15px; font-weight:500; color:var(--color-text-primary); }
-.cob-alerta-badge { font-size:11px; font-weight:500; padding:2px 8px; border-radius:20px; display:flex; align-items:center; gap:4px; }
-.cob-card-meta { display:flex; gap:14px; font-size:13px; color:var(--color-text-secondary); flex-wrap:wrap; }
-.cob-barra-mini { height:4px; background:var(--color-background-secondary); border-radius:4px; margin-top:8px; overflow:hidden; }
-.cob-barra-mini-fill { height:100%; border-radius:4px; transition:width 0.3s; }
-.cob-parcial-info { display:flex; gap:14px; font-size:12px; color:var(--color-text-secondary); margin-top:4px; }
-.cob-card-right { display:flex; flex-direction:column; align-items:flex-end; gap:8px; min-width:140px; }
-.cob-card-monto { font-size:18px; font-weight:500; }
-.cob-card-acciones { display:flex; gap:8px; align-items:center; }
-
-.btn-whatsapp { width:36px; height:36px; border-radius:8px; border:0.5px solid #9fe1cb; background:#e1f5ee; color:#085041; display:flex; align-items:center; justify-content:center; font-size:18px; text-decoration:none; }
-.btn-whatsapp:hover { background:#9fe1cb; }
-.btn-cobrar { padding:8px 16px; background:#0a6ca0; color:white; border:none; border-radius:8px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; }
-.btn-cobrar:hover { background:#0d8fd1; }
-
-.cob-dropdown-item { padding:10px 16px; font-size:14px; cursor:pointer; border-bottom:0.5px solid var(--color-border-tertiary); color:var(--color-text-primary); background:#ffffff; }
-.cob-dropdown-item:hover { background:var(--color-background-secondary); }
-.cob-dropdown-item:last-child { border-bottom:none; }
-
-#modal-cobro { transition: opacity 0.2s; }
-
-/* ── MODAL DETALLE COBRANZA ── */
-#modal-detalle-cob { transition: opacity 0.2s; }
-.mdc-doc-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:0.5px solid var(--color-border-tertiary); }
-.mdc-doc-item:last-child { border-bottom:none; }
-.btn-ver-doc { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border:0.5px solid var(--color-border-tertiary); border-radius:8px; font-size:13px; color:var(--color-text-primary); text-decoration:none; background:var(--color-background-secondary); cursor:pointer; }
-.btn-ver-doc:hover { background:var(--color-background-primary); }
-.btn-ver-doc.foto { background:#e3f2fd; border-color:#b5d4f4; color:#0c447c; }
-.mdc-cobro-item { padding:12px 0; border-bottom:0.5px solid var(--color-border-tertiary); }
-.mdc-cobro-item:last-child { border-bottom:none; }
-.mdc-cobro-info { display:flex; flex-direction:column; gap:4px; }
-.mdc-foto-wrap { margin-top:8px; }
-
-/* ── LOGÍSTICA ── */
-.log-pedido-card { background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); padding:14px 18px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
-.log-pedido-card.seleccionado { background:#e8f5e9; border-color:#9fe1cb; }
-.log-btn-agregar { padding:7px 14px; border-radius:8px; border:0.5px solid #1d9e75; background:white; color:#0f6e56; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; }
-.log-btn-agregar:hover { background:#e6f4fb; }
-.log-btn-quitar { padding:7px 14px; border-radius:8px; border:0.5px solid #e24b4a; background:white; color:#a32d2d; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; }
-.log-btn-quitar:hover { background:#fcebeb; }
-.log-envio-card { background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:var(--border-radius-lg); padding:16px 18px; margin-bottom:10px; cursor:pointer; transition:box-shadow 0.2s; }
-.log-envio-card:hover { box-shadow:0 4px 12px rgba(0,0,0,0.08); }
-
-/* ── LOG PEDIDOS PREVIEW ── */
-.log-pedidos-preview { display:flex; flex-wrap:wrap; gap:6px; }
-.log-pedido-pill { display:inline-flex; align-items:center; gap:5px; background:var(--color-background-secondary); border:0.5px solid var(--color-border-tertiary); border-radius:20px; padding:4px 10px; font-size:12px; color:var(--color-text-primary); }
-.log-pedido-pill.entregado { background:#e8f5e9; border-color:#9fe1cb; color:#085041; }
-
-/* ── SISTEMA DE ALERTAS ─────────────────────────── */
-@keyframes shake {
-  0%,100% { transform: rotate(0deg); }
-  20%      { transform: rotate(-15deg); }
-  40%      { transform: rotate(15deg); }
-  60%      { transform: rotate(-10deg); }
-  80%      { transform: rotate(10deg); }
-}
-
-/* ── DASHBOARD ─────────────────────────────────── */
-.dash-card {
-  background: var(--color-background-primary);
-  border: 0.5px solid var(--color-border-tertiary);
-  border-radius: var(--border-radius-lg);
-  padding: 16px;
-}
-.dash-card-titulo {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 14px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-@media (max-width: 900px) {
-  #dash-root [style*="grid-template-columns:repeat(4"] {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-}
-
-/* ── PROBLEMAS DE RECEPCIÓN ─────────────────────── */
-.problema-card {
-  background: var(--color-background-primary);
-  border: 0.5px solid var(--color-border-tertiary);
-  border-left: 3px solid #e24b4a;
-  border-radius: var(--border-radius-lg);
-  padding: 18px;
-  margin-bottom: 14px;
-  transition: opacity 0.3s;
-}
-.problema-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 14px;
-  gap: 12px;
-}
-.problema-titulo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  flex-wrap: wrap;
-}
-.problema-descripcion {
-  background: #fcebeb;
-  border-radius: 8px;
-  padding: 12px 14px;
-  margin-bottom: 14px;
-}
-.badge-rojo {
-  background: #fcebeb;
-  color: #a32d2d;
-  border: 0.5px solid #f5c6c6;
-}
-
-/* ═══════════════════════════════════════════════════
-   APP MÓVIL — Barra inferior + responsive
-   Solo se activa en pantallas de teléfono (≤768px)
-   ═══════════════════════════════════════════════════ */
-
-/* Barra de navegación inferior (oculta en escritorio) */
-.bottom-nav { display:none; }
-.mobile-more-sheet { display:none; }
-
-@media (max-width: 768px) {
-  /* Sin scroll horizontal en toda la app */
-  html, body { overflow-x:hidden; max-width:100vw; width:100%; }
-  /* El contenedor principal nunca más ancho que la pantalla */
-  #contenido-principal { width:100%; max-width:100vw; box-sizing:border-box; overflow-x:hidden; }
-  #dash-root { width:100%; max-width:100%; box-sizing:border-box; }
-  #dash-root > * { max-width:100%; box-sizing:border-box; }
-  /* El grid KPI nunca fuerza ancho */
-  .dash-kpi-grid { width:100%; max-width:100%; }
-
-  /* ── ARREGLOS DE DESBORDE EN MÓVIL ── */
-  /* Dashboard: 4 tarjetas KPI → 2 columnas en celular */
-  .dash-kpi-grid { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
-  /* Reportes: KPIs en una sola fila que envuelve */
-  .rep-kpi3 { grid-template-columns:repeat(3,minmax(0,1fr)) !important; gap:8px !important; }
-  .rep-kpi-v { font-size:15px !important; word-break:break-word; }
-  /* Header de sección detalle: que el botón no se salga */
-  .detalle-seccion-header { flex-wrap:wrap; gap:8px; }
-  .detalle-seccion-header h3 { flex:1; min-width:0; }
-  /* Botones secundarios en headers: que no desborden */
-  .detalle-seccion-header .btn-secundario { white-space:nowrap; flex-shrink:0; }
-  /* Filas de reportes (ranking clientes): monto que no se corte */
-  .rep-fila, .rep-rank-fila { flex-wrap:wrap; }
-  .rep-fila-monto { font-size:14px !important; white-space:normal !important; width:100%; text-align:right; margin-top:4px; }
-
-  /* ── PREVENCIÓN GLOBAL DE DESBORDE EN MÓVIL ── */
-  .seccion, .seccion * { max-width:100%; }
-  /* Que el padding nunca sume ancho extra (causa principal de desbordes) */
-  .detalle-card, .detalle-seccion, .form-card, .cob-card, .rep-fila,
-  .producto-pedido-card, .aprobar-card, .pedido-card, .cliente-card,
-  [id^="modal-"] > div { box-sizing:border-box !important; }
-  /* Inputs de archivo: que no desborden con su ancho natural */
-  input[type="file"] { max-width:100%; width:100%; box-sizing:border-box; font-size:12px; }
-  input, select, textarea { max-width:100%; box-sizing:border-box; }
-  /* Imágenes y previsualizaciones */
-  .seccion img { max-width:100%; height:auto; }
-  /* Tablas normales: scroll horizontal de respaldo */
-  .seccion table, .tabla {
-    max-width:100%;
-  }
-
-  /* Tablas marcadas como responsive → se convierten en TARJETAS en móvil */
-  .tabla-responsive { display:block; border:none; box-shadow:none; background:transparent; }
-  .tabla-responsive thead { display:none; }
-  .tabla-responsive tbody { display:block; }
-  .tabla-responsive tr {
-    display:block;
-    background:#fff;
-    border:0.5px solid #e8e8e8;
-    border-radius:10px;
-    padding:10px 12px;
-    margin-bottom:10px;
-    box-shadow:0 1px 4px rgba(0,0,0,0.05);
-  }
-  .tabla-responsive td {
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:12px;
-    padding:5px 0;
-    border-bottom:0.5px solid #f2f2f2;
-    font-size:13px;
-    text-align:right;
-    white-space:normal;
-  }
-  .tabla-responsive td:last-child { border-bottom:none; }
-  /* La primera celda (producto) ocupa todo el ancho, sin label */
-  .tabla-responsive td:first-child {
-    display:block;
-    text-align:left;
-    font-size:14px;
-    border-bottom:1px solid #eee;
-    padding-bottom:8px;
-    margin-bottom:4px;
-  }
-  /* Etiqueta de cada dato (Cantidad, Precio, etc.) a la izquierda */
-  .tabla-responsive td:not(:first-child)::before {
-    content: attr(data-label);
-    color:#888;
-    font-weight:400;
-    font-size:12px;
-    text-align:left;
-  }
-  /* Contenedores que suelen tener anchos fijos */
-  .detalle-card, .detalle-seccion, .form-inline, .form-card,
-  #rep-contenido, #rep-contenido *, .cob-card, .cliente-card {
-    max-width:100%; box-sizing:border-box;
-  }
-  /* Texto largo (códigos, URLs) que parta en vez de empujar */
-  .seccion td, .seccion span, .rep-fila-nombre, .cliente-nombre { overflow-wrap:anywhere; word-break:break-word; }
-  /* Filas flex que envuelvan en vez de desbordar */
-  .rep-fila, .rep-det-fila, .ficha-fila, .fiscal-fila { flex-wrap:wrap; }
-  /* Resumen de cobros: gap chico y que envuelva en móvil */
-  .cobro-numeros { gap:8px 16px; font-size:13px; }
-  .cobro-numeros span { white-space:nowrap; }
-  /* La barra de monto del reporte: que no fuerce ancho */
-  .rep-fila-monto { white-space:normal; }
-
-  /* Topbar más compacta */
-  .topbar { height:60px; padding:0 16px; }
-  .topbar-titulo { font-size:17px; }
-  .topbar-titulo small { display:block; font-size:9px; font-weight:400; opacity:0.85; }
-
-  /* Ocultar sidebar lateral */
-  .sidebar { display:none; }
-
-  /* Contenido ocupa todo el ancho */
-  .layout { margin-top:60px; }
-  #contenido-principal { margin-left:0 !important; padding:14px 14px 80px !important; }
-  .seccion { padding-bottom:70px; padding-left:12px; padding-right:12px; box-sizing:border-box; }
-
-  /* Títulos más chicos */
-  .seccion h2 { font-size:18px; margin-bottom:14px; }
-
-  /* Dashboard: métricas a 2 columnas */
-  #dash-root [style*="grid-template-columns:repeat(4"],
-  #dash-root [style*="grid-template-columns: repeat(4"] {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-  /* Dashboard: secciones de 2 columnas a 1 */
-  #dash-root [style*="grid-template-columns:1fr 2fr"],
-  #dash-root [style*="grid-template-columns: 1fr 2fr"] {
-    grid-template-columns: 1fr !important;
-  }
-  /* Pipeline scroll horizontal si no entra */
-  #dash-root [style*="display:flex"][style*="margin:0 -16px"] {
-    overflow-x:auto;
-  }
-
-  /* Tarjetas dashboard valores más chicos */
-  #dash-root [style*="font-size:24px"] { font-size:18px !important; }
-
-  /* Cobranza: tarjetas apiladas */
-  .cob-card { flex-direction:column; align-items:stretch; }
-  .cob-card-derecha { margin-top:10px; }
-
-  /* Stats grids a 1-2 columnas */
-  .cob-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
-  .tarjetas { grid-template-columns: repeat(2, 1fr) !important; }
-
-  /* Filtros apilados verticalmente (sin scroll lateral) */
-  .filtros-pedidos {
-    flex-direction:column;
-    align-items:stretch;
-    gap:8px;
-    padding:12px;
-    flex-wrap:nowrap;
-    overflow:visible;
-  }
-  .filtros-pedidos > div[style*="min-width"] { min-width:0 !important; width:100%; }
-  .filtro-fechas { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-  .filtro-fechas .filtro-input-fecha { flex:1; min-width:0; }
-  .btn-limpiar { width:100%; }
-
-  /* Tablas con scroll horizontal */
-  .seccion table { display:block; overflow-x:auto; white-space:nowrap; }
-
-  /* Kanban de pedidos: apilar etapas en una sola columna, sin scroll lateral */
-  .kanban-board { display:block !important; grid-template-columns:none !important; gap:0 !important; overflow-x:hidden !important; padding-bottom:0 !important; width:100%; }
-  .kanban-col { min-width:0 !important; width:100% !important; margin-bottom:18px; }
-  .kanban-col-header { position:sticky; top:0; z-index:5; }
-  .kanban-card { width:100%; }
-  /* Evitar desbordes generales en móvil */
-  #vista-lista-pedidos, .seccion { max-width:100%; overflow-x:hidden; }
-
-  /* ── FICHA DE PEDIDO (detalle) en móvil ── */
-  /* Header: apilar botón volver, título y acciones */
-  #vista-detalle-pedido .seccion-header {
-    flex-direction:column;
-    align-items:stretch;
-    gap:10px;
-  }
-  #vista-detalle-pedido .seccion-header h2 { font-size:18px; }
-  #acciones-pedido { display:flex; flex-wrap:wrap; gap:8px; }
-  #acciones-pedido button { flex:1; min-width:0; }
-  .btn-volver { align-self:flex-start; }
-
-  /* Barra de progreso: scroll horizontal propio, compacta */
-  .progreso-bar {
-    padding:14px 12px;
-    overflow-x:auto;
-    -webkit-overflow-scrolling:touch;
-    gap:0;
-  }
-  .progreso-label { font-size:10px; }
-  .progreso-linea { min-width:16px; margin:0 4px 18px; }
-  .progreso-paso { min-width:54px; }
-
-  /* Cards de detalle con menos padding */
-  .detalle-card, .detalle-seccion { padding:14px; box-sizing:border-box; border-radius:10px; margin-bottom:12px; }
-  .detalle-card *, .detalle-seccion * { max-width:100%; }
-  /* Headers de sección (Documentos, Cobros): título + botón, que el botón nunca se salga */
-  .detalle-seccion-header { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:nowrap; margin-bottom:10px; }
-  .detalle-seccion-header h3 { font-size:14px; margin:0; flex:1; min-width:0; }
-  .detalle-seccion-header .btn-secundario { font-size:12px; padding:5px 12px; white-space:nowrap; flex-shrink:0; }
-
-  /* info-grid del pedido: 1 columna sin ancho mínimo */
-  .info-grid { grid-template-columns:1fr !important; gap:14px; }
-
-  /* Tablas de productos/cobros con scroll propio dentro de su card */
-  .detalle-seccion table { display:block; overflow-x:auto; white-space:nowrap; width:100%; }
-
-  /* Filas de info que no desborden */
-  .ficha-fila, .fiscal-fila { flex-wrap:wrap; }
-
-  /* Inputs de formularios al 100% */
-  .form-inline .campo input, .form-inline .campo select { width:100%; }
-  .input-con-sufijo { width:100%; }
-
-  /* Modales ocupan casi toda la pantalla */
-  #modal-recibido > div,
-  #modal-cobro > div,
-  /* ── PANELES LATERALES (modales anclados a la derecha) en móvil ── */
-  /* Ocupan toda la pantalla y respetan el ancho (box-sizing) */
-  #modal-detalle-cob { justify-content:center !important; align-items:flex-end !important; }
-  #modal-detalle-cob > div {
-    max-width:100% !important;
-    width:100% !important;
-    height:92vh !important;
-    margin:0 !important;
-    border-radius:16px 16px 0 0 !important;
-    box-sizing:border-box !important;
-    padding:18px !important;
-  }
-  /* Regla general: cualquier modal de pantalla completa con panel interno */
-  [id^="modal-"] > div { box-sizing:border-box !important; }
-
-  /* Barra total pedido ajustada */
-  .barra-total-pedido { left:0 !important; bottom:64px !important; }
-
-  /* MOSTRAR barra de navegación inferior */
-  .bottom-nav {
-    display:flex;
-    position:fixed;
-    bottom:0; left:0; right:0;
-    height:64px;
-    background:#ffffff;
-    border-top:0.5px solid var(--color-border-tertiary);
-    z-index:200;
-    padding-bottom:env(safe-area-inset-bottom, 4px);
-    box-shadow:0 -2px 12px rgba(0,0,0,0.06);
-  }
-  .bottom-nav-btn {
-    flex:1;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    gap:2px;
-    border:none;
-    background:none;
-    cursor:pointer;
-    color:var(--color-text-tertiary);
-    font-size:10px;
-    position:relative;
-    padding:6px 0;
-  }
-  .bottom-nav-btn i { font-size:21px; }
-  .bottom-nav-btn.activo { color:var(--color-marca); }
-  .bottom-nav-badge {
-    position:absolute;
-    top:2px; left:50%; margin-left:6px;
-    background:#e24b4a; color:white;
-    border-radius:8px; min-width:15px; height:15px;
-    font-size:8px; font-weight:700;
-    display:flex; align-items:center; justify-content:center;
-    padding:0 3px;
-  }
-
-  /* Hoja "Más" desplegable */
-  .mobile-more-sheet {
-    display:none;
-    position:fixed;
-    bottom:64px; left:0; right:0;
-    background:#fff;
-    border-top:0.5px solid var(--color-border-tertiary);
-    border-radius:16px 16px 0 0;
-    box-shadow:0 -8px 24px rgba(0,0,0,0.15);
-    z-index:199;
-    padding:12px;
-  }
-  .mobile-more-sheet.abierta { display:block; }
-  .mobile-more-item {
-    display:flex; align-items:center; gap:12px;
-    padding:14px 12px;
-    font-size:15px;
-    color:var(--color-text-primary);
-    border-bottom:0.5px solid var(--color-border-tertiary);
-    cursor:pointer;
-  }
-  .mobile-more-item:last-child { border-bottom:none; }
-  .mobile-more-item i { font-size:20px; color:var(--color-marca); }
-}
-
-/* ── REPORTES ──────────────────────────────────── */
-.rep-per-chip { background:#fff; border:0.5px solid var(--color-border-tertiary); border-radius:20px; padding:6px 14px; font-size:12px; color:var(--color-text-secondary); cursor:pointer; white-space:nowrap; }
-.rep-per-chip.activo { background:var(--color-marca); color:#fff; border-color:var(--color-marca); }
-.rep-tab-btn { background:#fff; border:0.5px solid var(--color-border-tertiary); border-radius:8px; padding:8px 12px; font-size:12px; color:var(--color-text-secondary); cursor:pointer; white-space:nowrap; display:flex; align-items:center; gap:5px; }
-.rep-tab-btn.activo { background:var(--color-marca-oscuro); color:#fff; border-color:var(--color-marca-oscuro); }
-.btn-exportar-rep { flex:1; background:#fff; border:0.5px solid var(--color-border-tertiary); border-radius:8px; padding:9px; font-size:12px; color:var(--color-text-secondary); cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px; }
-.btn-exportar-rep:hover { background:var(--color-marca-claro); color:var(--color-marca-oscuro); border-color:var(--color-marca); }
-.rep-resumen { background:var(--color-marca-claro); border-radius:10px; padding:14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; }
-.rep-resumen-l { font-size:11px; color:var(--color-marca-oscuro); }
-.rep-resumen-v { font-size:20px; font-weight:700; color:var(--color-marca-oscuro); }
-.rep-fila { background:#fff; border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:12px; margin-bottom:8px; display:flex; align-items:center; gap:12px; }
-.rep-rank { width:26px; height:26px; border-radius:50%; background:var(--color-marca-claro); color:var(--color-marca-oscuro); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; }
-.rep-fila-info { flex:1; min-width:0; }
-.rep-fila-nombre { font-size:13px; font-weight:600; }
-.rep-fila-detalle { font-size:11px; color:var(--color-text-tertiary); margin-top:2px; }
-.rep-fila-bar { height:4px; background:var(--color-border-tertiary); border-radius:2px; margin-top:5px; }
-.rep-fila-bar-fill { height:4px; background:var(--color-marca); border-radius:2px; }
-.rep-fila-monto { font-size:14px; font-weight:600; color:var(--color-marca-oscuro); white-space:nowrap; }
-.rep-kpi3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:14px; }
-.rep-kpi { background:#fff; border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:12px; text-align:center; }
-.rep-kpi-v { font-size:15px; font-weight:700; color:var(--color-marca-oscuro); }
-.rep-kpi-l { font-size:10px; color:var(--color-text-tertiary); margin-top:3px; }
-.rep-subtitulo { font-size:11px; font-weight:600; color:var(--color-text-secondary); margin:16px 0 8px; letter-spacing:0.03em; }
-.rep-det-fila { background:#fff; border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:11px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; font-size:13px; }
-.rep-det-sub { font-size:11px; color:var(--color-text-tertiary); margin-top:2px; }
-.rep-badge-v { background:#e8f5e9; color:#1d6a4f; border-radius:6px; font-size:10px; padding:2px 8px; }
-.rep-badge-p { background:#faeeda; color:#633806; border-radius:6px; font-size:10px; padding:2px 8px; }
-
-/* ── INICIO DEL CLIENTE ──────────────────────────── */
-.btn-cliente-pedir { background:var(--color-marca); color:#fff; border:none; border-radius:12px; padding:15px; width:100%; font-size:15px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:8px; margin:12px 0 16px; box-shadow:0 4px 12px rgba(13,143,209,0.3); cursor:pointer; }
-.btn-cliente-pedir:hover { background:var(--color-marca-oscuro); }
-.cli-bloque-t { font-size:11px; font-weight:600; color:var(--color-text-secondary); margin:14px 0 8px; letter-spacing:.03em; }
-.cli-alert-recibir { background:#fff8e1; border:1px solid #ba751744; border-left:3px solid #ba7517; border-radius:10px; padding:12px; margin-bottom:8px; }
-.cli-alert-top { font-size:12px; font-weight:600; color:#633806; margin-bottom:9px; display:flex; align-items:center; gap:5px; }
-.cli-btn-confirmar { background:var(--color-marca-oscuro); color:#fff; border:none; border-radius:8px; padding:9px; width:100%; font-size:12px; font-weight:500; display:flex; align-items:center; justify-content:center; gap:5px; cursor:pointer; }
-.cli-deuda-card { background:#fff; border:0.5px solid var(--color-border-tertiary); border-radius:11px; padding:14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
-.cli-ped-card { background:#fff; border:0.5px solid var(--color-border-tertiary); border-radius:11px; padding:12px; margin-bottom:8px; }
-.cli-track { display:flex; align-items:flex-start; margin-top:6px; }
-.cli-track-paso { flex:1; text-align:center; position:relative; }
-.cli-track-dot { width:20px; height:20px; border-radius:50%; background:var(--color-border-tertiary); color:var(--color-text-tertiary); display:flex; align-items:center; justify-content:center; font-size:10px; margin:0 auto 4px; position:relative; z-index:2; }
-.cli-track-dot.ok { background:#1d9e75; color:#fff; }
-.cli-track-dot.now { background:var(--color-marca); color:#fff; }
-.cli-track-label { font-size:8px; color:var(--color-text-tertiary); }
-.cli-track-label.now { color:var(--color-marca); font-weight:600; }
-.cli-track-linea { position:absolute; top:9px; right:50%; width:100%; height:2px; background:var(--color-border-tertiary); z-index:1; }
-.cli-track-linea.ok { background:#1d9e75; }
-
-/* ── PESTAÑAS DE PEDIDOS ─────────────────────────── */
-.pedidos-pestanas { display:flex; background:#e8eaed; border-radius:10px; padding:3px; margin-bottom:14px; gap:0; }
-.ped-pestana { flex:1; text-align:center; padding:9px; font-size:13px; font-weight:600; color:var(--color-text-tertiary); border:none; background:none; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; }
-.ped-pestana.activa { background:#fff; color:var(--color-marca-oscuro); box-shadow:0 1px 3px rgba(0,0,0,0.1); }
-.ped-pest-badge { background:#e24b4a; color:#fff; border-radius:10px; font-size:10px; font-weight:700; padding:1px 7px; }
-
-.aprobar-card { background:#fff; border:0.5px solid var(--color-border-tertiary); border-left:3px solid #ba7517; border-radius:11px; padding:13px; margin-bottom:10px; cursor:pointer; }
-.aprobar-card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; }
-.aprobar-card-cli { font-size:14px; font-weight:600; }
-.aprobar-card-meta { font-size:11px; color:var(--color-text-tertiary); margin-top:2px; }
-.aprobar-card-badge { background:#faeeda; color:#633806; border-radius:6px; font-size:10px; padding:2px 8px; white-space:nowrap; }
-.aprobar-card-monto { font-size:16px; font-weight:700; color:var(--color-marca-oscuro); margin:8px 0; }
-.aprobar-card-btns { display:flex; gap:8px; }
-.ac-btn-ok { flex:1; background:#1d9e75; color:#fff; border:none; border-radius:8px; padding:10px; font-size:13px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; }
-.ac-btn-ok:hover { background:#178a64; }
-.ac-btn-no { background:#fff; color:#e24b4a; border:0.5px solid #f0c4c4; border-radius:8px; padding:10px 14px; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
-.ac-btn-no:hover { background:#fcebeb; }
-
-/* ── Feedback de interacción ──────────────────────
-   Todo lo clickeable (cualquier elemento con onclick) se mueve al
-   tocarlo/clickear, no solo cambia de color. Esto es general y no
-   depende de ninguna clase puntual, así que aplica en toda la app
-   sin tener que tocar cada botón o tarjeta por separado. */
-[onclick] { transition: transform 0.12s ease; }
-[onclick]:active { transform: scale(0.96); }
-@media (hover:hover) {
-  [onclick]:hover { transform: translateY(-1px); }
-  [onclick]:hover:active { transform: scale(0.96); }
-}
-
-/* Las ventanas modales (el fondo y el panel) no se mueven ni se hunden — solo los
-   botones/tarjetas de adentro mantienen el efecto de feedback al tocar. */
-[id^="modal-"][onclick],
-[id^="modal-"] > div[onclick] {
-  transform: none !important;
-}
-
-/* ── Modal de detalle de pedido (Cobranza) en escritorio ──
-   En móvil esto no aplica: el bloque de #modal-detalle-cob de más arriba
-   fuerza sus propios estilos con !important (hoja desde abajo). */
-.mdc-grid { display:block; }
-@media (min-width:769px) {
-  .mdc-panel { width:920px !important; }
-  .mdc-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
-}
-
-/* ── Solapas Datos / Historial en la ficha del cliente ── */
-.ficha-tab {
-  flex:1; background:#fff; border:0.5px solid var(--color-border-tertiary);
-  border-radius:9px; padding:10px; font-size:13px; cursor:pointer;
-  color:var(--color-text-secondary); display:flex; align-items:center;
-  justify-content:center; gap:6px; font-family:'Inter',sans-serif;
-}
-.ficha-tab.activo {
-  background:var(--color-marca); color:#fff; border-color:var(--color-marca); font-weight:600;
-}
-.ficha-tab i { font-size:15px; }
-
-/* ── Historial del cliente: lista + detalle en dos columnas ── */
-.hist-layout { display:block; }
-@media (min-width:769px) {
-  .hist-layout { display:grid; grid-template-columns:0.85fr 1.15fr; gap:14px; align-items:start; }
-  .hist-lista-col { max-height:70vh; overflow-y:auto; }
-}
-.hist-lista-col { margin-bottom:14px; }
-
-/* ── Selector geográfico con búsqueda (provincia/municipio) ── */
-.geo-lista {
-  position:absolute; top:100%; left:0; right:0; z-index:50;
-  background:#fff; border:0.5px solid var(--color-border-tertiary);
-  border-radius:8px; margin-top:2px; max-height:200px; overflow-y:auto;
-  box-shadow:0 6px 20px rgba(0,0,0,0.12);
-}
-.geo-item {
-  padding:9px 12px; font-size:13px; cursor:pointer;
-  border-bottom:0.5px solid var(--color-background-secondary);
-}
-.geo-item:last-child { border-bottom:none; }
-.geo-item:hover { background:var(--color-background-tertiary); }
-.geo-vacio { padding:9px 12px; font-size:12px; color:var(--color-text-tertiary); }
-
-/* ── Rendimiento por vendedor (responsive) ── */
-.rend-vend-item {
-  display:flex; justify-content:space-between; align-items:center;
-  padding:12px 0; border-top:0.5px solid var(--color-border-tertiary); gap:12px;
-}
-.rend-vend-item:first-child { border-top:none; }
-.rend-vend-nombre { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:500; min-width:0; }
-.rend-vend-nombre > span:last-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.rend-vend-rank {
-  background:#e1f5ee; color:#085041; border-radius:50%;
-  width:22px; height:22px; display:flex; align-items:center; justify-content:center;
-  font-size:11px; font-weight:600; flex-shrink:0;
-}
-.rend-vend-datos { display:flex; gap:20px; flex-shrink:0; }
-.rend-vend-dato { display:flex; flex-direction:column; align-items:flex-end; }
-.rvd-label { font-size:10px; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:.03em; }
-.rvd-valor { font-size:14px; font-weight:600; margin-top:1px; white-space:nowrap; }
-
-@media (max-width:600px) {
-  .rend-vend-item { flex-direction:column; align-items:stretch; gap:8px; }
-  .rend-vend-datos { justify-content:space-between; gap:8px; }
-  .rend-vend-dato { align-items:flex-start; flex:1; }
-}
-
-/* ── Comisiones ── */
-.com-filtros { display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap; align-items:center; }
-.com-filtros select, .com-fechas input { border:0.5px solid var(--color-border-tertiary); border-radius:8px; padding:8px 12px; font-size:13px; background:#fff; }
-.com-fechas { display:flex; align-items:center; gap:8px; }
-.com-totales { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px; }
-.com-tot-card { background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-top:3px solid #0d8fd1; border-radius:10px; padding:14px 16px; }
-.com-tot-label { font-size:11px; color:var(--color-text-secondary); }
-.com-tot-val { font-size:20px; font-weight:700; margin-top:3px; }
-.com-tot-sub { font-size:11px; color:var(--color-text-tertiary); margin-top:2px; }
-.com-grupo { background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:14px 16px; margin-bottom:12px; }
-.com-grupo-tit { font-size:13px; font-weight:600; color:var(--color-marca-oscuro); margin-bottom:4px; display:flex; align-items:center; gap:6px; }
-.com-grupo-nota { font-size:11px; color:var(--color-text-tertiary); margin-bottom:10px; }
-.com-count { background:var(--color-background-tertiary); color:var(--color-text-secondary); border-radius:10px; font-size:11px; padding:1px 8px; }
-.com-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-top:1px solid var(--color-background-secondary); font-size:13px; gap:12px; }
-.com-item-sub { font-size:11px; color:var(--color-text-tertiary); margin-top:2px; }
-.com-item-monto { display:flex; align-items:center; gap:8px; flex-shrink:0; }
-.com-monto-val { font-weight:600; }
-.com-monto-val.verde { color:#1d9e75; }
-.com-badge-sin { font-size:10px; color:#c99a06; background:#fef6e6; padding:2px 7px; border-radius:5px; white-space:nowrap; }
-.com-btn-pagar { background:#1d9e75; color:#fff; border:none; border-radius:7px; padding:6px 12px; font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap; }
-@media (max-width:600px) {
-  .com-totales { grid-template-columns:1fr; }
-  .com-item { flex-direction:column; align-items:stretch; }
-  .com-item-monto { justify-content:space-between; }
-}
-
-/* ── Comisiones v2 (tarjetas) ── */
-.com-totales-v2 { display:flex; flex-direction:column; gap:10px; margin-bottom:18px; }
-.com-tot-principal { background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-left:4px solid #1d9e75; border-radius:10px; padding:14px 16px; }
-.com-tot-fila { display:flex; gap:10px; }
-.com-tot-fila .com-tot-card { flex:1; background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:12px 14px; }
-
-/* ── Análisis ── */
-.an-tabs { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
-.an-tab { background:#fff; color:#666; border:0.5px solid var(--color-border-tertiary); border-radius:8px; padding:8px 16px; font-size:13px; cursor:pointer; }
-.an-tab.activa { background:var(--color-marca); color:#fff; border:none; font-weight:600; }
-.an-tabs select { border:0.5px solid var(--color-border-tertiary); border-radius:8px; padding:8px 12px; font-size:13px; background:#fff; flex:1; min-width:150px; }
-.an-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
-.an-kpi { background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:12px; }
-.an-kpi-lbl { font-size:11px; color:var(--color-text-secondary); }
-.an-kpi-val { font-size:18px; font-weight:700; margin-top:2px; }
-.an-kpi-sub { font-size:11px; color:var(--color-text-tertiary); margin-top:2px; }
-.an-kpi-sub.up { color:#1d9e75; } .an-kpi-sub.down { color:#c0392b; }
-.an-card { background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:16px; margin-bottom:14px; }
-.an-card-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px; }
-.an-card-tit { font-size:13px; font-weight:600; color:var(--color-marca-oscuro); }
-.an-rango { display:flex; align-items:center; gap:6px; font-size:12px; }
-.an-rango select { border:0.5px solid var(--color-border-tertiary); border-radius:6px; padding:5px 8px; font-size:12px; background:#fff; }
-.an-leyenda { display:flex; gap:16px; margin-bottom:14px; font-size:11px; }
-.an-leyenda span { display:flex; align-items:center; gap:5px; }
-.an-lg { width:12px; height:12px; border-radius:2px; display:inline-block; }
-/* gráfico detallado */
-.an-det { display:flex; justify-content:space-around; align-items:flex-end; padding-top:20px; }
-.an-det-mes { display:flex; flex-direction:column; align-items:center; flex:1; }
-.an-det-barras { display:flex; gap:4px; align-items:flex-end; height:155px; }
-.an-det-b { display:flex; flex-direction:column; align-items:center; justify-content:flex-end; }
-.an-det-val { font-size:9px; font-weight:600; margin-bottom:2px; white-space:nowrap; }
-.an-det-bar { width:22px; border-radius:3px 3px 0 0; min-height:2px; }
-.an-det-lbl { font-size:11px; color:var(--color-text-secondary); font-weight:500; margin-top:6px; }
-/* gráfico anual */
-.an-anual { display:flex; align-items:flex-end; gap:5px; height:120px; }
-.an-anual-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; }
-.an-anual-bar { width:100%; background:#0d8fd1; border-radius:3px 3px 0 0; min-height:2px; }
-.an-anual-lbl { font-size:9px; color:var(--color-text-tertiary); }
-/* tabla */
-.an-tabla { width:100%; border-collapse:collapse; font-size:12px; min-width:460px; }
-.an-tabla th { color:var(--color-text-secondary); text-align:right; font-weight:500; padding:6px 4px; border-bottom:1px solid var(--color-border-tertiary); }
-.an-tabla th:first-child { text-align:left; }
-.an-tabla td { text-align:right; padding:7px 4px; border-bottom:1px solid var(--color-background-secondary); }
-.an-tabla td.l { text-align:left; font-weight:600; }
-.an-tabla td.up { color:#1d9e75; } .an-tabla td.down { color:#c0392b; } .an-tabla td.warn { color:#ba7517; }
-@media (max-width:600px) {
-  .an-kpis { grid-template-columns:repeat(2,1fr); }
-}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>La Cabaña — Sistema de Gestión</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d8fd1">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="La Cabaña">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.7.0/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="styles.css?v=71">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="config.js"></script>
+  <script>
+    // Registrar service worker para que la app sea instalable
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {})
+      })
+    }
+  </script>
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div id="pantalla-login">
+    <div class="login-box">
+      <div class="login-logo"><img src="logo.png" alt="La Cabaña De Rosario" style="width:140px;height:auto"></div>
+      <h1>La Cabaña</h1>
+      <p class="login-subtitulo">Sistema de Gestión</p>
+
+      <!-- FORM LOGIN -->
+      <div id="form-login-box">
+        <div id="login-ok" style="display:none;background:#e1f5ee;color:#085041;border-radius:8px;padding:12px;font-size:13px;margin-bottom:12px"></div>
+        <div id="login-error" class="error-msg" style="display:none"></div>
+        <div class="campo"><label>Email</label><input type="email" id="login-email" placeholder="tu@email.com"></div>
+        <div class="campo"><label>Contraseña</label><input type="password" id="login-password" placeholder="••••••••"></div>
+        <button onclick="iniciarSesion()" class="btn-login">Ingresar</button>
+        <a href="#" onclick="olvidoPassword(); return false;" class="link-olvide">Olvidé mi contraseña</a>
+        <div style="margin-top:14px;padding-top:14px;border-top:0.5px solid #e2e5e9;font-size:13px;color:var(--color-text-secondary)">
+          ¿No tenés cuenta? <a href="#" onclick="mostrarRegistro(); return false;" style="color:var(--color-marca);font-weight:600">Crear cuenta</a>
+        </div>
+      </div>
+
+      <!-- FORM REGISTRO -->
+      <div id="form-registro-box" style="display:none">
+        <div style="font-size:15px;font-weight:600;color:var(--color-marca-oscuro);margin-bottom:4px">Crear cuenta</div>
+        <div style="font-size:12px;color:var(--color-text-tertiary);margin-bottom:14px">Registrate y la empresa activará tu acceso</div>
+        <div id="registro-error" class="error-msg" style="display:none"></div>
+        <div id="registro-ok" style="display:none;background:#e1f5ee;color:#085041;border-radius:8px;padding:12px;font-size:13px;margin-bottom:12px"></div>
+        <div class="campo"><label>Razón social / Nombre</label><input type="text" id="reg-nombre" placeholder="Nombre o razón social"></div>
+        <div class="campo"><label>CUIT</label><input type="text" id="reg-cuit" placeholder="20-12345678-9"></div>
+        <div class="campo"><label>Condición IVA</label>
+          <select id="reg-iva">
+            <option value="">Elegí una opción...</option>
+            <option value="responsable_inscripto">Responsable inscripto</option>
+            <option value="monotributo">Monotributo</option>
+            <option value="exento">Exento</option>
+            <option value="consumidor_final">Consumidor final</option>
+          </select>
+        </div>
+        <div class="campo"><label>Email</label><input type="email" id="reg-email" placeholder="tu@email.com"></div>
+        <div class="campo"><label>Teléfono</label><input type="text" id="reg-telefono" placeholder="341 555 1234"></div>
+        <div class="campo"><label>Dirección</label><input type="text" id="reg-direccion" placeholder="Calle 1234"></div>
+        <div class="campo"><label>Provincia</label>
+          <div style="position:relative">
+            <input type="text" id="reg-provincia" placeholder="Escribí para buscar..." autocomplete="off" oninput="buscarProvincia(this.value)" onfocus="buscarProvincia(this.value)">
+            <input type="hidden" id="reg-provincia-id">
+            <div id="reg-provincia-lista" class="geo-lista" style="display:none"></div>
+          </div>
+        </div>
+        <div class="campo"><label>Localidad</label>
+          <div style="position:relative">
+            <input type="text" id="reg-localidad" placeholder="Primero elegí provincia" autocomplete="off" disabled oninput="buscarMunicipio(this.value)" onfocus="buscarMunicipio(this.value)">
+            <div id="reg-localidad-lista" class="geo-lista" style="display:none"></div>
+          </div>
+        </div>
+        <div class="campo"><label>Contraseña</label>
+          <div style="position:relative">
+            <input type="password" id="reg-password" placeholder="Mínimo 6 caracteres" style="padding-right:42px">
+            <button type="button" onclick="togglePass('reg-password', this)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:4px;color:var(--color-text-tertiary)" aria-label="Mostrar contraseña"><i class="ti ti-eye" aria-hidden="true"></i></button>
+          </div>
+        </div>
+        <div class="campo"><label>Repetir contraseña</label>
+          <div style="position:relative">
+            <input type="password" id="reg-password2" placeholder="Repetí la contraseña" style="padding-right:42px">
+            <button type="button" onclick="togglePass('reg-password2', this)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:4px;color:var(--color-text-tertiary)" aria-label="Mostrar contraseña"><i class="ti ti-eye" aria-hidden="true"></i></button>
+          </div>
+        </div>
+        <button onclick="registrarUsuario()" class="btn-login" id="btn-registrar">Crear cuenta</button>
+        <a href="#" onclick="mostrarLoginForm(); return false;" class="link-olvide">← Volver al inicio de sesión</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="pantalla-app" style="display:none">
+    <div class="topbar">
+      <div class="topbar-titulo">La Cabaña<small>Cooperativa de Trabajo</small></div>
+      <div class="topbar-usuario">
+        <span id="nombre-usuario"></span>
+
+        <!-- Campana de alertas -->
+        <div style="position:relative">
+          <button id="btn-campana" onclick="togglePanelAlertas()"
+            style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;width:38px;height:38px;cursor:pointer;color:white;display:flex;align-items:center;justify-content:center;position:relative">
+            <i class="ti ti-bell" style="font-size:18px" aria-hidden="true"></i>
+            <span id="campana-badge"
+              style="display:none;position:absolute;top:-4px;right:-4px;background:#e24b4a;color:white;border-radius:10px;min-width:18px;height:18px;font-size:10px;font-weight:700;align-items:center;justify-content:center;padding:0 4px;border:2px solid #1a3a2a">
+            </span>
+          </button>
+
+          <!-- Panel de alertas -->
+          <div id="panel-alertas"
+            style="display:none;position:absolute;top:48px;right:0;width:380px;max-height:520px;background:white;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.18);z-index:3000;overflow:hidden;border:0.5px solid #e5e7eb">
+            <div style="padding:14px 16px;border-bottom:0.5px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;background:#fff8f0">
+              <div style="font-size:14px;font-weight:600;color:#633806">⚠️ Reclamos</div>
+              <button onclick="document.getElementById('panel-alertas').style.display='none'"
+                style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:18px;line-height:1">✕</button>
+            </div>
+            <div id="panel-alertas-contenido" style="overflow-y:auto;max-height:460px"></div>
+          </div>
+        </div>
+
+        <button onclick="cerrarSesion()" class="btn-salir">Salir</button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <nav class="sidebar">
+        <button onclick="mostrarSeccion('dashboard')" class="nav-btn" id="nav-dashboard"><i class="ti ti-layout-dashboard" aria-hidden="true"></i> Dashboard</button>
+        <button onclick="mostrarSeccion('pedidos')"   class="nav-btn" id="nav-pedidos"><i class="ti ti-package" aria-hidden="true"></i> Pedidos</button>
+        <button onclick="mostrarSeccion('cobranza')"  class="nav-btn" id="nav-cobranza"><i class="ti ti-cash" aria-hidden="true"></i> Cobranza</button>
+        <button onclick="mostrarSeccion('logistica')" class="nav-btn" id="nav-logistica"><i class="ti ti-truck-delivery" aria-hidden="true"></i> Logística</button>
+        <button onclick="mostrarSeccion('problemas')" class="nav-btn" id="nav-problemas"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Reclamos <span id="nav-problemas-badge" style="display:none;background:#e24b4a;color:white;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px"></span></button>
+        <button onclick="mostrarSeccion('clientes')"  class="nav-btn" id="nav-clientes"><i class="ti ti-users" aria-hidden="true"></i> Clientes</button>
+        <button onclick="mostrarSeccion('productos')" class="nav-btn" id="nav-productos"><i class="ti ti-box" aria-hidden="true"></i> Productos</button>
+        <button onclick="mostrarSeccion('comisiones')" class="nav-btn" id="nav-comisiones"><i class="ti ti-percentage" aria-hidden="true"></i> Comisiones</button>
+        <button onclick="mostrarSeccion('reportes')" class="nav-btn" id="nav-reportes"><i class="ti ti-chart-bar" aria-hidden="true"></i> Reportes</button>
+        <button onclick="mostrarSeccion('analisis')" class="nav-btn" id="nav-analisis"><i class="ti ti-chart-histogram" aria-hidden="true"></i> Análisis</button>
+        <button onclick="mostrarSeccion('usuarios')" class="nav-btn" id="nav-usuarios"><i class="ti ti-user-cog" aria-hidden="true"></i> Usuarios <span id="nav-usuarios-badge" style="display:none;background:#e24b4a;color:white;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px"></span></button>
+      </nav>
+
+      <main id="contenido-principal">
+
+        <!-- DASHBOARD -->
+        <section id="seccion-dashboard" class="seccion">
+          <div id="dash-root">
+            <!-- todo se renderiza desde JS -->
+            <div style="color:var(--color-text-tertiary);font-size:13px;padding:40px;text-align:center">Cargando dashboard...</div>
+          </div>
+        </section>
+
+        <!-- PEDIDOS -->
+        <section id="seccion-pedidos" class="seccion" style="display:none">
+          <div id="vista-lista-pedidos">
+            <div class="seccion-header">
+              <h2>Pedidos</h2>
+              <button class="btn-nuevo" onclick="nuevoPedido()">+ Nuevo pedido</button>
+            </div>
+
+            <!-- Pestañas (solo admin/vendedor) -->
+            <div id="pedidos-pestanas" class="pedidos-pestanas" style="display:none">
+              <button class="ped-pestana activa" id="pest-aprobar" onclick="cambiarPestanaPedidos('aprobar')">
+                Por aprobar <span class="ped-pest-badge" id="pest-aprobar-badge" style="display:none">0</span>
+              </button>
+              <button class="ped-pestana" id="pest-todos" onclick="cambiarPestanaPedidos('todos')">
+                Todos los pedidos
+              </button>
+            </div>
+
+            <!-- Contenido: Por aprobar -->
+            <div id="pedidos-por-aprobar" style="display:none"></div>
+
+            <!-- Contenido: Todos (filtros + kanban) -->
+            <div id="pedidos-todos-wrap">
+            <!-- Filtros -->
+            <div class="filtros-pedidos" id="filtros-pedidos-bar">
+              <div style="position:relative;flex:1;min-width:200px">
+                <div id="filtro-cliente-display"
+                  onclick="toggleFiltroClientes()"
+                  style="padding:9px 14px;border:1px solid #ddd;border-radius:8px;cursor:pointer;background:white;font-size:14px;display:flex;justify-content:space-between;align-items:center;">
+                  <span id="filtro-cliente-label" style="color:#888">🔍 Todos los clientes</span>
+                  <span style="color:#ccc">▼</span>
+                </div>
+                <div id="filtro-cliente-dropdown"
+                  style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;
+                    z-index:999;background:white;border:1px solid #ddd;border-radius:10px;
+                    box-shadow:0 8px 24px rgba(0,0,0,0.15);max-height:280px;overflow-y:auto;">
+                  <div style="padding:10px">
+                    <input type="search" id="filtro-cliente-buscar"
+                      placeholder="Escribir para buscar..."
+                      oninput="filtrarDropdownClientes()"
+                      autocomplete="new-password"
+                      style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;outline:none;">
+                  </div>
+                  <div id="filtro-cliente-lista"></div>
+                </div>
+              </div>
+              <div class="filtro-fechas">
+                <label>Desde</label>
+                <input type="date" id="filtro-fecha-desde" onchange="cargarPedidos()" class="filtro-input-fecha">
+                <label>Hasta</label>
+                <input type="date" id="filtro-fecha-hasta" onchange="cargarPedidos()" class="filtro-input-fecha">
+              </div>
+              <button class="btn-limpiar" onclick="limpiarFiltrosPedidos()">✕ Limpiar</button>
+            </div>
+
+            <!-- Kanban board -->
+            <div id="kanban-board" class="kanban-board"></div>
+            </div>
+          </div>
+
+          <!-- Vista: nuevo pedido -->
+          <div id="vista-nuevo-pedido" style="display:none">
+            <div class="seccion-header">
+              <button class="btn-volver" onclick="mostrarVistaPedidos('lista')">← Volver</button>
+              <h2>Nuevo Pedido</h2>
+            </div>
+            <div id="contenido-nuevo-pedido"></div>
+            <div class="barra-total-pedido" id="barra-total-pedido">
+              <div class="barra-total-info">
+                <span>0 productos • 0 kg • $0</span>
+              </div>
+              <button class="btn-ver-resumen disabled" disabled>Ver resumen →</button>
+            </div>
+          </div>
+
+          <!-- Vista: resumen pedido -->
+          <div id="vista-resumen-pedido" style="display:none">
+            <div class="seccion-header">
+              <button class="btn-volver" onclick="mostrarVistaPedidos('nuevo')">← Volver al catálogo</button>
+              <h2>Resumen del Pedido</h2>
+            </div>
+            <div id="contenido-resumen-pedido"></div>
+          </div>
+          <div id="vista-detalle-pedido" style="display:none">
+            <div class="seccion-header">
+              <button class="btn-volver" onclick="volverAPedidos()">← Volver</button>
+              <h2 id="titulo-pedido">Pedido #0000</h2>
+              <div id="acciones-pedido"></div>
+            </div>
+            <div class="progreso-bar">
+              <div class="progreso-paso" id="prog-pedido"><div class="progreso-circulo">1</div><div class="progreso-label">Pedido</div></div>
+              <div class="progreso-linea"></div>
+              <div class="progreso-paso" id="prog-facturado"><div class="progreso-circulo">2</div><div class="progreso-label">Facturado</div></div>
+              <div class="progreso-linea"></div>
+              <div class="progreso-paso" id="prog-enviado"><div class="progreso-circulo">3</div><div class="progreso-label">Enviado</div></div>
+              <div class="progreso-linea"></div>
+              <div class="progreso-paso" id="prog-recibido"><div class="progreso-circulo">4</div><div class="progreso-label">Recibido</div></div>
+              <div class="progreso-linea"></div>
+              <div class="progreso-paso" id="prog-cobrado"><div class="progreso-circulo">5</div><div class="progreso-label">Cobrado</div></div>
+            </div>
+            <div id="alerta-vencimiento-pedido" style="display:none" class="alerta-box">⚠️ <span id="texto-alerta-vencimiento"></span></div>
+            <div id="info-pedido" class="detalle-card"></div>
+            <div class="detalle-seccion">
+              <div class="detalle-seccion-header"><h3>📄 Documentos</h3><button class="btn-secundario" id="btn-subir-documento" onclick="abrirSubirDocumento()">+ Subir</button></div>
+              <div id="lista-documentos-pedido"></div>
+              <div id="form-subir-documento" style="display:none" class="form-inline">
+                <div class="campo"><label>Tipo</label><select id="tipo-documento"><option value="remito">Remito</option><option value="factura_a">Factura A</option><option value="factura_b">Factura B</option><option value="factura_c">Factura C</option></select></div>
+                <div class="campo"><label>Archivo (foto o PDF)</label><input type="file" id="archivo-documento" accept="image/*,application/pdf"></div>
+                <div class="campo"><label>Nota (opcional)</label><input type="text" id="nota-documento" placeholder="Aclaración..."></div>
+                <div class="campo"><label>Fecha del documento</label><input type="date" id="fecha-documento"></div>
+                <div class="form-botones"><button class="btn-cancelar" onclick="cancelarSubirDocumento()">Cancelar</button><button class="btn-guardar-inline" onclick="subirDocumento()">📤 Subir</button></div>
+              </div>
+            </div>
+            <div class="detalle-seccion"><div class="detalle-seccion-header"><h3><i class="ti ti-box" aria-hidden="true"></i> Productos del pedido</h3><button id="btn-pdf-pedido" class="btn-secundario" style="font-size:12px;padding:6px 12px"><i class="ti ti-file-download" aria-hidden="true"></i> Descargar PDF</button></div><div id="productos-pedido"></div></div>
+            <div class="detalle-seccion"><h3><i class="ti ti-receipt" aria-hidden="true"></i> Desglose fiscal</h3><div id="desglose-fiscal-pedido"></div></div>
+            <div class="detalle-seccion">
+              <div class="detalle-seccion-header"><h3><i class="ti ti-cash" aria-hidden="true"></i> Cobros</h3><button class="btn-secundario" onclick="abrirAgregarCobro()">+ Agregar cobro</button></div>
+              <div id="resumen-cobro"></div>
+              <div id="lista-cobros-pedido"></div>
+              <div id="form-agregar-cobro" style="display:none" class="form-inline">
+                <div class="campo"><label>Forma de pago</label><select id="cobro-medio"><option value="efectivo">💵 Efectivo</option><option value="transferencia">🏦 Transferencia</option><option value="cheque">📋 Cheque</option><option value="echeq">📱 Echeq</option></select></div>
+                <div class="campo"><label>Monto</label><div class="input-con-sufijo"><span>$</span><input type="number" id="cobro-monto" placeholder="0.00"></div></div>
+                <div id="campo-fecha-cheque" style="display:none" class="campo"><label>Vencimiento del cheque</label><input type="date" id="cobro-fecha-cheque"></div>
+                <div class="campo"><label>Comprobante (foto)</label><input type="file" id="cobro-foto" accept="image/*"></div>
+                <div class="campo"><label>Nota (opcional)</label><input type="text" id="cobro-nota" placeholder="Referencia, banco..."></div>
+                <div class="form-botones"><button class="btn-cancelar" onclick="cancelarAgregarCobro()">Cancelar</button><button class="btn-guardar-inline" onclick="guardarCobro()">✅ Registrar cobro</button></div>
+              </div>
+            </div>
+            <div class="detalle-seccion"><h3>📋 Historial</h3><div id="historial-pedido"></div></div>
+          </div>
+        </section>
+
+<!-- COBRANZA -->
+        <section id="seccion-cobranza" class="seccion" style="display:none">
+
+          <!-- Stats -->
+          <div class="cob-stats" id="cob-stats"></div>
+
+          <!-- Filtros -->
+          <div class="filtros-pedidos" style="margin-bottom:16px">
+            <div style="position:relative">
+              <div id="cob-filtro-cliente-display" onclick="toggleCobFiltroClientes()"
+                style="padding:8px 14px;border:0.5px solid var(--color-border-tertiary);border-radius:8px;font-size:13px;color:var(--color-text-secondary);cursor:pointer;background:var(--color-background-primary);display:flex;justify-content:space-between;align-items:center;min-width:180px">
+                <span id="cob-filtro-cliente-label">Todos los clientes</span>
+                <span style="color:var(--color-text-tertiary);margin-left:8px">▼</span>
+              </div>
+              <div id="cob-filtro-cliente-dropdown"
+                style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:5000;background:#ffffff;border:1px solid var(--color-border-secondary);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.22);max-height:280px;overflow-y:auto;min-width:240px">
+                <div style="padding:8px;background:#ffffff;position:sticky;top:0;border-bottom:0.5px solid var(--color-border-tertiary)">
+                  <input type="search" id="cob-filtro-cliente-buscar" placeholder="Buscar..." oninput="filtrarCobClientes()" autocomplete="new-password"
+                    style="width:100%;padding:7px 10px;border:0.5px solid var(--color-border-tertiary);border-radius:8px;font-size:13px;outline:none">
+                </div>
+                <div id="cob-filtro-cliente-lista" style="background:#ffffff"></div>
+              </div>
+            </div>
+
+            <div style="position:relative" id="cob-vendedor-wrap">
+              <div id="cob-filtro-vendedor-display" onclick="toggleCobFiltroVendedores()"
+                style="padding:8px 14px;border:0.5px solid var(--color-border-tertiary);border-radius:8px;font-size:13px;color:var(--color-text-secondary);cursor:pointer;background:var(--color-background-primary);display:flex;justify-content:space-between;align-items:center;min-width:180px">
+                <span id="cob-filtro-vendedor-label">Todos los vendedores</span>
+                <span style="color:var(--color-text-tertiary);margin-left:8px">▼</span>
+              </div>
+              <div id="cob-filtro-vendedor-dropdown"
+                style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:5000;background:#ffffff;border:1px solid var(--color-border-secondary);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.22);max-height:280px;overflow-y:auto;min-width:200px">
+                <div id="cob-filtro-vendedor-lista" style="background:#ffffff"></div>
+              </div>
+            </div>
+
+            <div class="filtro-fechas">
+              <label>Desde</label>
+              <input type="date" id="cob-fecha-desde" onchange="cargarCobranza()" class="filtro-input-fecha">
+              <label>Hasta</label>
+              <input type="date" id="cob-fecha-hasta" onchange="cargarCobranza()" class="filtro-input-fecha">
+            </div>
+
+            <div style="display:flex;gap:6px">
+              <button id="cob-btn-vencido"   onclick="setCobEstado('vencido')"   class="cob-filtro-btn rojo">Vencidos</button>
+              <button id="cob-btn-pendiente" onclick="setCobEstado('pendiente')" class="cob-filtro-btn naranja">Pendientes</button>
+              <button id="cob-btn-cobrado"   onclick="setCobEstado('cobrado')"   class="cob-filtro-btn verde">Cobrados</button>
+              <button id="cob-btn-todos"     onclick="setCobEstado('todos')"     class="cob-filtro-btn activo">Todos</button>
+            </div>
+
+            <button onclick="exportarCobranza()" class="btn-secundario" style="margin-left:auto">
+              <i class="ti ti-download" aria-hidden="true"></i> Exportar
+            </button>
+            <button onclick="limpiarCobFiltros()" class="btn-limpiar">✕ Limpiar</button>
+          </div>
+
+          <!-- Lista -->
+          <div id="lista-cobranza"></div>
+
+        </section>
+
+        <!-- LOGISTICA -->
+        <section id="seccion-logistica" class="seccion" style="display:none">
+          <div class="seccion-header">
+            <h2>Logística</h2>
+          </div>
+
+          <div id="log-stats"></div>
+
+          <!-- Pestañas -->
+          <div class="pedidos-pestanas" id="log-pestanas" style="margin-bottom:16px">
+            <button class="ped-pestana activa" id="log-pest-porenviar" onclick="cambiarPestanaLog('porenviar')">
+              Por enviar <span class="ped-pest-badge" id="log-badge-porenviar" style="display:none">0</span>
+            </button>
+            <button class="ped-pestana" id="log-pest-enviado" onclick="cambiarPestanaLog('enviado')">
+              Enviado <span class="ped-pest-badge" id="log-badge-enviado" style="background:#185fa5;display:none">0</span>
+            </button>
+            <button class="ped-pestana" id="log-pest-recibido" onclick="cambiarPestanaLog('recibido')">
+              Recibido <span class="ped-pest-badge" id="log-badge-recibido" style="background:#1d9e75;display:none">0</span>
+            </button>
+          </div>
+
+          <!-- PESTAÑA POR ENVIAR -->
+          <div id="log-tab-porenviar">
+            <div id="log-barra-envio"
+              style="display:none;background:#0a6ca0;color:white;padding:14px 20px;border-radius:12px;margin-bottom:16px;justify-content:space-between;align-items:center">
+            </div>
+            <div class="cob-seccion-titulo" style="margin-bottom:10px">
+              <i class="ti ti-package" aria-hidden="true"></i> Pedidos facturados — listos para enviar
+            </div>
+            <div id="log-pedidos-para-enviar" style="margin-bottom:24px"></div>
+          </div>
+
+          <!-- PESTAÑA ENVIADO -->
+          <div id="log-tab-enviado" style="display:none">
+            <div id="log-envios-enviado"></div>
+          </div>
+
+          <!-- PESTAÑA RECIBIDO -->
+          <div id="log-tab-recibido" style="display:none">
+            <div id="log-envios-recibido"></div>
+          </div>
+
+        </section>
+
+        <!-- PROBLEMAS DE RECEPCIÓN -->
+        <section id="seccion-problemas" class="seccion" style="display:none">
+          <div class="seccion-header">
+            <h2>Reclamos</h2>
+            <button class="btn-nuevo" onclick="abrirModalReclamo()"><i class="ti ti-plus" aria-hidden="true"></i> Cargar reclamo</button>
+          </div>
+
+          <!-- Tabs -->
+          <div style="display:flex;gap:0;border-bottom:2px solid var(--color-border-tertiary);margin-bottom:20px">
+            <button id="tab-pendientes" onclick="switchTabProblemas('pendientes')"
+              style="padding:10px 20px;border:none;background:none;font-size:13px;font-weight:600;cursor:pointer;color:#185fa5;border-bottom:2px solid #185fa5;margin-bottom:-2px">
+              Pendientes <span id="badge-tab-pendientes" style="background:#e24b4a;color:white;border-radius:10px;font-size:10px;padding:1px 6px;margin-left:4px"></span>
+            </button>
+            <button id="tab-resueltos" onclick="switchTabProblemas('resueltos')"
+              style="padding:10px 20px;border:none;background:none;font-size:13px;font-weight:500;cursor:pointer;color:var(--color-text-secondary)">
+              Resueltos
+            </button>
+          </div>
+
+          <div id="problemas-pendientes-lista"></div>
+          <div id="problemas-resueltos-lista" style="display:none"></div>
+        </section>
+
+        <!-- CLIENTES -->
+        <section id="seccion-clientes" class="seccion" style="display:none">
+          <div id="vista-lista-clientes">
+            <div class="seccion-header"><h2>Clientes</h2><button class="btn-nuevo" onclick="abrirFormCliente()">+ Nuevo cliente</button></div>
+            <div class="buscador-box"><input type="text" id="buscador-clientes" placeholder="🔍 Buscar cliente..." oninput="filtrarClientes()" class="buscador-input"></div>
+            <div id="lista-clientes"></div>
+          </div>
+          <div id="vista-ficha-cliente" style="display:none">
+            <div class="seccion-header"><button class="btn-volver" onclick="volverAClientes()">← Volver</button><button class="btn-nuevo" onclick="editarClienteActual()">✏️ Editar</button></div>
+            <div id="contenido-ficha-cliente"></div>
+          </div>
+          <div id="vista-form-cliente" style="display:none">
+            <div class="seccion-header"><button class="btn-volver" onclick="volverAClientes()">← Volver</button><h2 id="titulo-form-cliente">Nuevo Cliente</h2></div>
+            <div id="aviso-campos-bloqueados" style="display:none;background:#faeeda;color:#633806;border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:14px">
+              <i class="ti ti-lock" aria-hidden="true"></i> Algunos datos (razón social, CUIT, condición fiscal, descuentos) solo los puede modificar la empresa. Vos podés editar teléfono, dirección y contacto.
+            </div>
+            <div class="form-card">
+              <div class="form-seccion">DATOS BÁSICOS</div>
+              <div class="campo"><label>Razón Social *</label><input type="text" id="f-razon-social" placeholder="Nombre o empresa"></div>
+              <div class="campo"><label>CUIT</label><input type="text" id="f-cuit" placeholder="30-12345678-9"></div>
+              <div class="campo"><label>Teléfono</label><input type="text" id="f-telefono" placeholder="341-555-0000"></div>
+              <div class="campo"><label>Email</label><input type="email" id="f-email" placeholder="cliente@email.com"></div>
+              <div class="campo"><label>Dirección</label><input type="text" id="f-direccion" placeholder="Calle y número"></div>
+              <div class="campo"><label>Provincia</label><select id="f-provincia" onchange="cargarLocalidades()"><option value="">Seleccioná una provincia...</option></select></div>
+              <div class="campo"><label>Localidad</label><select id="f-localidad"><option value="">Primero seleccioná una provincia...</option></select></div>
+              <div class="form-seccion">CONDICIÓN FISCAL</div>
+              <div class="campo"><label>Condición IVA</label><select id="f-condicion-iva"><option value="responsable_inscripto">Responsable Inscripto</option><option value="monotributista">Monotributista</option><option value="exento">Exento</option><option value="consumidor_final">Consumidor Final</option></select></div>
+              <div class="form-seccion">FACTURACIÓN</div>
+              <div class="campo"><label>Tipo de facturación</label><select id="f-condicion-factura" onchange="toggleMixto()"><option value="todo_factura">Todo Factura</option><option value="todo_remito">Todo Remito</option><option value="mixto">Mixto</option></select></div>
+              <div id="campo-mixto" style="display:none"><div class="campo-doble"><div class="campo"><label>% Remito</label><input type="number" id="f-pct-remito" value="50" min="0" max="100" oninput="sincronizarPct('remito')"></div><div class="campo"><label>% Factura</label><input type="number" id="f-pct-factura" value="50" min="0" max="100" oninput="sincronizarPct('factura')"></div></div></div>
+              <div class="campo"><label>Alícuota IVA</label><select id="f-alicuota-iva"><option value="21">21%</option><option value="10.5">10.5%</option><option value="0">0%</option></select></div>
+              <div class="form-seccion">BENEFICIO COMERCIAL</div>
+              <div class="campo-doble">
+                <div class="campo"><label>Descuento en precio</label><div class="input-con-sufijo"><input type="number" id="f-descuento" value="0" min="0" max="100" step="0.5"><span>%</span></div></div>
+                <div class="campo"><label>Bonificación producto</label><div class="input-con-sufijo"><input type="number" id="f-bonificacion" value="0" min="0" max="100" step="0.5"><span>%</span></div></div>
+              </div>
+              <div class="form-seccion">CONDICIONES DE PAGO</div>
+              <div class="campo"><label>Vence a los (días)</label><div class="input-con-sufijo"><input type="number" id="f-dias-vencimiento" value="7" min="0"><span>días</span></div></div>
+              <div class="campo"><label>Formas de pago</label><div class="checkboxes"><label class="check-label"><input type="checkbox" id="f-pago-efectivo"> Efectivo</label><label class="check-label"><input type="checkbox" id="f-pago-cheque"> Cheque</label><label class="check-label"><input type="checkbox" id="f-pago-transferencia"> Transferencia</label></div></div>
+              <div class="form-seccion">OBSERVACIONES</div>
+              <div class="campo"><textarea id="f-observaciones" rows="3" placeholder="Notas internas..."></textarea></div>
+              <div id="form-error" class="error-msg" style="display:none"></div>
+              <button class="btn-guardar" onclick="guardarCliente()">💾 Guardar cliente</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- PRODUCTOS -->
+        <section id="seccion-productos" class="seccion" style="display:none">
+
+          <!-- Vista: catálogo -->
+          <div id="vista-catalogo-productos">
+            <div class="seccion-header">
+              <h2>Productos</h2>
+              <div style="display:flex;gap:10px">
+                <button class="btn-secundario" onclick="mostrarVistaProductos('historial')">📋 Historial de listas</button>
+                <button class="btn-nuevo" id="btn-actualizar-precios" onclick="mostrarVistaProductos('actualizar')">📝 Actualizar precios</button>
+              </div>
+            </div>
+            <div id="lista-productos"></div>
+          </div>
+
+          <!-- Vista: actualizar precios -->
+          <div id="vista-actualizar-precios" style="display:none">
+            <div class="seccion-header">
+              <button class="btn-volver" onclick="mostrarVistaProductos('catalogo')">← Volver</button>
+              <h2>Actualizar Lista de Precios</h2>
+            </div>
+            <div class="form-card">
+
+              <div class="form-seccion">INFORMACIÓN DE LA LISTA</div>
+              <div class="campo-doble">
+                <div class="campo">
+                  <label>Fecha de vigencia</label>
+                  <input type="date" id="precio-fecha-vigencia">
+                </div>
+                <div class="campo">
+                  <label>Foto de referencia (opcional)</label>
+                  <input type="file" id="precio-foto-lista" accept="image/*,application/pdf">
+                </div>
+              </div>
+              <div id="precio-foto-preview" style="display:none;margin-bottom:16px">
+                <img id="precio-foto-img" style="max-width:300px;border-radius:8px;border:1px solid #ddd">
+              </div>
+
+              <div class="form-seccion">NUEVOS PRECIOS</div>
+              <p style="font-size:13px;color:#888;margin-bottom:16px">
+                Dejá en blanco los productos que no cambian de precio.
+              </p>
+              <div id="tabla-actualizar-precios"></div>
+
+              <div id="precio-error" class="error-msg" style="display:none"></div>
+              <button class="btn-guardar" onclick="guardarNuevosPrecios()">💾 Guardar lista de precios</button>
+            </div>
+          </div>
+
+          <!-- Vista: historial de listas -->
+          <div id="vista-historial-precios" style="display:none">
+            <div class="seccion-header">
+              <button class="btn-volver" onclick="mostrarVistaProductos('catalogo')">← Volver</button>
+              <h2>Historial de Listas de Precios</h2>
+            </div>
+            <div id="lista-historial-precios"></div>
+          </div>
+
+        </section>
+
+        <!-- COMISIONES -->
+        <section id="seccion-comisiones" class="seccion" style="display:none">
+          <div class="seccion-header"><h2>Comisiones</h2></div>
+          <div class="com-filtros">
+            <select id="com-vendedor" onchange="cargarComisiones()"></select>
+            <div class="com-fechas">
+              <input type="date" id="com-desde" onchange="cargarComisiones()">
+              <span>→</span>
+              <input type="date" id="com-hasta" onchange="cargarComisiones()">
+            </div>
+          </div>
+          <div id="com-contenido"></div>
+        </section>
+
+        <!-- REPORTES -->
+        <section id="seccion-reportes" class="seccion" style="display:none">
+          <div class="seccion-header"><h2>Reportes</h2></div>
+
+          <!-- Período -->
+          <div id="rep-periodo" style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;flex-wrap:wrap">
+            <button class="rep-per-chip activo" data-per="mes" onclick="setRepPeriodo('mes')">Este mes</button>
+            <button class="rep-per-chip" data-per="mes_ant" onclick="setRepPeriodo('mes_ant')">Mes pasado</button>
+            <button class="rep-per-chip" data-per="3meses" onclick="setRepPeriodo('3meses')">3 meses</button>
+            <button class="rep-per-chip" data-per="custom" onclick="setRepPeriodo('custom')">📅 Fechas</button>
+          </div>
+          <div id="rep-fechas-custom" style="display:none;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <input type="date" id="rep-fecha-desde" class="filtro-input-fecha" onchange="cargarReporte()">
+            <input type="date" id="rep-fecha-hasta" class="filtro-input-fecha" onchange="cargarReporte()">
+          </div>
+
+          <!-- Tabs de reporte agrupados -->
+          <div style="font-size:10px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Ventas</div>
+          <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;flex-wrap:wrap">
+            <button class="rep-tab-btn activo" data-rep="cliente" onclick="setRepTipo('cliente')"><i class="ti ti-users" aria-hidden="true"></i> Cliente</button>
+            <button class="rep-tab-btn" id="rep-tab-vendedor" data-rep="vendedor" onclick="setRepTipo('vendedor')"><i class="ti ti-user-star" aria-hidden="true"></i> Vendedor</button>
+            <button class="rep-tab-btn" data-rep="productos" onclick="setRepTipo('productos')"><i class="ti ti-package" aria-hidden="true"></i> Productos</button>
+            <button class="rep-tab-btn" data-rep="evolucion" onclick="setRepTipo('evolucion')"><i class="ti ti-chart-line" aria-hidden="true"></i> Evolución mensual</button>
+          </div>
+          <div style="font-size:10px;font-weight:600;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Finanzas y operación</div>
+          <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;flex-wrap:wrap">
+            <button class="rep-tab-btn" data-rep="cobranzas" onclick="setRepTipo('cobranzas')"><i class="ti ti-cash" aria-hidden="true"></i> Cobranzas</button>
+            <button class="rep-tab-btn" data-rep="deuda" onclick="setRepTipo('deuda')"><i class="ti ti-clock-dollar" aria-hidden="true"></i> Deuda por antigüedad</button>
+            <button class="rep-tab-btn" data-rep="inactivos" onclick="setRepTipo('inactivos')"><i class="ti ti-user-off" aria-hidden="true"></i> Clientes inactivos</button>
+            <button class="rep-tab-btn" data-rep="estados" onclick="setRepTipo('estados')"><i class="ti ti-progress" aria-hidden="true"></i> Pedidos por estado</button>
+          </div>
+
+          <!-- Selector individual (solo cliente/vendedor) -->
+          <div id="rep-selector-wrap" style="position:relative;margin-bottom:12px">
+            <div id="rep-selector-display" onclick="toggleRepSelector()"
+              style="background:#fff;border:1px solid var(--color-border-secondary);border-radius:8px;padding:10px 12px;font-size:13px;display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+              <span id="rep-selector-label" style="color:var(--color-marca);font-weight:600">Todos</span>
+              <i class="ti ti-chevron-down" style="color:var(--color-text-tertiary)" aria-hidden="true"></i>
+            </div>
+            <div id="rep-selector-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:500;background:#fff;border:1px solid var(--color-border-secondary);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.18);max-height:280px;overflow-y:auto">
+              <div style="padding:8px;position:sticky;top:0;background:#fff;border-bottom:0.5px solid var(--color-border-tertiary)">
+                <input type="search" id="rep-selector-buscar" placeholder="Buscar..." oninput="filtrarRepSelector()" autocomplete="new-password"
+                  style="width:100%;padding:7px 10px;border:0.5px solid var(--color-border-tertiary);border-radius:8px;font-size:13px;outline:none">
+              </div>
+              <div id="rep-selector-lista"></div>
+            </div>
+          </div>
+
+          <!-- Exportar -->
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <button onclick="exportarReporteExcel()" class="btn-exportar-rep"><i class="ti ti-file-spreadsheet" aria-hidden="true"></i> Excel</button>
+            <button onclick="exportarReportePDF()" class="btn-exportar-rep"><i class="ti ti-printer" aria-hidden="true"></i> PDF</button>
+          </div>
+
+          <!-- Contenido del reporte -->
+          <div id="rep-contenido"></div>
+        </section>
+
+        <!-- ANÁLISIS -->
+        <section id="seccion-analisis" class="seccion" style="display:none">
+          <div class="seccion-header"><h2>Análisis</h2></div>
+          <div class="an-tabs">
+            <button class="an-tab activa" id="an-tab-general" onclick="setAnVista('general')">General</button>
+            <button class="an-tab" id="an-tab-cliente" onclick="setAnVista('cliente')">Por cliente</button>
+            <select id="an-cliente-sel" style="display:none" onchange="cargarAnalisis()"></select>
+          </div>
+          <div id="an-contenido"></div>
+        </section>
+
+        <!-- USUARIOS -->
+        <section id="seccion-usuarios" class="seccion" style="display:none">
+          <div class="seccion-header">
+            <h2>Usuarios</h2>
+          </div>
+
+          <div class="pedidos-pestanas" style="margin-bottom:16px">
+            <button class="ped-pestana activa" id="usr-pest-pendientes" onclick="cambiarPestanaUsuarios('pendientes')">
+              Pendientes <span class="ped-pest-badge" id="usr-badge-pendientes" style="display:none">0</span>
+            </button>
+            <button class="ped-pestana" id="usr-pest-activos" onclick="cambiarPestanaUsuarios('activos')">
+              Activos <span class="ped-pest-badge" id="usr-badge-activos" style="background:#1d9e75;display:none">0</span>
+            </button>
+          </div>
+
+          <div id="usr-tab-pendientes"></div>
+          <div id="usr-tab-activos" style="display:none"></div>
+        </section>
+
+      </main>
+    </div>
+
+    <!-- ── BARRA DE NAVEGACIÓN INFERIOR (solo móvil) ── -->
+    <nav class="bottom-nav">
+      <button class="bottom-nav-btn activo" id="bnav-dashboard" onclick="navMovil('dashboard')">
+        <i class="ti ti-home" aria-hidden="true"></i>Inicio
+      </button>
+      <button class="bottom-nav-btn" id="bnav-pedidos" onclick="navMovil('pedidos')">
+        <i class="ti ti-clipboard-list" aria-hidden="true"></i>Pedidos
+      </button>
+      <button class="bottom-nav-btn" id="bnav-logistica" onclick="navMovil('logistica')">
+        <i class="ti ti-truck" aria-hidden="true"></i>Logística
+      </button>
+      <button class="bottom-nav-btn" id="bnav-cobranza" onclick="navMovil('cobranza')">
+        <i class="ti ti-wallet" aria-hidden="true"></i>Cobranza
+      </button>
+      <button class="bottom-nav-btn" id="bnav-mas" onclick="toggleMobileMore()">
+        <i class="ti ti-menu-2" aria-hidden="true"></i>Más
+        <span class="bottom-nav-badge" id="bnav-mas-badge" style="display:none"></span>
+      </button>
+    </nav>
+
+    <!-- Hoja "Más" -->
+    <div class="mobile-more-sheet" id="mobile-more-sheet">
+      <div style="width:36px;height:4px;background:var(--color-border-tertiary);border-radius:2px;margin:4px auto 10px"></div>
+      <div class="mobile-more-item" onclick="navMovil('problemas')">
+        <i class="ti ti-alert-hexagon" aria-hidden="true"></i> Reclamos
+        <span id="more-problemas-badge" style="display:none;background:#e24b4a;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 7px;margin-left:auto"></span>
+      </div>
+      <div class="mobile-more-item" onclick="navMovil('reportes')">
+        <i class="ti ti-chart-bar" aria-hidden="true"></i> Reportes
+      </div>
+      <div class="mobile-more-item" onclick="navMovil('clientes')">
+        <i class="ti ti-users" aria-hidden="true"></i> Clientes
+      </div>
+      <div class="mobile-more-item" onclick="navMovil('productos')">
+        <i class="ti ti-cheese" aria-hidden="true"></i> Productos
+      </div>
+      <div class="mobile-more-item" id="more-comisiones" onclick="navMovil('comisiones')">
+        <i class="ti ti-percentage" aria-hidden="true"></i> Comisiones
+      </div>
+      <div class="mobile-more-item" id="more-analisis" onclick="navMovil('analisis')">
+        <i class="ti ti-chart-histogram" aria-hidden="true"></i> Análisis
+      </div>
+      <div class="mobile-more-item" id="more-usuarios" onclick="navMovil('usuarios')">
+        <i class="ti ti-key" aria-hidden="true"></i> Usuarios
+        <span id="more-usuarios-badge" style="display:none;background:#e24b4a;color:white;border-radius:10px;font-size:11px;font-weight:700;padding:1px 7px;margin-left:auto"></span>
+      </div>
+    </div>
+  </div>
+
+          <!-- Modal confirmar recepción -->
+          <div id="modal-recibido"
+            style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;overflow-y:auto">
+            <div style="background:#ffffff;border-radius:var(--border-radius-lg);padding:24px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+              <h3 style="font-size:16px;font-weight:500;margin:0 0 6px">Confirmar recepción</h3>
+              <p style="font-size:13px;color:var(--color-text-secondary);margin:0 0 20px" id="mr-subtitulo">¿Cómo llegó el pedido?</p>
+
+              <div style="display:flex;gap:10px;margin-bottom:20px">
+                <button id="mr-btn-ok" onclick="seleccionarEstadoRecepcion('ok')"
+                  style="flex:1;padding:16px;border-radius:10px;border:2px solid #e0e0e0;background:white;cursor:pointer;font-size:14px;font-weight:500;display:flex;flex-direction:column;align-items:center;gap:8px">
+                  <i class="ti ti-circle-check" style="font-size:28px;color:#1d9e75" aria-hidden="true"></i>
+                  Todo en orden
+                </button>
+                <button id="mr-btn-problema" onclick="seleccionarEstadoRecepcion('problema')"
+                  style="flex:1;padding:16px;border-radius:10px;border:2px solid #e0e0e0;background:white;cursor:pointer;font-size:14px;font-weight:500;display:flex;flex-direction:column;align-items:center;gap:8px">
+                  <i class="ti ti-alert-triangle" style="font-size:28px;color:#ba7517" aria-hidden="true"></i>
+                  Hubo un problema
+                </button>
+              </div>
+
+              <div id="mr-campo-problema" style="display:none;margin-bottom:16px">
+                <label style="font-size:13px;font-weight:500;display:block;margin-bottom:6px">¿Qué pasó? <span style="color:#e24b4a">*</span></label>
+                <textarea id="mr-descripcion" rows="3"
+                  placeholder="Ej: Faltaron 2 cajas de crema, llegó roto el pote x200cc..."
+                  style="width:100%;padding:10px;border:0.5px solid var(--color-border-tertiary);border-radius:8px;font-size:13px;resize:vertical"></textarea>
+              </div>
+
+              <div class="campo" style="margin-bottom:16px">
+                <label>Foto de la recepción (opcional)</label>
+                <input type="file" id="mr-foto" accept="image/*">
+              </div>
+
+              <div id="mr-error" class="error-msg" style="display:none;margin-bottom:12px"></div>
+
+              <div style="display:flex;gap:10px">
+                <button onclick="cerrarModalRecibido()" class="btn-cancelar" style="flex:1">Cancelar</button>
+                <button id="mr-btn-confirmar" onclick="confirmarRecepcion()"
+                  class="btn-guardar-inline" style="flex:2">
+                  Confirmar recepción
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal cobro rápido -->
+          <div id="modal-cobro" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;overflow-y:auto">
+            <div style="background:#ffffff;border-radius:var(--border-radius-lg);padding:24px;max-width:440px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <h3 style="font-size:16px;font-weight:500;margin:0" id="modal-cobro-titulo">Registrar cobro</h3>
+                <button onclick="cerrarModalCobro()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--color-text-secondary)">✕</button>
+              </div>
+              <div id="modal-cobro-info" style="background:var(--color-background-secondary);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px"></div>
+              <div class="campo">
+                <label>Forma de pago</label>
+                <select id="mc-medio">
+                  <option value="efectivo">💵 Efectivo</option>
+                  <option value="transferencia">🏦 Transferencia</option>
+                  <option value="cheque">📋 Cheque</option>
+                  <option value="echeq">📱 Echeq</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label>Monto</label>
+                <div class="input-con-sufijo"><span>$</span><input type="number" id="mc-monto" placeholder="0.00"></div>
+              </div>
+              <div id="mc-campo-cheque" style="display:none" class="campo">
+                <label>Vencimiento del cheque</label>
+                <input type="date" id="mc-fecha-cheque">
+              </div>
+              <div class="campo">
+                <label>Comprobante (foto)</label>
+                <input type="file" id="mc-foto" accept="image/*">
+              </div>
+              <div class="campo">
+                <label>Nota (opcional)</label>
+                <input type="text" id="mc-nota" placeholder="Referencia, banco...">
+              </div>
+              <div id="mc-error" class="error-msg" style="display:none"></div>
+              <div style="display:flex;gap:10px;margin-top:16px">
+                <button onclick="cerrarModalCobro()" class="btn-cancelar" style="flex:1">Cancelar</button>
+                <button onclick="guardarCobroRapido()" class="btn-guardar-inline" style="flex:2">✅ Registrar cobro</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal EDITAR COBRO (admin/empresa) -->
+          <div id="modal-editar-cobro" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;overflow-y:auto">
+            <div style="background:#ffffff;border-radius:var(--border-radius-lg);padding:24px;max-width:440px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                <h3 style="font-size:16px;font-weight:500;margin:0">Editar cobro</h3>
+                <button onclick="cerrarEditarCobro()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--color-text-secondary)">✕</button>
+              </div>
+              <div class="campo">
+                <label>Forma de pago</label>
+                <select id="ec-medio">
+                  <option value="efectivo">💵 Efectivo</option>
+                  <option value="transferencia">🏦 Transferencia</option>
+                  <option value="cheque">📋 Cheque</option>
+                  <option value="echeq">📱 Echeq</option>
+                </select>
+              </div>
+              <div class="campo">
+                <label>Monto</label>
+                <div class="input-con-sufijo"><span>$</span><input type="number" id="ec-monto" placeholder="0.00"></div>
+              </div>
+              <div class="campo">
+                <label>Comprobante (foto) — dejar vacío para mantener el actual</label>
+                <input type="file" id="ec-foto" accept="image/*">
+                <div id="ec-foto-actual" style="font-size:12px;color:var(--color-text-tertiary);margin-top:4px"></div>
+              </div>
+              <div class="campo">
+                <label>Nota (opcional)</label>
+                <input type="text" id="ec-nota" placeholder="Referencia, banco...">
+              </div>
+              <div id="ec-error" class="error-msg" style="display:none"></div>
+              <div style="display:flex;gap:10px;margin-top:16px">
+                <button onclick="cerrarEditarCobro()" class="btn-cancelar" style="flex:1">Cancelar</button>
+                <button onclick="guardarEdicionCobro()" class="btn-guardar-inline" style="flex:2">Guardar cambios</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="modal-clientes-usuario" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box" onclick="if(event.target===this)cerrarClientesUsuario()">
+            <div style="background:#fff;border-radius:14px;width:460px;max-width:100%;max-height:85vh;overflow-y:auto;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,0.35)" onclick="event.stopPropagation()">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+                <h3 style="font-size:16px;font-weight:600;margin:0;color:var(--color-marca-oscuro)" id="clie-usr-titulo">Clientes</h3>
+                <button onclick="cerrarClientesUsuario()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--color-text-secondary)">✕</button>
+              </div>
+              <div id="clie-usr-lista"></div>
+              <div id="clie-usr-acciones" style="display:none;margin-top:16px;border-top:0.5px solid var(--color-border-tertiary);padding-top:14px">
+                <label style="font-size:12px;color:var(--color-text-secondary);display:block;margin-bottom:6px">Reasignar seleccionados a:</label>
+                <select id="clie-usr-destino" style="width:100%;border:0.5px solid var(--color-border-tertiary);border-radius:8px;padding:9px;font-size:13px;margin-bottom:12px"></select>
+                <button onclick="reasignarClientesSeleccionados()" class="btn-guardar-inline" style="width:100%">
+                  <i class="ti ti-arrows-exchange" aria-hidden="true"></i> Reasignar seleccionados
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="modal-reclamo" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;overflow-y:auto">
+            <div style="background:#fff;border-radius:14px;width:460px;max-width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,0.2)" onclick="event.stopPropagation()">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+                <h3 style="font-size:16px;font-weight:600;margin:0;color:var(--color-marca-oscuro)" id="reclamo-titulo">Cargar un reclamo</h3>
+                <button onclick="cerrarModalReclamo()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--color-text-secondary)">✕</button>
+              </div>
+
+              <!-- Barra de pasos -->
+              <div id="reclamo-pasos" style="display:flex;gap:6px;align-items:center;font-size:11px;color:var(--color-text-tertiary);margin-bottom:16px">
+                <span class="rec-paso" data-paso="1">1 · Tipo</span>
+                <i class="ti ti-chevron-right" style="font-size:12px" aria-hidden="true"></i>
+                <span class="rec-paso" data-paso="2">2 · Motivo</span>
+                <i class="ti ti-chevron-right" style="font-size:12px" aria-hidden="true"></i>
+                <span class="rec-paso" data-paso="3">3 · Pedido y detalle</span>
+              </div>
+
+              <!-- PASO 1: Tipo -->
+              <div id="reclamo-step-1">
+                <div style="font-size:13px;font-weight:500;margin-bottom:12px">¿Qué tipo de reclamo querés cargar?</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+                  <button class="rec-tipo-card" onclick="reclamoElegirTipo('problema_recepcion')" style="border:0.5px solid var(--color-border-secondary);background:#fff;border-radius:10px;padding:16px 8px;text-align:center;cursor:pointer">
+                    <div style="font-size:26px">📦</div>
+                    <div style="font-size:13px;font-weight:600;margin-top:6px">Recepción</div>
+                    <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px">al recibir</div>
+                  </button>
+                  <button class="rec-tipo-card" onclick="reclamoElegirTipo('problema_producto')" style="border:0.5px solid var(--color-border-secondary);background:#fff;border-radius:10px;padding:16px 8px;text-align:center;cursor:pointer">
+                    <div style="font-size:26px">⚠️</div>
+                    <div style="font-size:13px;font-weight:600;margin-top:6px">Producto</div>
+                    <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px">apareció después</div>
+                  </button>
+                  <button class="rec-tipo-card" onclick="reclamoElegirTipo('problema_cobranza')" style="border:0.5px solid var(--color-border-secondary);background:#fff;border-radius:10px;padding:16px 8px;text-align:center;cursor:pointer">
+                    <div style="font-size:26px">💰</div>
+                    <div style="font-size:13px;font-weight:600;margin-top:6px">Cobranza</div>
+                    <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:2px">factura / pago</div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- PASO 2: Motivo -->
+              <div id="reclamo-step-2" style="display:none">
+                <div style="font-size:13px;font-weight:500;margin-bottom:12px">Elegí el motivo</div>
+                <div id="reclamo-motivos" style="display:flex;flex-direction:column;gap:8px"></div>
+                <div style="display:flex;gap:8px;margin-top:18px">
+                  <button onclick="reclamoVolverPaso(1)" class="btn-cancelar" style="flex:1">← Volver</button>
+                </div>
+              </div>
+
+              <!-- PASO 3: Pedido + detalle -->
+              <div id="reclamo-step-3" style="display:none">
+                <div style="font-size:13px;font-weight:500;margin-bottom:8px">Elegí el pedido</div>
+                <div id="reclamo-pedidos" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;max-height:160px;overflow-y:auto"></div>
+
+                <div class="campo"><label>Descripción *</label>
+                  <textarea id="reclamo-desc" rows="2" placeholder="Describí el problema..."></textarea></div>
+
+                <div class="campo"><label>Foto / adjunto * (obligatorio)</label>
+                  <input type="file" id="reclamo-foto" accept="image/*,application/pdf"></div>
+
+                <div style="display:flex;gap:8px;margin-top:14px">
+                  <button onclick="reclamoVolverPaso(2)" class="btn-cancelar" style="flex:1">← Volver</button>
+                  <button onclick="confirmarReclamo()" id="reclamo-btn" class="btn-guardar-inline" style="flex:2"><i class="ti ti-send" aria-hidden="true"></i> Enviar reclamo</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal OBSERVACIONES DEL ENVÍO -->
+          <div id="modal-envio-obs" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;overflow-y:auto">
+            <div style="background:#fff;border-radius:14px;width:420px;max-width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,0.2)" onclick="event.stopPropagation()">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <h3 style="font-size:16px;font-weight:600;margin:0;color:var(--color-marca-oscuro)">Confirmar envío</h3>
+                <button onclick="cerrarModalEnvioObs()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--color-text-secondary)">✕</button>
+              </div>
+              <div style="font-size:13px;color:var(--color-text-tertiary);margin-bottom:16px">El pedido va a salir. Podés agregar una observación (la verá el cliente).</div>
+
+              <div class="campo"><label>Observaciones del envío (opcional)</label>
+                <textarea id="me-observaciones" rows="3" placeholder="Ej: Se entrega después de las 14hs, llamar antes de llegar..."></textarea></div>
+
+              <div style="display:flex;gap:8px;margin-top:18px">
+                <button onclick="cerrarModalEnvioObs()" class="btn-cancelar" style="flex:1">Cancelar</button>
+                <button onclick="confirmarEnvioConObs()" class="btn-guardar-inline" style="flex:1"><i class="ti ti-truck" aria-hidden="true"></i> Confirmar envío</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal INFORMAR PAGO (cliente) -->
+          <div id="modal-informar-pago" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:2000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;overflow-y:auto">
+            <div style="background:#fff;border-radius:14px;width:420px;max-width:100%;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,0.2)" onclick="event.stopPropagation()">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <h3 style="font-size:16px;font-weight:600;margin:0;color:var(--color-marca-oscuro)">Informar un pago</h3>
+                <button onclick="cerrarInformarPago()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--color-text-secondary)">✕</button>
+              </div>
+              <div style="font-size:13px;color:var(--color-text-tertiary);margin-bottom:16px" id="ip-pedido-nombre"></div>
+
+              <div class="campo"><label>Monto del pago</label>
+                <input type="number" id="ip-monto" placeholder="0" step="0.01"></div>
+
+              <div class="campo"><label>Medio de pago</label>
+                <select id="ip-medio" onchange="toggleOrdenPago()">
+                  <option value="transferencia">Transferencia</option>
+                  <option value="cheque">Cheque</option>
+                  <option value="echeq">eCheq</option>
+                  <option value="efectivo">Efectivo</option>
+                </select></div>
+
+              <div class="campo" id="ip-orden-wrap"><label>Número de orden de pago (si corresponde)</label>
+                <input type="text" id="ip-orden" placeholder="Opcional"></div>
+
+              <div class="campo"><label>Comprobante (foto o PDF)</label>
+                <input type="file" id="ip-archivo" accept="image/*,application/pdf"></div>
+
+              <div style="display:flex;gap:8px;margin-top:18px">
+                <button onclick="cerrarInformarPago()" class="btn-cancelar" style="flex:1">Cancelar</button>
+                <button onclick="confirmarInformarPago()" id="ip-btn-confirmar" class="btn-guardar-inline" style="flex:1">✅ Informar pago</button>
+              </div>
+            </div>
+          </div>
+
+
+          <div id="modal-detalle-cob"
+            style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center"
+            onclick="if(event.target===this)cerrarDetalleCob()">
+            <div class="mdc-panel" style="background:#ffffff;width:560px;max-width:calc(100% - 32px);max-height:90vh;overflow-y:auto;border-radius:14px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,0.35)" onclick="event.stopPropagation()">
+              <button onclick="cerrarDetalleCob()" class="btn-volver" style="margin-bottom:14px">← Volver</button>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+                <h3 id="mdc-titulo" style="font-size:18px;font-weight:500;margin:0">Pedido #</h3>
+                <div style="display:flex;gap:8px">
+                  <button onclick="abrirPDFDesdeCobranza()" class="btn-secundario" style="font-size:13px;padding:7px 14px">
+                    <i class="ti ti-file-download" aria-hidden="true"></i> PDF
+                  </button>
+                  <button onclick="cerrarDetalleCob()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--color-text-secondary)">✕</button>
+                </div>
+              </div>
+
+              <div class="mdc-grid">
+                <div class="mdc-col">
+                  <!-- Info cliente -->
+                  <div id="mdc-cliente" class="form-card" style="margin-bottom:16px"></div>
+
+                  <!-- Productos -->
+                  <div class="form-card" style="margin-bottom:16px">
+                    <div class="form-seccion">PRODUCTOS</div>
+                    <div id="mdc-productos"></div>
+                  </div>
+                </div>
+
+                <div class="mdc-col">
+                  <!-- Documentos -->
+                  <div class="form-card" style="margin-bottom:16px">
+                    <div class="form-seccion">FACTURA / DOCUMENTOS</div>
+                    <div id="mdc-documentos"></div>
+                  </div>
+
+                  <!-- Cobros con fotos -->
+                  <div class="form-card" style="margin-bottom:16px">
+                    <div class="form-seccion">COBROS RECIBIDOS</div>
+                    <div id="mdc-cobros"></div>
+                  </div>
+
+                  <!-- Línea de tiempo -->
+                  <div class="form-card" style="margin-bottom:16px">
+                    <div class="form-seccion">LÍNEA DE TIEMPO</div>
+                    <div id="mdc-historial"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Botón cobrar si pendiente -->
+              <div id="mdc-btn-cobrar"></div>
+            </div>
+          </div>
+
+
+  <!-- Cartel de aviso / confirmación con estilo del sistema -->
+  <div id="modal-aviso" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:5000;align-items:center;justify-content:center;padding:20px;box-sizing:border-box">
+    <div style="background:#fff;border-radius:14px;width:330px;max-width:100%;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,0.25);text-align:center">
+      <div id="aviso-icono-wrap" style="width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
+        <i id="aviso-icono" class="ti ti-info-circle" style="font-size:24px" aria-hidden="true"></i>
+      </div>
+      <div id="aviso-mensaje" style="font-size:14px;color:var(--color-text-primary);margin-bottom:18px;line-height:1.4"></div>
+      <div id="aviso-botones" style="display:flex;gap:10px"></div>
+    </div>
+  </div>
+
+  <script src="app.js?v=71"></script>
+</body>
+</html>
