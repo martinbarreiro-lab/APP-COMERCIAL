@@ -1943,6 +1943,11 @@ async function abrirPedido(id) {
           <i class="ti ti-truck" aria-hidden="true"></i> Marcar como enviado
         </button>` : ''}
 
+      ${etapaActual3 === 'enviado' && esAdmin3 ? `
+        <button onclick="marcarRecibido('${id}')" class="btn-enviado">
+          <i class="ti ti-circle-check" aria-hidden="true"></i> Confirmar recepción
+        </button>` : ''}
+
       ${!['cobrado','cancelado'].includes(etapaActual3) && (esAdmin3 || esVendedor3) ? `
         <button onclick="cancelarPedido('${id}')" class="btn-cancelar"><i class="ti ti-ban" aria-hidden="true"></i> Cancelar</button>
       ` : ''}
@@ -2796,9 +2801,10 @@ let _recibidoPedidoId = null
 let _recibidoEstado   = null
 
 function marcarRecibido(pedidoId) {
-  // Solo el cliente puede confirmar la recepción
-  if (rolUsuarioActual !== 'cliente') {
-    avisar('Solo el cliente puede confirmar la recepción del pedido.')
+  // El cliente confirma su propia recepción; admin/empresa pueden confirmarla
+  // en su nombre cuando el cliente se olvida.
+  if (rolUsuarioActual !== 'cliente' && rolUsuarioActual !== 'admin' && rolUsuarioActual !== 'empresa') {
+    avisar('No tenés permiso para confirmar la recepción de este pedido.')
     return
   }
   _recibidoPedidoId = pedidoId
@@ -2905,9 +2911,11 @@ async function confirmarRecepcion() {
   }
 
   // Registrar en historial con todos los datos
+  const porAdmin = rolUsuarioActual === 'admin' || rolUsuarioActual === 'empresa'
+  const sufijoAdmin = porAdmin ? ' (confirmada por la empresa)' : ''
   const detalleHistorial = todoOk
-    ? `✅ Recepción confirmada — Todo en orden${fotoUrl ? ` | foto: ${fotoUrl}` : ''}`
-    : `⚠️ Problema en recepción: ${descripcion}${fotoUrl ? ` | foto: ${fotoUrl}` : ''}`
+    ? `✅ Recepción confirmada — Todo en orden${sufijoAdmin}${fotoUrl ? ` | foto: ${fotoUrl}` : ''}`
+    : `⚠️ Problema en recepción: ${descripcion}${sufijoAdmin}${fotoUrl ? ` | foto: ${fotoUrl}` : ''}`
 
   await db.from('historial_pedido').insert({
     pedido_id:  pedidoIdCopy,
