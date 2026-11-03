@@ -1043,9 +1043,10 @@ async function abrirFichaCliente(id) {
     </button>` : ''
   document.getElementById('contenido-ficha-cliente').innerHTML = `
     ${botonObjetivoFicha}
-    <div style="display:flex;gap:6px;margin-bottom:14px">
+    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
       <button id="ficha-tab-datos" class="ficha-tab activo" onclick="cambiarTabFicha('datos')"><i class="ti ti-user" aria-hidden="true"></i> Datos</button>
       <button id="ficha-tab-historial" class="ficha-tab" onclick="cambiarTabFicha('historial')"><i class="ti ti-history" aria-hidden="true"></i> Historial</button>
+      <button id="ficha-tab-cuenta" class="ficha-tab" onclick="cambiarTabFicha('cuenta')"><i class="ti ti-report-money" aria-hidden="true"></i> Estado de cuenta</button>
     </div>
 
     <div id="ficha-panel-datos">
@@ -1083,6 +1084,10 @@ async function abrirFichaCliente(id) {
           </div>
         </div>
       </div>
+    </div>
+
+    <div id="ficha-panel-cuenta" style="display:none">
+      <div id="estado-cuenta-cont"><p class="vacio">Cargando...</p></div>
     </div>`
 }
 
@@ -1094,12 +1099,191 @@ function abrirPedidoDesdeCliente(id) {
 
 // Cambiar entre las solapas Datos / Historial de la ficha del cliente
 function cambiarTabFicha(tab) {
-  const esDatos = tab === 'datos'
-  document.getElementById('ficha-panel-datos').style.display = esDatos ? 'block' : 'none'
-  document.getElementById('ficha-panel-historial').style.display = esDatos ? 'none' : 'block'
-  document.getElementById('ficha-tab-datos').classList.toggle('activo', esDatos)
-  document.getElementById('ficha-tab-historial').classList.toggle('activo', !esDatos)
-  if (!esDatos) cargarHistorialCliente()
+  document.getElementById('ficha-panel-datos').style.display     = tab === 'datos' ? 'block' : 'none'
+  document.getElementById('ficha-panel-historial').style.display = tab === 'historial' ? 'block' : 'none'
+  document.getElementById('ficha-panel-cuenta').style.display    = tab === 'cuenta' ? 'block' : 'none'
+  document.getElementById('ficha-tab-datos').classList.toggle('activo', tab === 'datos')
+  document.getElementById('ficha-tab-historial').classList.toggle('activo', tab === 'historial')
+  document.getElementById('ficha-tab-cuenta').classList.toggle('activo', tab === 'cuenta')
+  if (tab === 'historial') cargarHistorialCliente()
+  if (tab === 'cuenta') cargarEstadoCuenta()
+}
+
+// ── ESTADO DE CUENTA DEL CLIENTE ──────────────────
+// Junta los pedidos pendientes de cobro con sus fechas de vencimiento.
+async function _datosEstadoCuenta(clienteId) {
+  const { data: cli } = await db.from('clientes').select('razon_social, cuit, telefono, dias_vencimiento').eq('id', clienteId).single()
+  const { data: pedidos } = await db.from('pedidos')
+    .select('numero, total, monto_cobrado, fecha_pedido, fecha_vencimiento_cobro, estado_cobro, etapa')
+    .eq('cliente_id', clienteId)
+    .neq('estado', 'cancelado')
+    .in('etapa', ['facturado', 'enviado', 'recibido', 'cobrado'])
+    .or('estado_cobro.is.null,estado_cobro.eq.pendiente,estado_cobro.eq.parcial')
+    .order('fecha_vencimiento_cobro', { ascending: true })
+
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
+  const filas = []
+  ;(pedidos || []).forEach(p => {
+    const pendiente = Number(p.total) - Number(p.monto_cobrado || 0)
+    if (pendiente <= 0.01) return  // ya está pago
+    let diasVenc = null, estado = 'sin fecha', color = '#888'
+    if (p.fecha_vencimiento_cobro) {
+      const fv = new Date(p.fecha_vencimiento_cobro + 'T00:00:00')
+      diasVenc = Math.round((fv - hoy) / 86400000)
+      if (diasVenc < 0)       { estado = `Vencido hace ${-diasVenc} día${-diasVenc !== 1 ? 's' : ''}`; color = '#c0392b' }
+      else if (diasVenc === 0){ estado = 'Vence hoy'; color = '#ba7517' }
+      else if (diasVenc <= 3) { estado = `Vence en ${diasVenc} día${diasVenc !== 1 ? 's' : ''}`; color = '#ba7517' }
+      else                    { estado = `Vence en ${diasVenc} días`; color = '#1d8f6a' }
+    }
+    filas.push({
+      numero: p.numero, fecha: p.fecha_pedido, venc: p.fecha_vencimiento_cobro,
+      total: Number(p.total), cobrado: Number(p.monto_cobrado || 0), pendiente,
+      diasVenc, estado, color, parcial: p.estado_cobro === 'parcial'
+    })
+  })
+
+  const totalDeuda = filas.reduce((s, f) => s + f.pendiente, 0)
+  const totalVencido = filas.filter(f => f.diasVenc !== null && f.diasVenc < 0).reduce((s, f) => s + f.pendiente, 0)
+  return { cli, filas, totalDeuda, totalVencido }
+}
+
+async function cargarEstadoCuenta() {
+  const cont = document.getElementById('estado-cuenta-cont')
+  if (!cont || !clienteEditandoId) return
+  cont.innerHTML = '<p class="vacio">Cargando...</p>'
+  const { cli, filas, totalDeuda, totalVencido } = await _datosEstadoCuenta(clienteEditandoId)
+
+  if (filas.length === 0) {
+    cont.innerHTML = `
+      <div class="form-card" style="text-align:center;padding:30px 20px">
+        <i class="ti ti-circle-check" style="font-size:32px;color:#1d9e75;display:block;margin-bottom:8px"></i>
+        <div style="font-weight:600;color:#1d8f6a">${cli?.razon_social || 'El cliente'} está al día</div>
+        <div style="font-size:13px;color:var(--color-text-tertiary);margin-top:4px">No tiene pedidos pendientes de cobro</div>
+      </div>`
+    return
+  }
+
+  cont.innerHTML = `
+    <div class="form-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:11px;color:var(--color-text-tertiary)">Total adeudado</div>
+          <div style="font-size:24px;font-weight:700;color:#c0392b">${fmtM(totalDeuda)}</div>
+          ${totalVencido > 0 ? `<div style="font-size:12px;color:#c0392b"><i class="ti ti-alert-circle"></i> Vencido: ${fmtM(totalVencido)}</div>` : '<div style="font-size:12px;color:#1d8f6a">Nada vencido todavía</div>'}
+        </div>
+        <button onclick="estadoCuentaPDF()" class="btn-secundario" style="font-size:13px;padding:9px 14px"><i class="ti ti-file-download" aria-hidden="true"></i> Estado de cuenta PDF</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="ec-tabla">
+          <thead><tr><th>Pedido</th><th>Fecha</th><th>Vence</th><th>Pendiente</th><th>Estado</th></tr></thead>
+          <tbody>
+            ${filas.map(f => `<tr>
+              <td class="l"><b>#${f.numero}</b></td>
+              <td>${formatFecha(f.fecha)}</td>
+              <td>${f.venc ? formatFecha(f.venc) : '-'}</td>
+              <td class="r"><b>${fmtM(f.pendiente)}</b>${f.parcial ? `<br><span style="font-size:10px;color:var(--color-text-tertiary)">de ${fmtM(f.total)}</span>` : ''}</td>
+              <td class="r" style="color:${f.color};font-weight:600;font-size:12px">${f.estado}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`
+}
+
+async function estadoCuentaPDF() {
+  if (!clienteEditandoId) return
+  const { cli, filas, totalDeuda, totalVencido } = await _datosEstadoCuenta(clienteEditandoId)
+  if (filas.length === 0) { avisar('El cliente no tiene deuda pendiente', 'info'); return }
+
+  const hoyStr = new Date().toLocaleDateString('es-AR')
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Estado de cuenta — ${cli?.razon_social || ''}</title>
+  <style>
+    * { box-sizing:border-box; }
+    body { font-family:'Segoe UI', Arial, sans-serif; color:#222; margin:0; padding:32px; max-width:780px; font-size:13px; }
+    .head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #0d8fd1; padding-bottom:16px; margin-bottom:20px; }
+    .head h1 { font-size:20px; color:#0c447c; margin:0 0 2px; }
+    .head .coop { font-size:12px; color:#666; }
+    .head-r { text-align:right; }
+    .head-r .t { font-size:16px; font-weight:bold; color:#0d8fd1; }
+    .head-r .f { font-size:11px; color:#888; margin-top:2px; }
+    .box { background:#f7f9fb; border-radius:8px; padding:12px 16px; margin-bottom:18px; }
+    .box .fila { display:flex; justify-content:space-between; padding:2px 0; font-size:12px; }
+    .box .fila span:first-child { color:#888; }
+    table { width:100%; border-collapse:collapse; font-size:12px; }
+    th { background:#0d8fd1; color:#fff; padding:9px 10px; text-align:left; font-size:11px; }
+    th.r, td.r { text-align:right; }
+    td { padding:8px 10px; border-bottom:1px solid #eee; }
+    tbody tr:nth-child(even) { background:#f7f9fb; }
+    .tot { margin-top:16px; margin-left:auto; width:300px; }
+    .tot .fila { display:flex; justify-content:space-between; padding:5px 0; font-size:13px; border-bottom:1px solid #f0f0f0; }
+    .tot .total { font-size:17px; font-weight:bold; color:#c0392b; border-top:2px solid #0d8fd1; border-bottom:none; padding-top:8px; }
+    .footer { margin-top:30px; padding-top:14px; border-top:1px solid #eee; font-size:10px; color:#aaa; text-align:center; }
+  </style></head><body>
+    <div class="head">
+      <div><h1>La Cabaña</h1><div class="coop">Cooperativa de Trabajo</div></div>
+      <div class="head-r"><div class="t">Estado de cuenta</div><div class="f">${hoyStr}</div></div>
+    </div>
+    <div class="box">
+      <div class="fila"><span>Cliente</span><span><b>${cli?.razon_social || '-'}</b></span></div>
+      <div class="fila"><span>CUIT</span><span>${cli?.cuit || '-'}</span></div>
+      <div class="fila"><span>Condición de pago</span><span>${cli?.dias_vencimiento || 0} días desde entrega</span></div>
+    </div>
+    <table>
+      <thead><tr><th>Pedido</th><th>Fecha</th><th>Vencimiento</th><th class="r">Pendiente</th><th class="r">Estado</th></tr></thead>
+      <tbody>
+        ${filas.map(f => `<tr>
+          <td><b>#${f.numero}</b></td>
+          <td>${formatFecha(f.fecha)}</td>
+          <td>${f.venc ? formatFecha(f.venc) : '-'}</td>
+          <td class="r"><b>$${f.pendiente.toLocaleString('es-AR')}</b>${f.parcial ? `<br><span style="font-size:9px;color:#999">pago parcial de $${f.total.toLocaleString('es-AR')}</span>` : ''}</td>
+          <td class="r" style="color:${f.color};font-weight:bold">${f.estado}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <div class="tot">
+      ${totalVencido > 0 ? `<div class="fila"><span>Vencido</span><span style="color:#c0392b;font-weight:bold">$${totalVencido.toLocaleString('es-AR')}</span></div>` : ''}
+      <div class="fila total"><span>TOTAL ADEUDADO</span><span>$${totalDeuda.toLocaleString('es-AR')}</span></div>
+    </div>
+    <div class="footer">La Cabaña — Cooperativa de Trabajo · Estado de cuenta generado el ${new Date().toLocaleString('es-AR')}</div>
+  </body></html>`
+
+  const nombre = `Estado-cuenta-${(cli?.razon_social || 'cliente').replace(/\s+/g, '-')}.pdf`
+
+  // Sin librerías: abrir ventana para imprimir
+  if (!window.jspdf || !window.html2canvas) {
+    const v = window.open('', '_blank'); v.document.write(html); v.document.close()
+    return
+  }
+  avisar('Generando PDF...', 'info')
+  const contPDF = document.createElement('div')
+  contPDF.style.cssText = 'position:fixed;left:-9999px;top:0;width:780px;background:#fff;'
+  const bodyMatch = html.match(/<body>([\s\S]*?)<\/body>/i)
+  const styleMatch = html.match(/<style>([\s\S]*?)<\/style>/i)
+  contPDF.innerHTML = (styleMatch ? '<style>' + styleMatch[1] + '</style>' : '') + (bodyMatch ? bodyMatch[1] : html)
+  document.body.appendChild(contPDF)
+  try {
+    const canvas = await html2canvas(contPDF, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
+    const { jsPDF } = window.jspdf
+    const pdf = new jsPDF('p', 'mm', 'a4')
+    const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight()
+    const imgW = pw, imgH = (canvas.height * imgW) / canvas.width
+    let heightLeft = imgH, position = 0
+    const imgData = canvas.toDataURL('image/jpeg', 0.92)
+    pdf.addImage(imgData, 'JPEG', 0, position, imgW, imgH); heightLeft -= ph
+    while (heightLeft > 0) { position -= ph; pdf.addPage(); pdf.addImage(imgData, 'JPEG', 0, position, imgW, imgH); heightLeft -= ph }
+    const blob = pdf.output('blob')
+    const file = new File([blob], nombre, { type: 'application/pdf' })
+    document.getElementById('modal-aviso').style.display = 'none'
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: `Estado de cuenta — ${cli?.razon_social || ''}` }) } catch (e) {}
+    } else {
+      const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = nombre; a.click(); URL.revokeObjectURL(url)
+    }
+  } catch (e) {
+    avisar('No se pudo generar el PDF: ' + e.message)
+  } finally {
+    document.body.removeChild(contPDF)
+  }
 }
 
 let _histPedidosCache = []
