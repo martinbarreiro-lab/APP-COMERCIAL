@@ -2497,6 +2497,19 @@ async function subirDocumento() {
     created_at: fechaDocISO
   }
   await db.from('documentos_pedido').insert(docData)
+
+  // Si el documento es una FACTURA, el vencimiento del cobro se cuenta desde
+  // la fecha de la factura + los días de vencimiento del cliente.
+  if (tipo.startsWith('factura')) {
+    const { data: ped } = await db.from('pedidos').select('clientes(dias_vencimiento)').eq('id', pedidoActualId).single()
+    const dias = Number(ped?.clientes?.dias_vencimiento) || 0
+    if (dias > 0) {
+      const baseStr = fechaDoc || hoyStr
+      const nuevoVenc = new Date(new Date(baseStr + 'T12:00:00').getTime() + dias * 86400000).toISOString().split('T')[0]
+      await db.from('pedidos').update({ fecha_vencimiento_cobro: nuevoVenc }).eq('id', pedidoActualId)
+    }
+  }
+
   await registrarHistorial(pedidoActualId, 'documento_subido', `Se subió ${labelTipoDoc(tipo)}`, fechaDocISO)
   cancelarSubirDocumento()
   await abrirPedido(pedidoActualId)
