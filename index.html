@@ -274,8 +274,8 @@
               <div id="form-subir-documento" style="display:none" class="form-inline">
                 <div class="campo"><label>Tipo</label><select id="tipo-documento"><option value="remito">Remito</option><option value="factura_a">Factura A</option><option value="factura_b">Factura B</option><option value="factura_c">Factura C</option></select></div>
                 <div class="campo"><label>Archivo (foto o PDF)</label><input type="file" id="archivo-documento" accept="image/*,application/pdf"></div>
+                <div class="campo"><label>Fecha del documento *</label><input type="date" id="fecha-documento"><small style="color:var(--color-text-tertiary);font-size:11px;display:block;margin-top:3px">Desde esta fecha se cuenta el vencimiento del cobro</small></div>
                 <div class="campo"><label>Nota (opcional)</label><input type="text" id="nota-documento" placeholder="Aclaración..."></div>
-                <div class="campo"><label>Fecha del documento</label><input type="date" id="fecha-documento"></div>
                 <div class="form-botones"><button class="btn-cancelar" onclick="cancelarSubirDocumento()">Cancelar</button><button class="btn-guardar-inline" onclick="subirDocumento()">📤 Subir</button></div>
               </div>
             </div>
@@ -1010,6 +1010,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=77"></script>
+  <script src="app.js?v=78"></script>
 </body>
 </html>
