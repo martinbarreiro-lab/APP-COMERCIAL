@@ -2473,7 +2473,12 @@ async function registrarHistorial(pedidoId, accion, detalle, fechaISO) {
   await db.from('historial_pedido').insert(row)
 }
 
-function abrirSubirDocumento() { document.getElementById('form-subir-documento').style.display = 'block' }
+function abrirSubirDocumento() {
+  document.getElementById('form-subir-documento').style.display = 'block'
+  // Precargar la fecha de hoy (obligatoria, pero editable)
+  const fd = document.getElementById('fecha-documento')
+  if (fd && !fd.value) fd.value = new Date().toISOString().split('T')[0]
+}
 function cancelarSubirDocumento() { document.getElementById('form-subir-documento').style.display = 'none' }
 
 async function subirDocumento() {
@@ -2482,6 +2487,7 @@ async function subirDocumento() {
   const nota    = document.getElementById('nota-documento').value.trim()
   const fechaDoc = document.getElementById('fecha-documento')?.value
   if (!archivo) { avisar('Seleccioná un archivo'); return }
+  if (!fechaDoc) { avisar('Poné la fecha del documento (factura o remito)'); return }
   const ext = archivo.name.split('.').pop()
   const nombre = `${pedidoActualId}/${tipo}_${Date.now()}.${ext}`
   const { error: uploadError } = await db.storage.from('documentos').upload(nombre, archivo, { upsert: true })
@@ -2498,14 +2504,20 @@ async function subirDocumento() {
   }
   await db.from('documentos_pedido').insert(docData)
 
-  // Si el documento es una FACTURA, el vencimiento del cobro se cuenta desde
-  // la fecha de la factura + los días de vencimiento del cliente.
-  if (tipo.startsWith('factura')) {
-    const { data: ped } = await db.from('pedidos').select('clientes(dias_vencimiento)').eq('id', pedidoActualId).single()
-    const dias = Number(ped?.clientes?.dias_vencimiento) || 0
-    if (dias > 0) {
-      const baseStr = fechaDoc || hoyStr
-      const nuevoVenc = new Date(new Date(baseStr + 'T12:00:00').getTime() + dias * 86400000).toISOString().split('T')[0]
+  // El vencimiento del cobro se cuenta desde la fecha del documento (remito o
+  // factura) + los días de vencimiento del cliente. Si hay factura, manda la
+  // factura: un remito no pisa el vencimiento cuando ya se cargó una factura.
+  const { data: ped } = await db.from('pedidos').select('clientes(dias_vencimiento)').eq('id', pedidoActualId).single()
+  const dias = Number(ped?.clientes?.dias_vencimiento) || 0
+  if (dias > 0) {
+    let aplicar = true
+    if (tipo === 'remito') {
+      const { data: facturas } = await db.from('documentos_pedido')
+        .select('id').eq('pedido_id', pedidoActualId).like('tipo', 'factura%').limit(1)
+      if (facturas && facturas.length > 0) aplicar = false
+    }
+    if (aplicar) {
+      const nuevoVenc = new Date(new Date(fechaDoc + 'T12:00:00').getTime() + dias * 86400000).toISOString().split('T')[0]
       await db.from('pedidos').update({ fecha_vencimiento_cobro: nuevoVenc }).eq('id', pedidoActualId)
     }
   }
